@@ -22,7 +22,7 @@ namespace TinCan
         bool reloading;
         GunKind kind = GunKind.Revolver;
 
-        public Vector2 Muzzle => barrelTip.position;
+        public Vector2 Muzzle => vox != null ? (Vector2)vox.Muzzle.position : (Vector2)barrelTip.position;
 
         public void Build()
         {
@@ -88,7 +88,17 @@ namespace TinCan
             Look.Quad("STrigger", new Vector2(0.06f, 0.04f), new Vector2(0.05f, 0.12f), dark, 44, side);
             side.gameObject.SetActive(false);
             root.localScale = Vector3.one * 1.35f;
+            // 복셀 총 (시제품): 도형 총 대신. 손가락 축 자리에 놓는다
+            if (UseVoxel)
+            {
+                vox = VoxelGun.Make(pivot);
+                vox.transform.localPosition = new Vector3(0.12f, -0.1f, 0f);
+                body.gameObject.SetActive(false);
+            }
         }
+
+        public bool UseVoxel = true;
+        VoxelGun vox;
 
         Transform side;
         float sideShow;     // 0 = 뒷면만, 1 = 옆면만 (사이는 납작하게 넘어가는 중)
@@ -122,7 +132,7 @@ namespace TinCan
 
         IEnumerator Flash(Vector2 aim, float kick)
         {
-            var tip = (Vector2)barrelTip.position;
+            var tip = Muzzle;
             var dir = (aim - tip).normalized;
             float size = 0.4f + kick * 0.25f;
             var f = Look.Quad("Muzzle", tip + dir * 0.15f, new Vector2(size, size), new Color(1f, 0.95f, 0.6f, 0.95f), 48);
@@ -203,7 +213,7 @@ namespace TinCan
         {
             for (int i = 0; i < n; i++)
             {
-                var s = Look.Quad("Shell", (Vector2)cylinder.position, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
+                var s = Look.Quad("Shell", vox != null ? (Vector2)vox.transform.position + Vector2.up * 0.4f : (Vector2)cylinder.position, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
                 var rb = s.gameObject.AddComponent<Rigidbody2D>();
                 rb.gravityScale = 2f;
                 // 돌던 방향으로 튕겨 나간다
@@ -247,6 +257,19 @@ namespace TinCan
             float lean = -Mathf.Sign(ang == 0f ? 1f : ang);
             pivot.localRotation = Quaternion.Euler(0f, 0f, ang + recoil * 14f * lean);
             // 몸통: 총열 방향으로 뒤로 밀린다 + 손 흔들림 + 장전 때 옆으로 기움
+            if (vox != null)
+            {
+                // 복셀: 눕힘 = 옆면 보이기(0→90), 돌림 = 장전 회전, 반동은 총열이 위로 들린다
+                vox.Lay = sideShow * 90f;
+                vox.Spin = sideSpin;
+                vox.Tilt = 28f - recoil * 14f;
+                vox.Apply();
+                vox.transform.localPosition = new Vector3(0.12f + lagPos.x, -0.1f - recoil * 0.3f, 0f);
+                side.gameObject.SetActive(false);
+                hand.localPosition = new Vector3(lagPos.x, -recoil * 0.3f + handTilt * 0.06f, 0f);
+                hand.localRotation = Quaternion.Euler(0f, 0f, swing * 30f - handTilt * 28f);
+                return;
+            }
             // 뒷면: sideShow가 0.5까지는 가로로 납작해지며 사라진다. 옆면: 0.5부터 펴진다
             float backW = Mathf.Clamp01(1f - sideShow * 2f);
             float sideW = Mathf.Clamp01(sideShow * 2f - 1f);

@@ -91,8 +91,12 @@ namespace TinCan
             }
         }
 
+        /// <summary>시험용: 마우스 대신 이 자리를 겨눈다</summary>
+        public static Vector2? AimOverride;
+
         Vector2 MouseWorld()
         {
+            if (AimOverride.HasValue) return AimOverride.Value;
             var m = Mouse.current != null ? Mouse.current.position.ReadValue() : Vector2.zero;
             var w = cam.ScreenToWorldPoint(new Vector3(m.x, m.y, 10f));
             return new Vector2(w.x, w.y);
