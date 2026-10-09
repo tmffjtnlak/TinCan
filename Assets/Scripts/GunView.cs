@@ -15,7 +15,7 @@ namespace TinCan
         const float RestY = -3.35f;
         const float FollowLerp = 14f;
 
-        Transform root, pivot, body, barrelTip, cylinder, cylinderSwing, hammer, pump;
+        Transform root, pivot, body, hand, barrelTip, cylinder, cylinderSwing, hammer, pump;
         Camera cam;
         float recoil, dip, swing, hammerBack, pumpBack, bob;
         Vector2 lagVel, lagPos;
@@ -38,11 +38,13 @@ namespace TinCan
             var woodLight = new Color(0.58f, 0.38f, 0.22f);
             var skin = new Color(0.95f, 0.78f, 0.64f);
             var skinDark = new Color(0.8f, 0.62f, 0.5f);
-            // 손 (손잡이를 감싼 주먹)
-            Look.Quad("Hand", new Vector2(0.06f, -0.62f), new Vector2(0.6f, 0.62f), skin, 40, body);
-            Look.Quad("Thumb", new Vector2(-0.22f, -0.42f), new Vector2(0.18f, 0.3f), skinDark, 41, body);
-            Look.Quad("Knuckle1", new Vector2(0.3f, -0.5f), new Vector2(0.14f, 0.12f), skinDark, 41, body);
-            Look.Quad("Knuckle2", new Vector2(0.3f, -0.68f), new Vector2(0.14f, 0.12f), skinDark, 41, body);
+            // 손 (손잡이를 감싼 주먹) — 총을 돌릴 때 손은 안 돈다. 손가락 하나에 총이 걸려 도는 그림
+            hand = new GameObject("Hand").transform; hand.SetParent(pivot, false);
+            Look.Quad("Palm", new Vector2(0.06f, -0.62f), new Vector2(0.6f, 0.62f), skin, 40, hand);
+            Look.Quad("Thumb", new Vector2(-0.22f, -0.42f), new Vector2(0.18f, 0.3f), skinDark, 41, hand);
+            Look.Quad("Knuckle1", new Vector2(0.3f, -0.5f), new Vector2(0.14f, 0.12f), skinDark, 41, hand);
+            Look.Quad("Knuckle2", new Vector2(0.3f, -0.68f), new Vector2(0.14f, 0.12f), skinDark, 41, hand);
+            Look.Quad("Finger", new Vector2(0.12f, -0.14f), new Vector2(0.12f, 0.2f), skin, 45, hand);   // 방아쇠에 건 손가락 (총 위에 보인다)
             // 손잡이·몸통·총열
             Look.Quad("Grip", new Vector2(0.1f, -0.36f), new Vector2(0.3f, 0.6f), wood, 42, body);
             Look.Quad("GripLine", new Vector2(0.1f, -0.36f), new Vector2(0.06f, 0.5f), woodLight, 43, body);
@@ -219,6 +221,9 @@ namespace TinCan
             var rot = Quaternion.Euler(0f, 0f, swing * 30f + twirl);
             body.localRotation = rot;
             body.localPosition = (Vector3)(axis - (Vector2)(rot * axis)) + new Vector3(lagPos.x, -recoil * 0.3f, 0f);
+            // 손은 돌지 않고 반동·흔들림만 같이. 돌리는 동안 살짝 위로 들어 올린다
+            hand.localPosition = new Vector3(lagPos.x, -recoil * 0.3f + (twirl != 0f ? 0.05f : 0f), 0f);
+            hand.localRotation = Quaternion.Euler(0f, 0f, swing * 30f);
             cylinderSwing.localPosition = new Vector3(-0.02f - swing, 0.12f, 0f);
             hammer.localRotation = Quaternion.Euler(0f, 0f, -hammerBack * 45f);
             pump.localPosition = new Vector3(-0.04f, 0.55f - pumpBack, 0f);
