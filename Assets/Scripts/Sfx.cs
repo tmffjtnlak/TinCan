@@ -58,6 +58,18 @@ namespace TinCan
             return noise * Mathf.Exp(-phase * 40f) * 0.35f * (t < 0.45f ? 1f : 0f);
         }));
 
+        static AudioClip twirl;
+        /// <summary>촤라라라락: 총 돌리는 소리. 빠른 딸깍이 점점 느려진다 (0.7초, 재생 pitch로 길이를 맞춘다)</summary>
+        public static AudioClip Twirl() => twirl != null ? twirl : (twirl = Make("twirl", 0.7f, (t, noise) =>
+        {
+            float k = t / 0.7f;
+            float rate = Mathf.Lerp(34f, 9f, k * k);           // 초당 딸깍 수: 빠르다 → 느리다
+            float phase = (t * rate) % 1f;
+            float click = noise * Mathf.Exp(-phase * 60f) * 0.45f;
+            float ring = Mathf.Sin(2f * Mathf.PI * 2400f * t) * Mathf.Exp(-phase * 30f) * 0.08f;
+            return (click + ring) * (1f - k * 0.3f);
+        }));
+
         /// <summary>툭: 깡통이 땅에 떨어짐</summary>
         public static AudioClip Drop() => drop != null ? drop : (drop = Make("drop", 0.15f, (t, noise) =>
         {

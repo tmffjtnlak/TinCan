@@ -130,35 +130,40 @@ namespace TinCan
             Destroy(s.gameObject);
         }
 
-        /// <summary>장전: 실린더 젖혀 빼고 → 탄피 → 실린더 돌고 → 탁 닫힘. seconds 동안</summary>
+        /// <summary>장전: 총잡이식 — 손가락에 걸고 총을 촤라라락 돌린다. 돌면서 탄피가 튀고 실린더가 찬다. 마지막에 탁 잡는다</summary>
         public void Reload(float seconds, int shells) => StartCoroutine(ReloadCo(seconds, shells));
+
+        float twirl;   // 총이 돈 각도 (도)
 
         IEnumerator ReloadCo(float seconds, int shells)
         {
             reloading = true;
             float t = 0f; bool spat = false;
+            int spins = seconds > 0.75f ? 3 : 2;
+            Sfx.Play(Sfx.Twirl(), 0.7f, Mathf.Clamp(0.7f / seconds, 0.6f, 2.5f));
             while (t < seconds && reloading)
             {
                 t += Time.deltaTime;
-                float k = t / seconds;
-                dip = Mathf.Sin(Mathf.Clamp01(k) * Mathf.PI) * 0.7f;                 // 내려갔다 올라온다
-                swing = Mathf.Sin(Mathf.Clamp01(k * 1.15f) * Mathf.PI) * 0.42f;      // 실린더가 옆으로 나왔다 들어간다
-                cylinder.localRotation = Quaternion.Euler(0f, 0f, k * 900f);
-                if (!spat && k > 0.2f) { spat = true; Shells(Mathf.Min(shells, 6)); }
+                float k = Mathf.Clamp01(t / seconds);
+                float e = 1f - Mathf.Pow(1f - k, 2.2f);                // 빠르게 돌다 느려진다
+                twirl = -360f * spins * e;
+                dip = Mathf.Sin(k * Mathf.PI) * 0.25f;                  // 살짝 내려갔다 올라온다
+                cylinder.localRotation = Quaternion.Euler(0f, 0f, k * 1080f);
+                if (!spat && k > 0.25f) { spat = true; Shells(Mathf.Min(shells, 6)); }
                 yield return null;
             }
             if (reloading) Snap();
             reloading = false;
         }
 
-        /// <summary>저스트 장전 성공: 즉시 닫힌다</summary>
+        /// <summary>저스트 장전 성공: 즉시 탁 잡는다</summary>
         public void ReloadSnap() { reloading = false; Snap(); }
 
         void Snap()
         {
-            dip = 0f; swing = 0f; cylinder.localRotation = Quaternion.identity;
-            recoil = Mathf.Max(recoil, 0.45f);   // 탁 닫히는 출렁임
-            hammerBack = 0.6f;
+            dip = 0f; swing = 0f; twirl = 0f; cylinder.localRotation = Quaternion.identity;
+            recoil = Mathf.Max(recoil, 0.55f);   // 탁 잡는 출렁임
+            hammerBack = 0.8f;
         }
 
         void Shells(int n)
@@ -168,7 +173,9 @@ namespace TinCan
                 var s = Look.Quad("Shell", (Vector2)cylinder.position, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
                 var rb = s.gameObject.AddComponent<Rigidbody2D>();
                 rb.gravityScale = 2f;
-                rb.linearVelocity = new Vector2(Random.Range(-2f, 0.5f), Random.Range(2.5f, 4.5f));
+                // 돌던 방향으로 튕겨 나간다
+                var tangent = (Vector2)(body.rotation * Vector2.right) * -1f;
+                rb.linearVelocity = tangent * Random.Range(2f, 4f) + new Vector2(Random.Range(-1f, 1f), Random.Range(2f, 4f));
                 rb.angularVelocity = Random.Range(-700f, 700f);
                 StartCoroutine(ShellFade(s));
             }
@@ -207,8 +214,11 @@ namespace TinCan
             float lean = -Mathf.Sign(ang == 0f ? 1f : ang);
             pivot.localRotation = Quaternion.Euler(0f, 0f, ang + recoil * 14f * lean);
             // 몸통: 총열 방향으로 뒤로 밀린다 + 손 흔들림 + 장전 때 옆으로 기움
-            body.localPosition = new Vector3(lagPos.x, -recoil * 0.3f, 0f);
-            body.localRotation = Quaternion.Euler(0f, 0f, swing * 30f);
+            // 돌릴 때는 방아쇠울(0, -0.1) 근처를 축으로 돈다
+            var axis = new Vector2(0.12f, -0.1f);
+            var rot = Quaternion.Euler(0f, 0f, swing * 30f + twirl);
+            body.localRotation = rot;
+            body.localPosition = (Vector3)(axis - (Vector2)(rot * axis)) + new Vector3(lagPos.x, -recoil * 0.3f, 0f);
             cylinderSwing.localPosition = new Vector3(-0.02f - swing, 0.12f, 0f);
             hammer.localRotation = Quaternion.Euler(0f, 0f, -hammerBack * 45f);
             pump.localPosition = new Vector3(-0.04f, 0.55f - pumpBack, 0f);

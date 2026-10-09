@@ -125,6 +125,10 @@ namespace TinCan
             State = GameState.Settings; // 더 못 쏘게
             Gun.Enabled = false;
             Sfx.Play(Sfx.Reload(), 0.8f, 1.4f);
+            // 글자는 원형 페이드 위에 그려지니까 먼저 치운다
+            if (signTitle != null) Destroy(signTitle.gameObject);
+            if (tagline != null) Destroy(tagline.gameObject);
+            foreach (var l in menuLabels) if (l != null) Destroy(l.gameObject);
             yield return Iris.Get().Close(0.55f);
             if (!load) Save.Delete();
             pendingPlay = true; pendingLoad = load;
