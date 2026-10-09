@@ -16,15 +16,15 @@ namespace TinCan
         public Color Body, Rim, Label;
         public long Price;         // 깡통류 구매 값 (0 = 처음부터)
         public string Desc;
-        // 깡통마다 붙는 기능 (2주 안엔 하나만)
-        public int LandBounces;    // 낙하지역에 닿으면 이 횟수만큼 혼자 다시 튀어오른다
         /// <summary>체력 = 몇 번 맞으면 터지나 (사용자 10-10: 무한 저글링을 막고, 다 맞춰 터뜨리면 최고치). 게임 한 문장: 튕겨서 터뜨린다</summary>
         public int Hits;
+        /// <summary>무게 = 떨어지는 속도 (중력 배수). 깡통은 특능 없이 물성만: 무게·크기·체력·값 (사용자 10-10)</summary>
+        public float Weight = 1f;
 
-        public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 6번 맞으면 터진다.", Value = 1, Cost = 2, Price = 0, Hits = 6, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
-        public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 가볍다. 4번이면 깨진다.", Value = 3, Cost = 8, Price = 60, Hits = 4, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
-        public static readonly CanKind Rubber = new CanKind { Id = "rubber", Name = "고무 깡통", Desc = "값 2. 떨어지면 혼자 한 번 다시 튄다. 8번이면 터진다.", Value = 2, Cost = 6, Price = 200, Hits = 8, LandBounces = 1, Width = 0.5f, Height = 0.7f, Mass = 0.7f, Pitch = 0.85f, Body = new Color(0.9f, 0.45f, 0.5f), Rim = new Color(0.55f, 0.2f, 0.25f), Label = new Color(1f, 0.9f, 0.5f) };
-        public static readonly CanKind Hat = new CanKind { Id = "hat", Name = "모자", Desc = "값 10. 납작하고 아주 가볍다. 10번이면 찢어진다.", Value = 10, Cost = 30, Price = 400, Hits = 10, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
+        public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 6번 맞으면 터진다.", Value = 1, Cost = 2, Price = 0, Hits = 6, Weight = 1f, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
+        public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 무겁다. 4번이면 깨진다.", Value = 3, Cost = 8, Price = 60, Hits = 4, Weight = 1.15f, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
+        public static readonly CanKind Rubber = new CanKind { Id = "rubber", Name = "고무 깡통", Desc = "값 2. 가벼워서 천천히 떨어진다. 8번이면 터진다.", Value = 2, Cost = 6, Price = 200, Hits = 8, Weight = 0.6f, Width = 0.5f, Height = 0.7f, Mass = 0.7f, Pitch = 0.85f, Body = new Color(0.9f, 0.45f, 0.5f), Rim = new Color(0.55f, 0.2f, 0.25f), Label = new Color(1f, 0.9f, 0.5f) };
+        public static readonly CanKind Hat = new CanKind { Id = "hat", Name = "모자", Desc = "값 10. 납작하고 아주 가볍다. 10번이면 찢어진다.", Value = 10, Cost = 30, Price = 400, Hits = 10, Weight = 0.45f, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
         public string Id;
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
@@ -49,13 +49,26 @@ namespace TinCan
         float appliedScale = 1f;
         const float BaseGravity = 2.2f;
 
+        float Gravity => BaseGravity * Kind.Weight * TimeScale * TimeScale;
+        bool floorSlowed;
+
         void FixedUpdate()
         {
-            if (rb == null || Done || Mathf.Approximately(appliedScale, TimeScale)) return;
-            float k = TimeScale / appliedScale;
-            rb.linearVelocity *= k; rb.angularVelocity *= k;
-            rb.gravityScale = BaseGravity * TimeScale * TimeScale;
-            appliedScale = TimeScale;
+            if (rb == null || Done) return;
+            if (!Mathf.Approximately(appliedScale, TimeScale))
+            {
+                float k = TimeScale / appliedScale;
+                rb.linearVelocity *= k; rb.angularVelocity *= k;
+                rb.gravityScale = Gravity;
+                appliedScale = TimeScale;
+            }
+            // 스킬 "바닥 근처 느려짐": 떨어지다 바닥 가까이 오면 속도가 반으로 (한 번만, 다시 맞으면 초기화)
+            if (Airborne && !floorSlowed && Game.I != null && Game.I.FloorSlow > 0f && rb.linearVelocity.y < 0f && transform.position.y < Look.DropY + 1.6f)
+            {
+                floorSlowed = true;
+                var v = rb.linearVelocity; v.y *= 1f - Game.I.FloorSlow; rb.linearVelocity = v;
+                Fx.Dust(new Vector2(transform.position.x, transform.position.y - 0.3f), 2, 0.4f);
+            }
         }
 
         public int HitsLeft { get; private set; }
@@ -82,7 +95,7 @@ namespace TinCan
             Kind = kind;
             transform.position = at + Vector2.up * 1.2f;   // 위에서 툭 떨어져 선반에 앉는다
             rb = gameObject.AddComponent<Rigidbody2D>();
-            rb.mass = kind.Mass; rb.gravityScale = BaseGravity * TimeScale * TimeScale; rb.linearDamping = 0.1f; rb.angularDamping = 0.6f; appliedScale = TimeScale;
+            rb.mass = kind.Mass; rb.linearDamping = 0.1f; rb.angularDamping = 0.6f; appliedScale = TimeScale; rb.gravityScale = Gravity;
             rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             rb.constraints = RigidbodyConstraints2D.FreezeRotation;   // 선반 위에선 안 넘어진다
             var col = gameObject.AddComponent<BoxCollider2D>();
@@ -149,6 +162,7 @@ namespace TinCan
                 if (shelf != null) Physics2D.IgnoreCollision(GetComponent<Collider2D>(), shelf.GetComponent<Collider2D>(), true);
             }
             Combo++;
+            floorSlowed = false;
             int earned = Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;
             Earned += earned;
             if (!IsMenu)
@@ -192,12 +206,13 @@ namespace TinCan
         {
             if (Done || !Airborne) return;
             if (c.GetComponent<DropZone>() == null) return;
-            if (bouncesLeft < 0) bouncesLeft = Kind.LandBounces;
+            if (bouncesLeft < 0) bouncesLeft = IsMenu ? 0 : (Game.I != null ? Game.I.LandBounces : 0);
             if (bouncesLeft > 0)
             {
-                // 깡통 기능 "고무": 혼자 다시 튀어오른다 (연속은 이어진다)
+                // 스킬 "다시 튐": 떨어진 깡통이 혼자 한 번 다시 튀어오른다 (연속은 이어진다)
                 bouncesLeft--;
-                var v = rb.linearVelocity; v.y = 11f + BounceBonus; v.x *= 0.5f; rb.linearVelocity = v;
+                floorSlowed = false;
+                var v = rb.linearVelocity; v.y = (11f + BounceBonus) * TimeScale; v.x *= 0.5f; rb.linearVelocity = v;
                 transform.position = new Vector3(transform.position.x, Look.DropY + 0.5f, 0f);
                 flashLeft = 0.06f;
                 StartCoroutine(Squash());

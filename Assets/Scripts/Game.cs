@@ -34,6 +34,8 @@ namespace TinCan
         public int SpawnCount { get; set; } = 1;
         public float AutoGunSeconds { get; set; } = 0f;
         public float BurstMult { get; set; } = 2f;
+        public int LandBounces { get; set; } = 0;        // 스킬 "다시 튐": 떨어진 깡통이 혼자 N번 다시 튀어오른다
+        public float FloorSlow { get; set; } = 0f;       // 스킬 "바닥 근처 느려짐": 바닥 가까이에서 낙하 속도가 이만큼 줄어든다 (0.5 = 반)
 
         // ---------- 슬로우 (우클릭) ----------
         public float SlowGauge { get; private set; }          // 0..1
