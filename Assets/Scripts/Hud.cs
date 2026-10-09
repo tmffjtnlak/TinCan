@@ -50,10 +50,11 @@ namespace TinCan
             return t;
         }
 
-        /// <summary>정산: 큰 글자로 "+$N (M연속)"</summary>
-        public void Payout(long amount, int combo, Vector2 world)
+        /// <summary>정산: 큰 글자로 "+$N (M연속)". 터뜨린 거면 더 크고 "터짐!"</summary>
+        public void Payout(long amount, int combo, Vector2 world, bool burst)
         {
-            Float(combo >= 3 ? $"+${amount:N0}  {combo}연속!" : $"+${amount:N0}", world + Vector2.up * 0.8f, Mathf.Max(combo, 4));
+            if (burst) Float($"터짐!  +${amount:N0}", world + Vector2.up * 0.6f, 10);
+            else Float(combo >= 3 ? $"+${amount:N0}  {combo}연속" : $"+${amount:N0}", world + Vector2.up * 0.8f, Mathf.Max(combo, 4));
         }
 
         /// <summary>떠오르는 글자 (월드 위치에서). 콤보가 높을수록 크고 노랗다</summary>
@@ -87,7 +88,7 @@ namespace TinCan
             if (game == null) return;
             money.text = $"${game.Money:N0}";
             int air = game.Airborne;
-            best.text = $"최고 연속 {game.BestCombo}   ·   최고 정산 ${game.BestPayout:N0}" + (air >= 2 ? $"      <color=#ffd966>공중 {air}개  ×{air}</color>" : "");
+            best.text = $"터뜨림 {game.Bursts}   ·   최고 연속 {game.BestCombo}   ·   최고 정산 ${game.BestPayout:N0}" + (air >= 2 ? $"      <color=#ffd966>공중 {air}개  ×{air}</color>" : "") + (gun.ReloadStreak >= 1 ? $"      <color=#88ffaa>저스트 장전 {gun.ReloadStreak}</color>" : "");
             best.supportRichText = true;
             var gun = game.Gun;
             hint.text = game.MenuOpen ? "" : $"{gun.Kind.Name}   ·   Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)})   ·   좌클릭 = 쏜다   ·   R = 장전   ·   Tab = 가게      선반 {game.CansOnShelf}/{game.MaxCans}";

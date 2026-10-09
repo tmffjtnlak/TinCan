@@ -18,11 +18,13 @@ namespace TinCan
         public string Desc;
         // 깡통마다 붙는 기능 (2주 안엔 하나만)
         public int LandBounces;    // 낙하지역에 닿으면 이 횟수만큼 혼자 다시 튀어오른다
+        /// <summary>체력 = 몇 번 맞으면 터지나 (사용자 10-10: 무한 저글링을 막고, 다 맞춰 터뜨리면 최고치). 게임 한 문장: 튕겨서 터뜨린다</summary>
+        public int Hits;
 
-        public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 모든 것의 시작.", Value = 1, Cost = 2, Price = 0, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
-        public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 가볍다.", Value = 3, Cost = 8, Price = 60, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
-        public static readonly CanKind Rubber = new CanKind { Id = "rubber", Name = "고무 깡통", Desc = "값 2. 떨어지면 혼자 한 번 다시 튀어오른다.", Value = 2, Cost = 6, Price = 200, LandBounces = 1, Width = 0.5f, Height = 0.7f, Mass = 0.7f, Pitch = 0.85f, Body = new Color(0.9f, 0.45f, 0.5f), Rim = new Color(0.55f, 0.2f, 0.25f), Label = new Color(1f, 0.9f, 0.5f) };
-        public static readonly CanKind Hat = new CanKind { Id = "hat", Name = "모자", Desc = "값 10. 납작하고 아주 가볍다.", Value = 10, Cost = 30, Price = 400, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
+        public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 6번 맞으면 터진다.", Value = 1, Cost = 2, Price = 0, Hits = 6, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
+        public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 가볍다. 4번이면 깨진다.", Value = 3, Cost = 8, Price = 60, Hits = 4, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
+        public static readonly CanKind Rubber = new CanKind { Id = "rubber", Name = "고무 깡통", Desc = "값 2. 떨어지면 혼자 한 번 다시 튄다. 8번이면 터진다.", Value = 2, Cost = 6, Price = 200, Hits = 8, LandBounces = 1, Width = 0.5f, Height = 0.7f, Mass = 0.7f, Pitch = 0.85f, Body = new Color(0.9f, 0.45f, 0.5f), Rim = new Color(0.55f, 0.2f, 0.25f), Label = new Color(1f, 0.9f, 0.5f) };
+        public static readonly CanKind Hat = new CanKind { Id = "hat", Name = "모자", Desc = "값 10. 납작하고 아주 가볍다. 10번이면 찢어진다.", Value = 10, Cost = 30, Price = 400, Hits = 10, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
         public string Id;
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
@@ -43,8 +45,10 @@ namespace TinCan
         /// <summary>업그레이드 "가벼운 깡통": 맞을 때 위로 더 튄다</summary>
         public static float BounceBonus;
 
+        public int HitsLeft { get; private set; }
         Rigidbody2D rb;
         SpriteRenderer body, rim, label;
+        SpriteRenderer[] pips;
         Transform visual;
         float flashLeft;
 
@@ -73,6 +77,12 @@ namespace TinCan
             rim = Look.Quad("RimTop", new Vector2(0f, kind.Height * 0.5f - 0.04f), new Vector2(kind.Width + 0.04f, 0.08f), kind.Rim, 4, visual);
             Look.Quad("RimBot", new Vector2(0f, -kind.Height * 0.5f + 0.04f), new Vector2(kind.Width + 0.04f, 0.08f), kind.Rim, 4, visual);
             Look.Quad("Shine", new Vector2(-kind.Width * 0.3f, 0f), new Vector2(0.06f, kind.Height * 0.8f), new Color(1f, 1f, 1f, 0.35f), 5, visual);
+            // 체력 점: 깡통 위에 남은 횟수만큼 (맞을 때마다 하나씩 꺼진다)
+            HitsLeft = kind.Hits;
+            pips = new SpriteRenderer[kind.Hits];
+            float pw = 0.08f, gap = 0.03f, total = kind.Hits * pw + (kind.Hits - 1) * gap;
+            for (int i = 0; i < kind.Hits; i++)
+                pips[i] = Look.Quad("Pip", new Vector2(-total * 0.5f + pw * 0.5f + i * (pw + gap), kind.Height * 0.5f + 0.14f), new Vector2(pw, pw), new Color(1f, 1f, 1f, 0.9f), 6, visual);
             visual.localScale = Vector3.zero;
             StartCoroutine(PopIn());
         }
@@ -100,6 +110,9 @@ namespace TinCan
             Combo++;
             int earned = Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;
             Earned += earned;
+            HitsLeft--;
+            for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
+            if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
             var v = rb.linearVelocity;
@@ -146,6 +159,29 @@ namespace TinCan
                 return;
             }
             Land();
+        }
+
+        /// <summary>체력이 다했다: 터진다. 최고치 정산. 파편이 사방으로</summary>
+        void Burst(Vector2 at)
+        {
+            Done = true;
+            Sfx.Play(Sfx.Bang(), 0.7f, Kind.Pitch * 1.6f);
+            Sfx.Play(Sfx.Tang(), 0.9f, Kind.Pitch * 0.5f);
+            for (int i = 0; i < 10; i++)
+            {
+                var chip = Look.Quad("Chip", (Vector2)transform.position + Random.insideUnitCircle * 0.2f, new Vector2(Random.Range(0.08f, 0.18f), Random.Range(0.06f, 0.14f)), i % 3 == 0 ? Kind.Label : Kind.Body, 7);
+                chip.transform.rotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
+                var crb = chip.gameObject.AddComponent<Rigidbody2D>();
+                crb.gravityScale = 2f;
+                crb.linearVelocity = Random.insideUnitCircle.normalized * Random.Range(4f, 9f) + Vector2.up * 3f;
+                crb.angularVelocity = Random.Range(-900f, 900f);
+                Destroy(chip.gameObject, Random.Range(0.6f, 1.1f));
+            }
+            Game.I?.CanBurst(this);
+            StopAllCoroutines();
+            rb.simulated = false;
+            visual.gameObject.SetActive(false);
+            Destroy(gameObject, 0.1f);
         }
 
         /// <summary>낙하지역에 떨어졌다: 정산하고 사라진다</summary>

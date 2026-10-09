@@ -94,6 +94,14 @@ namespace TinCan
             reloading = false;
         }
 
+        /// <summary>저스트 장전 성공: 즉시 올라오고 실린더가 탁 맞물린다</summary>
+        public void ReloadSnap()
+        {
+            StopAllCoroutines();
+            dip = 0f; cylinder.localRotation = Quaternion.identity; reloading = false;
+            recoil = 0.6f;
+        }
+
         void Shells(int n)
         {
             for (int i = 0; i < n; i++)

@@ -31,6 +31,17 @@ namespace TinCan
         float kickLeft, nextFire;
         Vector3 camHome;
 
+        // 저스트 장전 (엔터 더 건전식): 조준점 위 칸, 슬래시 구간에 R/클릭이면 즉시 장전.
+        // 성공할수록 다음 장전이 빨라지고 구간이 좁아진다. 실패하면 초기화 + 이번 장전은 느려진다.
+        public int ReloadStreak { get; private set; }
+        public float ReloadProgress { get; private set; }   // 0..1
+        float windowStart, windowEnd;
+        bool attempted;
+        Transform bar; SpriteRenderer barFill, barWindow, barBg;
+
+        public float ActiveReloadSeconds => Mathf.Max(0.35f, ReloadSeconds * (1f - 0.07f * ReloadStreak));
+        float WindowWidth => Mathf.Max(0.05f, 0.16f - 0.015f * ReloadStreak);
+
         public void Build()
         {
             cam = Camera.main; camHome = cam.transform.position;
@@ -51,6 +62,12 @@ namespace TinCan
             }
             view = new GameObject("GunViewHolder").AddComponent<GunView>();
             view.Build();
+            // 장전 칸 (조준점 위)
+            bar = new GameObject("ReloadBar").transform; bar.SetParent(crosshair, false); bar.localPosition = new Vector2(0f, 0.5f);
+            barBg = Look.Quad("Bg", Vector2.zero, new Vector2(1.3f, 0.12f), new Color(0f, 0f, 0f, 0.55f), 51, bar);
+            barWindow = Look.Quad("Window", Vector2.zero, new Vector2(0.2f, 0.16f), new Color(1f, 0.9f, 0.3f, 0.9f), 52, bar);
+            barFill = Look.Quad("Fill", Vector2.zero, new Vector2(0.02f, 0.08f), new Color(1f, 1f, 1f, 0.95f), 53, bar);
+            bar.gameObject.SetActive(false);
             Equip(GunKind.Revolver);
         }
 
@@ -88,11 +105,30 @@ namespace TinCan
             view.Tick(aim, Enabled);
             if (!Enabled) return;
             var mouse = Mouse.current; var kb = Keyboard.current;
-            if (kb != null && kb.rKey.wasPressedThisFrame && !Reloading && Ammo < Capacity) StartCoroutine(Reload());
-            if (mouse != null)
+            bool pressR = kb != null && kb.rKey.wasPressedThisFrame;
+            bool click = mouse != null && mouse.leftButton.wasPressedThisFrame;
+            if (Reloading)
             {
-                bool want = Kind.Auto ? mouse.leftButton.isPressed : mouse.leftButton.wasPressedThisFrame;
-                if (want && Time.time >= nextFire) { Fire(aim); nextFire = Time.time + Kind.FireInterval; }
+                if ((pressR || click) && !attempted) ActiveReload();
+            }
+            else
+            {
+                if (pressR && Ammo < Capacity) StartCoroutine(Reload());
+                if (mouse != null)
+                {
+                    bool want = Kind.Auto ? mouse.leftButton.isPressed : mouse.leftButton.wasPressedThisFrame;
+                    if (want && Time.time >= nextFire) { Fire(aim); nextFire = Time.time + Kind.FireInterval; }
+                }
+            }
+            // 장전 칸 그리기
+            bar.gameObject.SetActive(Reloading);
+            if (Reloading)
+            {
+                float w = 1.3f;
+                barFill.transform.localPosition = new Vector2(-w * 0.5f + ReloadProgress * w, 0f);
+                barWindow.transform.localPosition = new Vector2(-w * 0.5f + (windowStart + windowEnd) * 0.5f * w, 0f);
+                barWindow.transform.localScale = new Vector3((windowEnd - windowStart) * w, 0.16f, 1f);
+                barWindow.color = attempted ? (missed ? new Color(1f, 0.3f, 0.2f, 0.9f) : new Color(0.5f, 1f, 0.6f, 0.9f)) : new Color(1f, 0.9f, 0.3f, 0.9f);
             }
 
             float spread = 1f + kickLeft * 6f * Mathf.Min(1f, Kind.Kick);
@@ -151,14 +187,49 @@ namespace TinCan
             if (Ammo == 0 && !Reloading) yield return Reload();
         }
 
+        bool missed, justDone;
+
         public IEnumerator Reload()
         {
-            Reloading = true;
+            if (Reloading) yield break;
+            Reloading = true; attempted = false; missed = false; justDone = false;
+            ReloadProgress = 0f;
+            float width = WindowWidth;
+            windowStart = Random.Range(0.45f, 0.8f - width); windowEnd = windowStart + width;
+            float seconds = ActiveReloadSeconds;
             Sfx.Play(Sfx.Reload(), 0.8f, 1f);
-            view.Reload(ReloadSeconds, Capacity - Ammo);
-            yield return new WaitForSeconds(ReloadSeconds);
+            view.Reload(seconds, Capacity - Ammo);
+            float t = 0f;
+            while (t < seconds && !justDone)
+            {
+                t += Time.deltaTime;
+                if (missed) t += Time.deltaTime * 0.35f;   // 실패: 이번 장전은 느려진다
+                ReloadProgress = Mathf.Clamp01(t / seconds);
+                yield return null;
+            }
             Ammo = Capacity;
             Reloading = false;
+        }
+
+        /// <summary>저스트 장전 시도: 슬래시 구간 안이면 즉시 끝, 아니면 실패</summary>
+        public void ActiveReload()
+        {
+            attempted = true;
+            if (ReloadProgress >= windowStart && ReloadProgress <= windowEnd)
+            {
+                ReloadStreak++;
+                justDone = true;
+                Ammo = Capacity;
+                Sfx.Play(Sfx.Tang(), 0.6f, 1.8f + Mathf.Min(ReloadStreak, 8) * 0.1f);
+                view.ReloadSnap();
+                Game.I?.Hud.Float($"저스트!  ×{ReloadStreak}", (Vector2)crosshair.position + Vector2.up * 0.9f, 3 + ReloadStreak);
+            }
+            else
+            {
+                ReloadStreak = 0;
+                missed = true;
+                Sfx.Play(Sfx.Click(), 0.8f, 0.6f);
+            }
         }
     }
 }

@@ -32,6 +32,7 @@ namespace TinCan
         public bool MenuOpen { get; private set; }
         public CanKind SpawnKind { get; set; } = CanKind.Tin;
         Hud hud;
+        public Hud Hud => hud;
         TreeView tree;
         Armory armory;
         float autoGunTimer;
@@ -195,14 +196,28 @@ namespace TinCan
             StartCoroutine(HitStop(can.Combo >= 5 ? 0.04f : 0.02f));
         }
 
-        /// <summary>정산: 쌓인 돈 × 정산 배수</summary>
+        /// <summary>떨어져서 정산: 쌓인 돈 × 정산 배수. 터뜨리기 전에 떨어진 것</summary>
         public void CanLanded(Can can)
         {
             long pay = (long)Mathf.Round(can.Earned * PayoutMult);
             Money += pay;
             if (pay > BestPayout) BestPayout = pay;
-            hud.Payout(pay, can.Combo, can.transform.position);
+            hud.Payout(pay, can.Combo, can.transform.position, burst: false);
         }
+
+        public float BurstMult { get; set; } = 2f;   // 터뜨리면 최고치: 쌓인 돈 × 2
+
+        /// <summary>터뜨려서 정산: 쌓인 돈 × 정산 배수 × 터짐 배수. 이게 최고치</summary>
+        public void CanBurst(Can can)
+        {
+            long pay = (long)Mathf.Round(can.Earned * PayoutMult * BurstMult);
+            Money += pay;
+            Bursts++;
+            if (pay > BestPayout) BestPayout = pay;
+            hud.Payout(pay, can.Combo, can.transform.position, burst: true);
+            StartCoroutine(HitStop(0.07f));
+        }
+        public int Bursts { get; private set; }
 
         public void BuyNode(SkillNode n)
         {
