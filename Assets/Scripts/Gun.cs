@@ -76,6 +76,7 @@ namespace TinCan
         {
             Kind = kind;
             Ammo = Capacity; Reloading = false;
+            view.SetKind(kind);
             ring.localScale = Vector3.one * kind.AimRadius;
             ring.gameObject.SetActive(kind.AimRadius > 0.4f);
         }

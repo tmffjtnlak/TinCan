@@ -63,9 +63,9 @@ namespace TinCan
             tipCost = Txt("TipCost", tip.transform, new Vector2(0f, -45f), new Vector2(390f, 34f), 22, TextAnchor.MiddleCenter, SkillTree.Yellow);
             tip.gameObject.SetActive(false);
             // 위 돈, 아래 안내
-            money = Txt("Money", veil.transform, new Vector2(0f, 480f), new Vector2(800f, 60f), 40, TextAnchor.MiddleCenter, SkillTree.Yellow);
-            var hint = Txt("Hint", veil.transform, new Vector2(0f, -500f), new Vector2(1400f, 40f), 22, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.55f));
-            hint.text = "클릭 = 산다   ·   휠 = 확대   ·   드래그·방향키 = 이동   ·   Q 총기류  W 깡통류  E 스킬   ·   Tab = 닫는다";
+            money = Txt("Money", veil.transform, new Vector2(760f, 455f), new Vector2(360f, 60f), 36, TextAnchor.MiddleRight, SkillTree.Yellow);
+            var hint = Txt("Hint", veil.transform, new Vector2(0f, -500f), new Vector2(1400f, 40f), 20, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.55f));
+            hint.text = "클릭 = 산다   ·   휠 = 확대   ·   드래그·방향키 = 이동   ·   Tab = 닫는다";
         }
 
         NodeView MakeNode(SkillNode n)

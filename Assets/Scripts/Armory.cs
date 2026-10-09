@@ -6,31 +6,42 @@ using UnityEngine.UI;
 namespace TinCan
 {
     /// <summary>
-    /// 총기류·깡통류 가게. 목록 하나씩. 숫자키로 사거나 고른다 (산 건 고르기, 안 산 건 사기).
-    /// 스킬트리와 같은 화면 안의 다른 탭.
+    /// 총기류·깡통류 가게. 카드 한 장 = 물건 하나 (왼쪽 아이콘 자리, 이름, 상태, 설명).
+    /// 숫자키로 사거나 고른다. 스킬트리와 같은 화면 안의 다른 탭.
     /// </summary>
     public class Armory : MonoBehaviour
     {
         public enum Page { Guns, Cans }
+        class Card { public Image Root, Icon, IconFill; public Text Name, State, Desc, Key; }
         Game game;
-        Font font;
         Image veil;
         Text title, money, hint;
-        readonly List<Text> rows = new List<Text>();
+        readonly List<Card> cards = new List<Card>();
         Page page;
 
         public void Build(Game g, Transform canvas)
         {
             game = g;
-            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            veil = Panel("Armory", canvas, Vector2.zero, new Vector2(4000f, 3000f), new Color(0.1f, 0.07f, 0.05f, 1f));
-            var board = Panel("Board", veil.transform, Vector2.zero, new Vector2(1000f, 620f), new Color(0.22f, 0.15f, 0.1f, 1f));
-            Panel("BoardEdge", board.transform, Vector2.zero, new Vector2(1012f, 632f), new Color(0.5f, 0.36f, 0.22f, 1f)).transform.SetAsFirstSibling();
-            title = Txt("Title", board.transform, new Vector2(0f, 270f), new Vector2(940f, 50f), 38, TextAnchor.MiddleLeft, new Color(1f, 0.85f, 0.5f));
-            money = Txt("Money", board.transform, new Vector2(0f, 270f), new Vector2(940f, 50f), 32, TextAnchor.MiddleRight, SkillTree.Yellow);
-            for (int i = 0; i < 6; i++) rows.Add(Txt($"Row{i}", board.transform, new Vector2(0f, 190f - i * 78f), new Vector2(940f, 70f), 26, TextAnchor.MiddleLeft, Color.white));
-            hint = Txt("Hint", veil.transform, new Vector2(0f, -500f), new Vector2(1400f, 40f), 22, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.55f));
+            veil = Ui.Image("Armory", canvas, Vector2.zero, new Vector2(4000f, 3000f), Ui.BoardDark);
+            title = Ui.Text("Title", veil.transform, new Vector2(-300f, 330f), new Vector2(700f, 60f), 40, TextAnchor.MiddleLeft, Ui.Gold);
+            money = Ui.Text("Money", veil.transform, new Vector2(300f, 330f), new Vector2(700f, 60f), 34, TextAnchor.MiddleRight, Ui.Gold);
+            for (int i = 0; i < 5; i++) cards.Add(MakeCard(i));
+            hint = Ui.Text("Hint", veil.transform, new Vector2(0f, -500f), new Vector2(1400f, 40f), 20, TextAnchor.MiddleCenter, Ui.Dim);
+            hint.text = "숫자키 = 산다 / 고른다   ·   Tab = 닫는다";
             veil.gameObject.SetActive(false);
+        }
+
+        Card MakeCard(int i)
+        {
+            var c = new Card();
+            c.Root = Ui.Panel($"Card{i}", veil.transform, new Vector2(0f, 250f - i * 118f), new Vector2(1300f, 104f), nails: false);
+            c.Key = Ui.Text("Key", c.Root.transform, new Vector2(-610f, 0f), new Vector2(50f, 60f), 34, TextAnchor.MiddleCenter, Ui.Dim);
+            c.Icon = Ui.Diamond("Icon", c.Root.transform, new Vector2(-540f, 0f), 64f, Ui.BoardEdge, Ui.BoardDark);
+            c.IconFill = c.Icon.transform.GetChild(0).GetComponent<Image>();
+            c.Name = Ui.Text("Name", c.Root.transform, new Vector2(-170f, 22f), new Vector2(620f, 44f), 30, TextAnchor.MiddleLeft, Ui.Ink);
+            c.State = Ui.Text("State", c.Root.transform, new Vector2(480f, 22f), new Vector2(300f, 44f), 26, TextAnchor.MiddleRight, Ui.Gold);
+            c.Desc = Ui.Text("Desc", c.Root.transform, new Vector2(50f, -26f), new Vector2(1060f, 40f), 20, TextAnchor.MiddleLeft, Ui.Dim);
+            return c;
         }
 
         public void Show(Page p) { page = p; veil.gameObject.SetActive(true); }
@@ -43,36 +54,43 @@ namespace TinCan
             money.text = $"${game.Money:N0}";
             var kb = Keyboard.current;
             title.text = page == Page.Guns ? "총기류  —  쏘는 방식이 다르다" : "깡통류  —  뭘 띄우나";
-            hint.text = "숫자키 = 산다 / 고른다   ·   Q 총기류  W 깡통류  E 스킬   ·   Tab = 닫는다";
-            if (page == Page.Guns)
+            for (int i = 0; i < cards.Count; i++)
             {
-                for (int i = 0; i < rows.Count; i++)
+                var c = cards[i];
+                if (page == Page.Guns)
                 {
-                    if (i >= GunKind.ForSale.Count) { rows[i].text = ""; continue; }
+                    if (i >= GunKind.ForSale.Count) { c.Root.gameObject.SetActive(false); continue; }
                     var k = GunKind.ForSale[i];
-                    bool owned = game.OwnedGuns.Contains(k.Id);
-                    bool current = game.Gun.Kind == k;
-                    string state = current ? "<color=#88ff88>장착 중</color>" : owned ? "<color=#bbbbbb>보유</color>" : (game.Money >= k.Price ? $"<color=#ffd966>${k.Price:N0}</color>" : $"<color=#ff6666>${k.Price:N0}</color>");
-                    string nm = k.IsCursed ? $"<color=#cc88ff>{k.Name}</color>" : k.Name;
-                    rows[i].text = $"{i + 1}. {nm}   {state}\n<size=20><color=#cccccc>{k.Desc}   ·   {k.Capacity}발, 장전 {k.ReloadSeconds:0.0}초</color></size>";
-                    rows[i].color = owned || game.Money >= k.Price ? Color.white : new Color(1f, 1f, 1f, 0.5f);
+                    c.Root.gameObject.SetActive(true);
+                    bool owned = game.OwnedGuns.Contains(k.Id), current = game.Gun.Kind == k;
+                    Fill(c, i, k.Name, k.IsCursed ? Ui.Curse : Ui.Ink, k.IsCursed ? new Color(0.35f, 0.15f, 0.45f) : new Color(0.3f, 0.3f, 0.36f),
+                        owned, current, k.Price, $"{k.Desc}   ·   {k.Capacity}발, 장전 {k.ReloadSeconds:0.0}초", current ? "장착 중" : "보유");
                     if (kb != null && Digit(kb, i + 1)) game.PickGun(k);
                 }
-            }
-            else
-            {
-                for (int i = 0; i < rows.Count; i++)
+                else
                 {
-                    if (i >= CanKind.ForSale.Count) { rows[i].text = ""; continue; }
+                    if (i >= CanKind.ForSale.Count) { c.Root.gameObject.SetActive(false); continue; }
                     var k = CanKind.ForSale[i];
-                    bool owned = game.OwnedCans.Contains(k.Id);
-                    bool current = game.SpawnKind == k;
-                    string state = current ? "<color=#88ff88>소환 중</color>" : owned ? "<color=#bbbbbb>보유</color>" : (game.Money >= k.Price ? $"<color=#ffd966>${k.Price:N0}</color>" : $"<color=#ff6666>${k.Price:N0}</color>");
-                    rows[i].text = $"{i + 1}. {k.Name}   {state}\n<size=20><color=#cccccc>{k.Desc}   ·   소환 ${game.SpawnCost(k)}</color></size>";
-                    rows[i].color = owned || game.Money >= k.Price ? Color.white : new Color(1f, 1f, 1f, 0.5f);
+                    c.Root.gameObject.SetActive(true);
+                    bool owned = game.OwnedCans.Contains(k.Id), current = game.SpawnKind == k;
+                    Fill(c, i, k.Name, Ui.Ink, k.Body, owned, current, k.Price, $"{k.Desc}   ·   소환 ${game.SpawnCost(k)}", current ? "소환 중" : "보유");
                     if (kb != null && Digit(kb, i + 1)) game.PickCan(k);
                 }
             }
+        }
+
+        void Fill(Card c, int i, string name, Color nameColor, Color iconColor, bool owned, bool current, long price, string desc, string ownedText)
+        {
+            c.Key.text = (i + 1).ToString();
+            c.Name.text = name; c.Name.color = nameColor;
+            c.IconFill.color = iconColor;
+            c.Icon.color = current ? Ui.Good : Ui.BoardEdge;
+            c.Desc.text = desc;
+            bool afford = game.Money >= price;
+            c.State.text = current ? $"<color=#88ff99>{ownedText}</color>" : owned ? $"<color=#bbbbbb>{ownedText}</color>" : (afford ? $"${price:N0}" : $"<color=#ff6666>${price:N0}</color>");
+            var alpha = owned || afford ? 1f : 0.55f;
+            c.Name.color = new Color(nameColor.r, nameColor.g, nameColor.b, alpha);
+            c.Desc.color = new Color(Ui.Dim.r, Ui.Dim.g, Ui.Dim.b, Ui.Dim.a * alpha);
         }
 
         static bool Digit(Keyboard kb, int n) => n switch
@@ -81,27 +99,5 @@ namespace TinCan
             4 => kb.digit4Key.wasPressedThisFrame, 5 => kb.digit5Key.wasPressedThisFrame, 6 => kb.digit6Key.wasPressedThisFrame,
             _ => false,
         };
-
-        Image Panel(string name, Transform parent, Vector2 pos, Vector2 size, Color color)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rt = (RectTransform)go.transform; rt.SetParent(parent, false);
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = pos; rt.sizeDelta = size;
-            var img = go.AddComponent<Image>(); img.color = color; img.raycastTarget = false;
-            return img;
-        }
-
-        Text Txt(string name, Transform parent, Vector2 pos, Vector2 size, int fontSize, TextAnchor anchor, Color color)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            var rt = (RectTransform)go.transform; rt.SetParent(parent, false);
-            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = pos; rt.sizeDelta = size;
-            var t = go.AddComponent<Text>();
-            t.font = font; t.fontSize = fontSize; t.alignment = anchor; t.color = color; t.raycastTarget = false; t.supportRichText = true;
-            t.horizontalOverflow = HorizontalWrapMode.Overflow; t.verticalOverflow = VerticalWrapMode.Overflow;
-            return t;
-        }
     }
 }

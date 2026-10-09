@@ -53,6 +53,8 @@ namespace TinCan
             tree.SetOpen(false);
             armory = new GameObject("Armory").AddComponent<Armory>();
             armory.Build(this, hud.Canvas);
+            tabs = new GameObject("MenuTabs").AddComponent<MenuTabs>();
+            tabs.Build(hud.Canvas);
             new GameObject("Markers").AddComponent<OffscreenMarkers>();
         }
 
@@ -65,7 +67,7 @@ namespace TinCan
             {
                 MenuOpen = !MenuOpen;
                 Gun.Enabled = !MenuOpen;
-                if (MenuOpen) OpenPage(lastPage); else { tree.SetOpen(false); armory.Hide(); }
+                if (MenuOpen) OpenPage(lastPage); else { tree.SetOpen(false); armory.Hide(); tabs.Hide(); }
             }
             if (MenuOpen)
             {
@@ -79,11 +81,13 @@ namespace TinCan
         }
 
         int lastPage = 2;
+        MenuTabs tabs;
         void OpenPage(int p)
         {
             lastPage = p;
             tree.SetOpen(p == 2);
             if (p == 2) armory.Hide(); else armory.Show(p == 0 ? Armory.Page.Guns : Armory.Page.Cans);
+            tabs.Show(p);
         }
 
         // ---------- 총기류 ----------
