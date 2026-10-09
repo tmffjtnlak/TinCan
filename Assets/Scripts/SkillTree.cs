@@ -4,14 +4,14 @@ using UnityEngine;
 
 namespace TinCan
 {
-    /// <summary>스킬 노드 하나. 자리(트리 좌표), 이웃, 단계, 값, 효과. 데이터로만 늘린다.</summary>
+    /// <summary>스킬 노드 하나. 자리(트리 좌표), 이웃, 값, 효과. 데이터로만 늘린다.</summary>
     public class SkillNode
     {
         public string Id, Name, Glyph;
-        public Func<int, string> Desc;          // 현재 레벨 → 설명 (다음 단계 효과까지)
+        public Func<int, string> Desc;          // 설명
         public Vector2 Pos;                     // 트리 좌표 (1 = 노드 간격 하나)
         public string[] Links = new string[0];  // 이웃 (양방향)
-        public int Level, MaxLevel;
+        public int Level, MaxLevel = 1;         // 한 번 사면 끝 (사용자 10-10: 강화가 아니라 하나에 하나씩)
         public Func<int, long> Cost;
         public Action<Game, int> Apply;
         public Color Color;                     // 계열 색
@@ -21,8 +21,9 @@ namespace TinCan
     }
 
     /// <summary>
-    /// 스킬트리 = 전반 관리 (얼마나 잘). 총 종류는 총기류, 깡통 종류는 깡통류에서 산다.
-    /// 계열 넷: 장전(빨강), 선반(하늘), 돈(노랑), 자동(초록). 열림 규칙: 이웃 중 하나라도 1단계 이상이면 살 수 있다.
+    /// 스킬트리 = 숫자 (얼마나 잘). 총 종류는 총기류, 깡통 종류는 깡통류에서 산다.
+    /// 노드 하나 = 구매 한 번. 깊이가 필요하면 노드를 이어 붙인다 (빠른 장전 → 더 빠른 장전).
+    /// 계열 다섯: 장전(빨강), 선반(하늘), 돈(노랑), 자동(초록), 시간(보라). 열림 규칙: 이웃 중 하나라도 샀으면 살 수 있다.
     /// </summary>
     public static class SkillTree
     {
@@ -33,75 +34,47 @@ namespace TinCan
         public static readonly Color Purple = new Color(0.75f, 0.55f, 1f);
         public static readonly Color White = new Color(0.9f, 0.9f, 0.95f);
 
+        static SkillNode N(string id, string name, string glyph, Vector2 pos, Color color, long cost, string desc, Action<Game> apply, params string[] links)
+            => new SkillNode { Id = id, Name = name, Glyph = glyph, Pos = pos, Color = color, Cost = l => cost, Desc = l => desc, Apply = (g, l) => apply(g), Links = links };
+
         public static List<SkillNode> Make() => new List<SkillNode>
         {
-            new SkillNode { Id = "root", Name = "사수", Glyph = "총", Root = true, Level = 1, MaxLevel = 1, Pos = Vector2.zero, Color = White,
+            new SkillNode { Id = "root", Name = "사수", Glyph = "총", Root = true, Level = 1, Pos = Vector2.zero, Color = White,
                 Cost = l => 0, Desc = l => "모든 것의 시작.", Apply = (g, l) => { },
                 Links = new[] { "reload1", "shelf1", "value1", "auto1", "slow1" } },
 
-            // 시간 (보라) — 오른쪽 아래. 우클릭 슬로우 (깡통만 느려진다)
-            new SkillNode { Id = "slow1", Name = "긴 숨", Glyph = "숨", Pos = new Vector2(1.7f, -0.5f), Color = Purple, MaxLevel = 3,
-                Cost = l => 40 + l * 90, Desc = l => $"슬로우 게이지 {2f + l:0.0}초 → {3f + l:0.0}초",
-                Apply = (g, l) => g.SlowGaugeMax = 1f + l * 0.5f, Links = new[] { "slow2", "slow3", "floor" } },
-            new SkillNode { Id = "floor", Name = "바닥 바람", Glyph = "바", Pos = new Vector2(3.3f, 0.3f), Color = Purple, MaxLevel = 2,
-                Cost = l => 150 + l * 250, Desc = l => $"바닥 가까이 온 깡통은 낙하 속도가 {(l == 0 ? "그대로" : $"-{l * 25}%")} → -{(l + 1) * 25}%",
-                Apply = (g, l) => g.FloorSlow = l * 0.25f, Links = new string[0] },
-            new SkillNode { Id = "slow2", Name = "깊은 숨", Glyph = "깊", Pos = new Vector2(3.1f, -0.9f), Color = Purple, MaxLevel = 3,
-                Cost = l => 120 + l * 180, Desc = l => $"깡통이 더 느리게: ×{0.3f - l * 0.06f:0.00} → ×{0.3f - (l + 1) * 0.06f:0.00}",
-                Apply = (g, l) => g.SlowStrength = 0.3f - l * 0.06f, Links = new string[0] },
-            new SkillNode { Id = "slow3", Name = "빠른 숨", Glyph = "빠", Pos = new Vector2(2.6f, -1.9f), Color = Purple, MaxLevel = 3,
-                Cost = l => 100 + l * 150, Desc = l => $"맞출 때 게이지 +{0.1f + l * 0.05f:0.00} → +{0.1f + (l + 1) * 0.05f:0.00}",
-                Apply = (g, l) => g.SlowFillPerHit = 0.1f + l * 0.05f, Links = new string[0] },
-
             // 장전 (빨강) — 왼쪽 위
-            new SkillNode { Id = "reload1", Name = "빠른 장전", Glyph = "장", Pos = new Vector2(-1.4f, 1f), Color = Red, MaxLevel = 5,
-                Cost = l => 15 + l * l * 20, Desc = l => $"장전 시간 ×{1f - l * 0.14f:0.00} → ×{1f - (l + 1) * 0.14f:0.00}",
-                Apply = (g, l) => g.Gun.ReloadScale = 1f - l * 0.14f, Links = new[] { "reload2", "capacity" } },
-            new SkillNode { Id = "reload2", Name = "연속 장전", Glyph = "연", Pos = new Vector2(-2.8f, 1.6f), Color = Red, MaxLevel = 3,
-                Cost = l => 80 + l * 120, Desc = l => $"공중 연속 {5 - l}번마다 즉시 장전 → {5 - (l + 1)}번마다",
-                Apply = (g, l) => g.Gun.ComboReloadEvery = 5 - l, Links = new string[0] },
-            new SkillNode { Id = "capacity", Name = "큰 탄창", Glyph = "탄", Pos = new Vector2(-2.2f, 2.8f), Color = Red, MaxLevel = 3,
-                Cost = l => 120 + l * 180, Desc = l => $"모든 총 +{l}발 → +{l + 1}발",
-                Apply = (g, l) => g.Gun.CapacityBonus = l, Links = new string[0] },
+            N("reload1", "빠른 장전", "장", new Vector2(-1.4f, 1f), Red, 30, "장전 시간 -20%", g => g.Gun.ReloadScale *= 0.8f, "reload2", "capacity", "comboreload"),
+            N("reload2", "더 빠른 장전", "장", new Vector2(-2.8f, 1.5f), Red, 120, "장전 시간 -20% 더", g => g.Gun.ReloadScale *= 0.8f, "reload3"),
+            N("reload3", "번개 장전", "번", new Vector2(-4.1f, 1.9f), Red, 400, "장전 시간 -25% 더", g => g.Gun.ReloadScale *= 0.75f),
+            N("capacity", "큰 탄창", "탄", new Vector2(-2.2f, 2.7f), Red, 150, "모든 총 +2발", g => g.Gun.CapacityBonus += 2, "capacity2"),
+            N("capacity2", "더 큰 탄창", "탄", new Vector2(-3.2f, 3.6f), Red, 450, "모든 총 +3발 더", g => g.Gun.CapacityBonus += 3),
+            N("comboreload", "연속 장전", "연", new Vector2(-0.9f, 2.3f), Red, 200, "공중 연속 5번마다 즉시 장전", g => g.Gun.ComboReloadEvery = 5),
 
             // 선반 (하늘) — 오른쪽 위
-            new SkillNode { Id = "shelf1", Name = "넓은 선반", Glyph = "선", Pos = new Vector2(1.4f, 1f), Color = Cyan, MaxLevel = 3,
-                Cost = l => 30 + l * 70, Desc = l => $"선반 자리 {3 + l}개 → {3 + l + 1}개",
-                Apply = (g, l) => g.MaxCans = 3 + l, Links = new[] { "bounce", "cheap", "cluster" } },
-            new SkillNode { Id = "cluster", Name = "붙여 놓기", Glyph = "붙", Pos = new Vector2(0.5f, 2.3f), Color = Cyan, MaxLevel = 1,
-                Cost = l => 45, Desc = l => "소환하면 마지막 깡통 바로 옆에 붙어 나온다. 가까워야 번갈아 맞추기 쉽다.",
-                Apply = (g, l) => g.ClusterSpawn = true, Links = new[] { "pair" } },
-            new SkillNode { Id = "pair", Name = "짝 소환", Glyph = "짝", Pos = new Vector2(0.0f, 3.5f), Color = Cyan, MaxLevel = 2,
-                Cost = l => 150 + l * 300, Desc = l => $"Space 한 번에 {1 + l}개 → {2 + l}개 (비용도 그만큼)",
-                Apply = (g, l) => g.SpawnCount = 1 + l, Links = new string[0] },
-            new SkillNode { Id = "bounce", Name = "가벼운 깡통", Glyph = "경", Pos = new Vector2(2.8f, 1.6f), Color = Cyan, MaxLevel = 4,
-                Cost = l => 25 + l * l * 30, Desc = l => $"맞으면 더 높이 튄다 (+{(l + 1) * 0.9f:0.0})",
-                Apply = (g, l) => Can.BounceBonus = l * 0.9f, Links = new[] { "rebound" } },
-            new SkillNode { Id = "rebound", Name = "다시 튐", Glyph = "튐", Pos = new Vector2(4.1f, 2.3f), Color = Cyan, MaxLevel = 2,
-                Cost = l => 180 + l * 320, Desc = l => $"떨어진 깡통이 혼자 {l}번 → {l + 1}번 다시 튀어오른다 (연속 유지)",
-                Apply = (g, l) => g.LandBounces = l, Links = new string[0] },
-            new SkillNode { Id = "cheap", Name = "단골 할인", Glyph = "할", Pos = new Vector2(2.2f, 2.8f), Color = Cyan, MaxLevel = 3,
-                Cost = l => 90 + l * 150, Desc = l => $"소환 비용 -{l * 15}% → -{(l + 1) * 15}%",
-                Apply = (g, l) => g.SpawnDiscount = l * 0.15f, Links = new string[0] },
+            N("shelf1", "넓은 선반", "선", new Vector2(1.4f, 1f), Cyan, 40, "선반 자리 +1", g => g.MaxCans += 1, "shelf2", "bounce", "cluster"),
+            N("shelf2", "더 넓은 선반", "선", new Vector2(1.9f, 2.1f), Cyan, 160, "선반 자리 +1 더", g => g.MaxCans += 1, "cheap"),
+            N("cheap", "단골 할인", "할", new Vector2(2.6f, 3.1f), Cyan, 220, "소환 비용 -30%", g => g.SpawnDiscount = 0.3f),
+            N("bounce", "가벼운 깡통", "경", new Vector2(2.8f, 1.3f), Cyan, 60, "맞으면 더 높이 튄다", g => Can.BounceBonus += 1.6f, "rebound"),
+            N("rebound", "다시 튐", "튐", new Vector2(4.1f, 1.7f), Cyan, 300, "떨어진 깡통이 혼자 한 번 다시 튀어오른다 (연속 유지)", g => g.LandBounces = 1),
+            N("cluster", "붙여 놓기", "붙", new Vector2(0.5f, 2.2f), Cyan, 50, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true, "pair"),
+            N("pair", "짝 소환", "짝", new Vector2(0.0f, 3.3f), Cyan, 250, "Space 한 번에 2개 (비용도 2개)", g => g.SpawnCount = 2),
 
             // 돈 (노랑) — 아래
-            new SkillNode { Id = "value1", Name = "비싼 깡통", Glyph = "값", Pos = new Vector2(0f, -1.5f), Color = Yellow, MaxLevel = 5,
-                Cost = l => 20 + l * l * 25, Desc = l => $"맞출 때 값 +{l * 20}% → +{(l + 1) * 20}%",
-                Apply = (g, l) => g.ValueMult = 1f + l * 0.2f, Links = new[] { "combo1", "payout1" } },
-            new SkillNode { Id = "combo1", Name = "연속 배수", Glyph = "배", Pos = new Vector2(-1.4f, -2.6f), Color = Yellow, MaxLevel = 3,
-                Cost = l => 100 + l * 150, Desc = l => $"연속마다 ×{1f + l * 0.25f:0.00} → ×{1f + (l + 1) * 0.25f:0.00}",
-                Apply = (g, l) => g.ComboMult = 1f + l * 0.25f, Links = new string[0] },
-            new SkillNode { Id = "payout1", Name = "두둑한 정산", Glyph = "정", Pos = new Vector2(1.0f, -2.8f), Color = Yellow, MaxLevel = 3,
-                Cost = l => 120 + l * 200, Desc = l => $"떨어질 때 정산 +{l * 15}% → +{(l + 1) * 15}%",
-                Apply = (g, l) => g.PayoutMult = 1f + l * 0.15f, Links = new string[0] },
+            N("value1", "비싼 깡통", "값", new Vector2(0f, -1.5f), Yellow, 40, "맞출 때 값 +30%", g => g.ValueMult += 0.3f, "value2", "combo1", "payout1"),
+            N("value2", "더 비싼 깡통", "값", new Vector2(0f, -2.8f), Yellow, 200, "맞출 때 값 +40% 더", g => g.ValueMult += 0.4f),
+            N("combo1", "연속 배수", "배", new Vector2(-1.5f, -2.5f), Yellow, 180, "연속마다 ×1.35", g => g.ComboMult = 1.35f),
+            N("payout1", "두둑한 정산", "정", new Vector2(1.2f, -2.9f), Yellow, 220, "떨어질 때 정산 +25%", g => g.PayoutMult += 0.25f),
 
             // 자동 (초록) — 왼쪽 아래
-            new SkillNode { Id = "auto1", Name = "자동 사격기", Glyph = "자", Pos = new Vector2(-1.6f, -0.4f), Color = Green, MaxLevel = 1,
-                Cost = l => 200, Desc = l => "선반 옆 기계가 공중의 깡통을 2초마다 한 번 맞춘다 (값 절반).",
-                Apply = (g, l) => g.AutoGunSeconds = 2f, Links = new[] { "auto2" } },
-            new SkillNode { Id = "auto2", Name = "빠른 사격기", Glyph = "속", Pos = new Vector2(-3.0f, -0.9f), Color = Green, MaxLevel = 3,
-                Cost = l => 250 + l * 300, Desc = l => $"사격기 간격 {2f - l * 0.4f:0.0}초 → {2f - (l + 1) * 0.4f:0.0}초",
-                Apply = (g, l) => g.AutoGunSeconds = 2f - l * 0.4f, Links = new string[0] },
+            N("auto1", "자동 사격기", "자", new Vector2(-1.6f, -0.5f), Green, 250, "선반 옆 기계가 공중의 깡통을 2초마다 한 번 맞춘다 (값 절반)", g => g.AutoGunSeconds = 2f, "auto2"),
+            N("auto2", "빠른 사격기", "속", new Vector2(-3.0f, -1.0f), Green, 500, "사격기 간격 1초", g => g.AutoGunSeconds = 1f),
+
+            // 시간 (보라) — 오른쪽 아래. 우클릭 슬로우
+            N("slow1", "긴 숨", "숨", new Vector2(1.7f, -0.5f), Purple, 60, "슬로우 게이지 2초 → 3초", g => g.SlowGaugeMax += 0.5f, "slow2", "slow3", "floor"),
+            N("slow2", "깊은 숨", "깊", new Vector2(3.1f, -0.9f), Purple, 200, "슬로우 중 깡통이 더 느리게 (×0.3 → ×0.18)", g => g.SlowStrength = 0.18f),
+            N("slow3", "빠른 숨", "빠", new Vector2(2.6f, -1.9f), Purple, 180, "맞출 때 게이지 +0.1 → +0.2", g => g.SlowFillPerHit = 0.2f),
+            N("floor", "바닥 바람", "바", new Vector2(3.3f, 0.3f), Purple, 220, "바닥 가까이 온 깡통은 낙하 속도 -40%", g => g.FloorSlow = 0.4f),
         };
 
         /// <summary>이웃 관계를 양방향으로 맞춘다</summary>

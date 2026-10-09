@@ -106,7 +106,7 @@ namespace TinCan
                 v.Edge.color = owned ? n.Color : (avail ? Color.Lerp(n.Color, Color.white, 0.2f) : new Color(n.Color.r, n.Color.g, n.Color.b, 0.25f));
                 v.Fill.color = n.Maxed ? Color.Lerp(n.Color, Color.black, 0.45f) : (owned ? Color.Lerp(n.Color, new Color(0.08f, 0.1f, 0.2f), 0.7f) : new Color(0.08f, 0.1f, 0.2f));
                 v.Glyph.color = owned || avail ? Color.white : new Color(1f, 1f, 1f, 0.3f);
-                v.Lv.text = n.Root ? "" : (n.MaxLevel == 1 ? (n.Maxed ? "완료" : "") : $"{n.Level}/{n.MaxLevel}");
+                v.Lv.text = n.Root ? "" : (n.Maxed ? "완료" : $"${n.NextCost:N0}");
                 v.Lv.color = n.Maxed ? SkillTree.Green : new Color(1f, 1f, 1f, 0.75f);
                 bool hot = hover == n;
                 v.Root.localScale = Vector3.one * (hot ? 1.18f : 1f);
@@ -171,8 +171,8 @@ namespace TinCan
             {
                 tip.gameObject.SetActive(true);
                 tip.rectTransform.anchoredPosition = canvasPt + new Vector2(240f, 90f);
-                tipTitle.text = hover.MaxLevel == 1 ? hover.Name : $"{hover.Name}  Lv {hover.Level:00} / {hover.MaxLevel:00}";
-                tipDesc.text = hover.Maxed ? "최대" : hover.Desc(hover.Level);
+                tipTitle.text = hover.Name;
+                tipDesc.text = hover.Desc(hover.Level);
                 bool avail = Available(hover);
                 tipCost.text = hover.Root ? "" : hover.Maxed ? "" : !avail ? "<color=#888888>옆 노드를 먼저</color>" : (game.Money >= hover.NextCost ? $"${hover.NextCost:N0}" : $"<color=#ff6666>${hover.NextCost:N0}</color>");
                 tipCost.supportRichText = true;
