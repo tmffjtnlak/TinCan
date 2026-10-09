@@ -40,7 +40,8 @@ namespace TinCan
         Transform bar; SpriteRenderer barFill, barWindow, barBg;
 
         public float ActiveReloadSeconds => Mathf.Max(0.35f, ReloadSeconds * (1f - 0.07f * ReloadStreak));
-        float WindowWidth => Mathf.Max(0.05f, 0.16f - 0.015f * ReloadStreak);
+        // 구간은 고정 (사용자 10-10): 자리도 폭도 늘 같다. 어려워지는 건 속도뿐
+        const float WindowStart = 0.62f, WindowEnd = 0.74f;
 
         public void Build()
         {
@@ -194,8 +195,7 @@ namespace TinCan
             if (Reloading) yield break;
             Reloading = true; attempted = false; missed = false; justDone = false;
             ReloadProgress = 0f;
-            float width = WindowWidth;
-            windowStart = Random.Range(0.45f, 0.8f - width); windowEnd = windowStart + width;
+            windowStart = WindowStart; windowEnd = WindowEnd;
             float seconds = ActiveReloadSeconds;
             Sfx.Play(Sfx.Reload(), 0.8f, 1f);
             view.Reload(seconds, Capacity - Ammo);
