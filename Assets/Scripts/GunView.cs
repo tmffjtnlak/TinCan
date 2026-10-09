@@ -98,7 +98,21 @@ namespace TinCan
         }
 
         public bool UseVoxel = true;
-        VoxelGun vox;
+        VoxelGun vox, vox2;        // 쌍권총이면 둘째 총 (왼손)
+        Transform hand2;
+        int dualNext;              // 다음에 쏠 총 (0 오른손, 1 왼손)
+        float recoil2;
+        bool dual;
+
+        /// <summary>둘째 총·왼손을 만든다 (쌍권총 장착 때 한 번)</summary>
+        void EnsureSecond()
+        {
+            if (vox2 != null) return;
+            hand2 = Instantiate(hand.gameObject, pivot).transform; hand2.name = "Hand2";
+            hand2.localScale = new Vector3(-1f, 1f, 1f);
+            vox2 = VoxelGun.Make(pivot);
+            vox2.transform.localScale = new Vector3(-1f, 1f, 1f);
+        }
 
         Transform side;
         float sideShow;     // 0 = 뒷면만, 1 = 옆면만 (사이는 납작하게 넘어가는 중)
@@ -111,16 +125,24 @@ namespace TinCan
             pump.gameObject.SetActive(k.HitAll);          // 샷건이면 펌프
             cylinderSwing.gameObject.SetActive(!k.HitAll);
             hammer.gameObject.SetActive(!k.HitAll);
+            dual = k.Dual;
+            if (dual) EnsureSecond();
+            if (vox2 != null) { vox2.gameObject.SetActive(dual); hand2.gameObject.SetActive(dual); }
         }
 
-        /// <summary>쏘았다: 뒤로 튀고, 공이치기, 총구 섬광 + 연기 + 궤적</summary>
+        /// <summary>쏘았다: 뒤로 튀고, 공이치기, 총구 섬광 + 연기 + 궤적. 쌍권총이면 번갈아</summary>
         public void Fire(Vector2 aim, float kick)
         {
-            recoil = Mathf.Min(1.6f, recoil + 1f * kick);
-            hammerBack = 1f;
+            bool second = dual && dualNext == 1;
+            if (dual) dualNext = 1 - dualNext;
+            if (second) recoil2 = Mathf.Min(1.6f, recoil2 + 1f * kick);
+            else { recoil = Mathf.Min(1.6f, recoil + 1f * kick); hammerBack = 1f; }
             if (kind.HitAll) StartCoroutine(Pump());
-            StartCoroutine(Flash(aim, kick));
+            StartCoroutine(Flash(aim, kick, second));
         }
+
+        /// <summary>쌍권총: 두 총 사이 간격 (화면 유닛)</summary>
+        const float DualGap = 0.95f;
 
         IEnumerator Pump()
         {
@@ -130,9 +152,9 @@ namespace TinCan
             Sfx.Play(Sfx.Click(), 0.6f, 0.7f);
         }
 
-        IEnumerator Flash(Vector2 aim, float kick)
+        IEnumerator Flash(Vector2 aim, float kick, bool second = false)
         {
-            var tip = Muzzle;
+            var tip = second && vox2 != null ? (Vector2)vox2.Muzzle.position : Muzzle;
             var dir = (aim - tip).normalized;
             float size = 0.4f + kick * 0.25f;
             var f = Look.Quad("Muzzle", tip + dir * 0.15f, new Vector2(size, size), new Color(1f, 0.95f, 0.6f, 0.95f), 48);
@@ -260,14 +282,23 @@ namespace TinCan
             if (vox != null)
             {
                 // 복셀: 눕힘 = 옆면 보이기(0→90), 돌림 = 장전 회전, 반동은 총열이 위로 들린다
+                float gap = dual ? DualGap * 0.5f : 0f;
                 vox.Lay = sideShow * 90f;
                 vox.Spin = sideSpin;
                 vox.Tilt = 28f - recoil * 14f;
                 vox.Apply();
-                vox.transform.localPosition = new Vector3(0.12f + lagPos.x, -0.1f - recoil * 0.3f, 0f);
+                vox.transform.localPosition = new Vector3(0.12f + gap + lagPos.x, -0.1f - recoil * 0.3f, 0f);
                 side.gameObject.SetActive(false);
-                hand.localPosition = new Vector3(lagPos.x, -recoil * 0.3f + handTilt * 0.06f, 0f);
+                hand.localPosition = new Vector3(gap + lagPos.x, -recoil * 0.3f + handTilt * 0.06f, 0f);
                 hand.localRotation = Quaternion.Euler(0f, 0f, swing * 30f - handTilt * 28f);
+                if (dual && vox2 != null)
+                {
+                    recoil2 = Mathf.Max(0f, recoil2 - dt * 6f);
+                    vox2.Lay = sideShow * 90f; vox2.Spin = sideSpin; vox2.Tilt = 28f - recoil2 * 14f; vox2.Apply();
+                    vox2.transform.localPosition = new Vector3(-0.12f - gap + lagPos.x, -0.1f - recoil2 * 0.3f, 0f);
+                    hand2.localPosition = new Vector3(-gap + lagPos.x, -recoil2 * 0.3f + handTilt * 0.06f, 0f);
+                    hand2.localRotation = Quaternion.Euler(0f, 0f, -(swing * 30f - handTilt * 28f));
+                }
                 return;
             }
             // 뒷면: sideShow가 0.5까지는 가로로 납작해지며 사라진다. 옆면: 0.5부터 펴진다

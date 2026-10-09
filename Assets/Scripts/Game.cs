@@ -34,6 +34,29 @@ namespace TinCan
         public int SpawnCount { get; set; } = 1;
         public float AutoGunSeconds { get; set; } = 0f;
         public float BurstMult { get; set; } = 2f;
+
+        // ---------- 슬로우 (우클릭) ----------
+        public float SlowGauge { get; private set; }          // 0..1
+        public float SlowGaugeMax { get; set; } = 1f;         // 스킬: 게이지 크기 (초 단위로 생각: 1 = 2초)
+        public float SlowStrength { get; set; } = 0.3f;       // 스킬: 깡통 시간 배수 (작을수록 느림)
+        public float SlowFillPerHit { get; set; } = 0.1f;     // 스킬: 맞출 때 차는 양
+        public bool SlowActive { get; private set; }
+        const float SlowDrainPerSec = 0.5f;
+
+        void UpdateSlow(Keyboard kb)
+        {
+            var mouse = Mouse.current;
+            bool want = mouse != null && mouse.rightButton.isPressed && SlowGauge > 0.02f;
+            if (want)
+            {
+                SlowGauge = Mathf.Max(0f, SlowGauge - SlowDrainPerSec * Time.deltaTime);
+                if (!SlowActive) { SlowActive = true; Sfx.Play(Sfx.Whoosh(), 0.5f, 0.6f); }
+            }
+            else if (SlowActive) { SlowActive = false; Sfx.Play(Sfx.Whoosh(), 0.4f, 1.4f); }
+            Can.TimeScale = SlowActive ? SlowStrength : 1f;
+        }
+
+        public void FillSlow() => SlowGauge = Mathf.Min(SlowGaugeMax, SlowGauge + SlowFillPerHit);
         public Gun Gun { get; private set; }
         public List<Can> Cans { get; } = new List<Can>();
         public List<SkillNode> Nodes { get; private set; }
@@ -50,7 +73,7 @@ namespace TinCan
         float lastSpawnX = float.NaN;
         int lastPage = 2;
 
-        void Awake() { I = this; Can.BounceBonus = 0f; }
+        void Awake() { I = this; Can.BounceBonus = 0f; Can.TimeScale = 1f; }
 
         void Start()
         {
@@ -216,6 +239,7 @@ namespace TinCan
                 return;
             }
             if (kb.spaceKey.wasPressedThisFrame) TrySpawn();
+            UpdateSlow(kb);
             AutoGun();
             saveTimer += Time.deltaTime;
             if (saveTimer > 5f) { saveTimer = 0f; Save.Write(this); }
@@ -335,6 +359,7 @@ namespace TinCan
             hud.Float(air >= 2 ? $"+{earned}  ×{air}" : $"+{earned}", at, can.Combo + (air - 1) * 2);
             if (can.Combo > BestCombo) BestCombo = can.Combo;
             Gun.OnComboHit(can.Combo);
+            FillSlow();
             StartCoroutine(HitStop(can.Combo >= 5 ? 0.04f : 0.02f));
         }
 

@@ -30,13 +30,25 @@ namespace TinCan
         public static readonly Color Cyan = new Color(0.3f, 0.9f, 1f);
         public static readonly Color Yellow = new Color(1f, 0.85f, 0.3f);
         public static readonly Color Green = new Color(0.4f, 1f, 0.5f);
+        public static readonly Color Purple = new Color(0.75f, 0.55f, 1f);
         public static readonly Color White = new Color(0.9f, 0.9f, 0.95f);
 
         public static List<SkillNode> Make() => new List<SkillNode>
         {
             new SkillNode { Id = "root", Name = "사수", Glyph = "총", Root = true, Level = 1, MaxLevel = 1, Pos = Vector2.zero, Color = White,
                 Cost = l => 0, Desc = l => "모든 것의 시작.", Apply = (g, l) => { },
-                Links = new[] { "reload1", "shelf1", "value1", "auto1" } },
+                Links = new[] { "reload1", "shelf1", "value1", "auto1", "slow1" } },
+
+            // 시간 (보라) — 오른쪽 아래. 우클릭 슬로우 (깡통만 느려진다)
+            new SkillNode { Id = "slow1", Name = "긴 숨", Glyph = "숨", Pos = new Vector2(1.7f, -0.5f), Color = Purple, MaxLevel = 3,
+                Cost = l => 40 + l * 90, Desc = l => $"슬로우 게이지 {2f + l:0.0}초 → {3f + l:0.0}초",
+                Apply = (g, l) => g.SlowGaugeMax = 1f + l * 0.5f, Links = new[] { "slow2", "slow3" } },
+            new SkillNode { Id = "slow2", Name = "깊은 숨", Glyph = "깊", Pos = new Vector2(3.1f, -0.9f), Color = Purple, MaxLevel = 3,
+                Cost = l => 120 + l * 180, Desc = l => $"깡통이 더 느리게: ×{0.3f - l * 0.06f:0.00} → ×{0.3f - (l + 1) * 0.06f:0.00}",
+                Apply = (g, l) => g.SlowStrength = 0.3f - l * 0.06f, Links = new string[0] },
+            new SkillNode { Id = "slow3", Name = "빠른 숨", Glyph = "빠", Pos = new Vector2(2.6f, -1.9f), Color = Purple, MaxLevel = 3,
+                Cost = l => 100 + l * 150, Desc = l => $"맞출 때 게이지 +{0.1f + l * 0.05f:0.00} → +{0.1f + (l + 1) * 0.05f:0.00}",
+                Apply = (g, l) => g.SlowFillPerHit = 0.1f + l * 0.05f, Links = new string[0] },
 
             // 장전 (빨강) — 왼쪽 위
             new SkillNode { Id = "reload1", Name = "빠른 장전", Glyph = "장", Pos = new Vector2(-1.4f, 1f), Color = Red, MaxLevel = 5,
@@ -73,7 +85,7 @@ namespace TinCan
             new SkillNode { Id = "combo1", Name = "연속 배수", Glyph = "배", Pos = new Vector2(-1.4f, -2.6f), Color = Yellow, MaxLevel = 3,
                 Cost = l => 100 + l * 150, Desc = l => $"연속마다 ×{1f + l * 0.25f:0.00} → ×{1f + (l + 1) * 0.25f:0.00}",
                 Apply = (g, l) => g.ComboMult = 1f + l * 0.25f, Links = new string[0] },
-            new SkillNode { Id = "payout1", Name = "두둑한 정산", Glyph = "정", Pos = new Vector2(1.4f, -2.6f), Color = Yellow, MaxLevel = 3,
+            new SkillNode { Id = "payout1", Name = "두둑한 정산", Glyph = "정", Pos = new Vector2(1.0f, -2.8f), Color = Yellow, MaxLevel = 3,
                 Cost = l => 120 + l * 200, Desc = l => $"떨어질 때 정산 +{l * 15}% → +{(l + 1) * 15}%",
                 Apply = (g, l) => g.PayoutMult = 1f + l * 0.15f, Links = new string[0] },
 

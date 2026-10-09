@@ -17,6 +17,7 @@ namespace TinCan
         Transform canvas;
         Image hurtVeil;
         float cylSpin, moneyBump;
+        Image slowBg, slowFill, slowVeil; Text slowLabel;
         long shown, shownTarget;
 
         public void Bind(Game g) => game = g;
@@ -50,6 +51,13 @@ namespace TinCan
             for (int i = 0; i < chambers.Length; i++) chambers[i] = Ui.Image($"Ch{i}", cylinder, Vector2.zero, new Vector2(18f, 18f), Ui.Ink);
             gunName = Ui.Text("GunName", cylBoard.transform, new Vector2(55f, 30f), new Vector2(130f, 36f), 24, TextAnchor.MiddleCenter, Ui.Ink);
             shelf = Ui.Text("Shelf", cylBoard.transform, new Vector2(55f, -20f), new Vector2(130f, 60f), 18, TextAnchor.MiddleCenter, Ui.Dim);
+            // 슬로우 게이지: 실린더 판자 위에 가로 막대
+            slowBg = Ui.Image("SlowBg", cylBoard.transform, new Vector2(0f, 72f), new Vector2(230f, 14f), new Color(0f, 0f, 0f, 0.5f));
+            slowFill = Ui.Image("SlowFill", slowBg.transform, Vector2.zero, new Vector2(224f, 8f), new Color(0.5f, 0.8f, 1f));
+            slowLabel = Ui.Text("SlowLabel", cylBoard.transform, new Vector2(0f, 94f), new Vector2(230f, 24f), 16, TextAnchor.MiddleCenter, Ui.Dim);
+            slowLabel.text = "우클릭 = 느리게";
+            slowVeil = Ui.Image("SlowVeil", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
+            slowVeil.transform.SetAsFirstSibling();
         }
 
         /// <summary>정산: 큰 글자로 "+$N (M연속)". 터뜨린 거면 더 크고 "터짐!"</summary>
@@ -109,9 +117,15 @@ namespace TinCan
             stats.text = $"터뜨림 {game.Bursts}  ·  최고 연속 {game.BestCombo}  ·  최고 정산 ${game.BestPayout:N0}"
                 + (air >= 2 ? $"   <color=#ffd966>공중 {air}  ×{air}</color>" : "")
                 + (gun.ReloadStreak >= 1 ? $"   <color=#88ffaa>저스트 {gun.ReloadStreak}</color>" : "");
-            hint.text = game.MenuOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)})   ·   좌클릭 = 쏜다   ·   R = 장전   ·   Tab = 가게";
+            hint.text = game.MenuOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)})   ·   좌클릭 = 쏜다   ·   우클릭 = 느리게   ·   R = 장전   ·   Tab = 가게";
             gunName.text = gun.Kind.Name;
             shelf.text = $"선반 {game.CansOnShelf}/{game.MaxCans}";
+            // 슬로우 게이지와 푸른 화면
+            float g = game.SlowGaugeMax > 0f ? game.SlowGauge / game.SlowGaugeMax : 0f;
+            slowFill.rectTransform.sizeDelta = new Vector2(224f * g, 8f);
+            slowFill.rectTransform.anchoredPosition = new Vector2(-112f + 112f * g, 0f);
+            slowFill.color = game.SlowActive ? new Color(0.7f, 0.95f, 1f) : (g >= 0.99f ? new Color(0.6f, 0.9f, 1f) : new Color(0.4f, 0.65f, 0.9f));
+            slowVeil.color = Color.Lerp(slowVeil.color, game.SlowActive ? new Color(0.3f, 0.5f, 0.9f, 0.14f) : Color.clear, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 12f));
 
             // 실린더: 탄창 수만큼 칸을 원으로. 장전 중이면 돈다
             int cap = Mathf.Min(gun.Capacity, chambers.Length);

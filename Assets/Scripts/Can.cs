@@ -44,6 +44,19 @@ namespace TinCan
         public bool Done { get; private set; }
         /// <summary>업그레이드 "가벼운 깡통": 맞을 때 위로 더 튄다</summary>
         public static float BounceBonus;
+        /// <summary>슬로우(우클릭): 깡통만 시간이 느려진다. 1 = 보통. 속도는 비례, 중력은 제곱으로 줄여야 진짜 시간 느려짐과 같다</summary>
+        public static float TimeScale = 1f;
+        float appliedScale = 1f;
+        const float BaseGravity = 2.2f;
+
+        void FixedUpdate()
+        {
+            if (rb == null || Done || Mathf.Approximately(appliedScale, TimeScale)) return;
+            float k = TimeScale / appliedScale;
+            rb.linearVelocity *= k; rb.angularVelocity *= k;
+            rb.gravityScale = BaseGravity * TimeScale * TimeScale;
+            appliedScale = TimeScale;
+        }
 
         public int HitsLeft { get; private set; }
         /// <summary>타이틀 메뉴 깡통: 떨어지면 이걸 부른다 (돈 정산 대신). 체력 점은 숨긴다</summary>
@@ -69,7 +82,7 @@ namespace TinCan
             Kind = kind;
             transform.position = at + Vector2.up * 1.2f;   // 위에서 툭 떨어져 선반에 앉는다
             rb = gameObject.AddComponent<Rigidbody2D>();
-            rb.mass = kind.Mass; rb.gravityScale = 2.2f; rb.linearDamping = 0.1f; rb.angularDamping = 0.6f;
+            rb.mass = kind.Mass; rb.gravityScale = BaseGravity * TimeScale * TimeScale; rb.linearDamping = 0.1f; rb.angularDamping = 0.6f; appliedScale = TimeScale;
             rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             rb.constraints = RigidbodyConstraints2D.FreezeRotation;   // 선반 위에선 안 넘어진다
             var col = gameObject.AddComponent<BoxCollider2D>();
@@ -146,11 +159,11 @@ namespace TinCan
             }
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
-            var v = rb.linearVelocity;
+            var v = rb.linearVelocity / TimeScale;   // 느려진 시간 안에서 계산하고 다시 줄인다
             v.y = (Mathf.Max(0f, v.y * 0.3f) + 9.5f + BounceBonus + Random.Range(-0.5f, 0.8f)) * bounceScale;
             v.x = v.x * 0.4f + side * 2.2f + Random.Range(-0.6f, 0.6f);
-            rb.linearVelocity = v;
-            rb.angularVelocity = -side * Random.Range(400f, 800f) + Random.Range(-200f, 200f);
+            rb.linearVelocity = v * TimeScale;
+            rb.angularVelocity = (-side * Random.Range(400f, 800f) + Random.Range(-200f, 200f)) * TimeScale;
             flashLeft = 0.06f;
             StopAllCoroutines(); StartCoroutine(Squash());
             Sfx.Play(Sfx.Tang(), 0.8f, Kind.Pitch * (1f + Mathf.Min(Combo, 12) * 0.03f));
