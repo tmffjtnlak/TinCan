@@ -28,6 +28,8 @@ namespace TinCan
         public int Combo { get; private set; }       // 이번 공중에서 맞은 횟수
         public bool Airborne { get; private set; }
         public Vector2 Home { get; private set; }
+        /// <summary>업그레이드 "가벼운 깡통": 맞을 때 위로 더 튄다</summary>
+        public static float BounceBonus;
 
         Rigidbody2D rb;
         SpriteRenderer body, rim, label;
@@ -83,7 +85,7 @@ namespace TinCan
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
             var v = rb.linearVelocity;
-            v.y = Mathf.Max(0f, v.y * 0.3f) + 9.5f + Random.Range(-0.5f, 0.8f);
+            v.y = Mathf.Max(0f, v.y * 0.3f) + 9.5f + BounceBonus + Random.Range(-0.5f, 0.8f);
             v.x = v.x * 0.4f + side * 2.2f + Random.Range(-0.6f, 0.6f);
             rb.linearVelocity = v;
             rb.angularVelocity = -side * Random.Range(400f, 800f) + Random.Range(-200f, 200f);

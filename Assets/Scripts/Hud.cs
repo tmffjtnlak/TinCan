@@ -14,6 +14,7 @@ namespace TinCan
         Transform canvas;
 
         public void Bind(Game g) => game = g;
+        public Transform Canvas => canvas;
 
         void Awake()
         {

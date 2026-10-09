@@ -13,22 +13,44 @@ namespace TinCan
         public int LastCombo { get; private set; }
         public Gun Gun { get; private set; }
         public List<Can> Cans { get; } = new List<Can>();
+        public List<Upgrade> Upgrades { get; private set; }
         Hud hud;
+        Shop shop;
 
-        void Awake() { I = this; }
+        // 울타리 위 자리들 (왼쪽부터). 깡통 수가 늘면 이 순서로 채운다
+        static readonly Vector2[] Slots = { new Vector2(3.0f, -1.84f), new Vector2(4.6f, -1.84f), new Vector2(6.2f, -1.74f), new Vector2(3.8f, -1.84f), new Vector2(5.4f, -1.84f), new Vector2(7.0f, -1.84f) };
+        static readonly CanKind[] SlotKinds = { CanKind.Tin, CanKind.Tin, CanKind.Bottle, CanKind.Tin, CanKind.Bottle, CanKind.Tin };
+
+        /// <summary>깡통 수를 맞춘다 (늘리기만)</summary>
+        public void SetCanCount(int n)
+        {
+            n = Mathf.Min(n, Slots.Length);
+            while (Cans.Count < n) Cans.Add(Can.Spawn(SlotKinds[Cans.Count], Slots[Cans.Count]));
+        }
+
+        public void Buy(Upgrade u)
+        {
+            if (u.Maxed || Money < u.NextCost) { Sfx.Play(Sfx.Click(), 0.5f, 0.8f); return; }
+            Money -= u.NextCost;
+            u.Level++;
+            u.Apply(this, u.Level);
+            Sfx.Play(Sfx.Reload(), 0.6f, 1.6f);
+            hud.Float($"{u.Name} Lv{u.Level}", new Vector2(4.5f, 0.5f), 4);
+        }
+
+        void Awake() { I = this; Can.BounceBonus = 0f; }
 
         void Start()
         {
             Look.BuildSaloon();
             Gun = new GameObject("Gun").AddComponent<Gun>();
             Gun.Build();
-            // 울타리 위 깡통 셋
-            float railTop = -2.3f + 0.11f;
-            Cans.Add(Can.Spawn(CanKind.Tin, new Vector2(3.0f, railTop + 0.35f)));
-            Cans.Add(Can.Spawn(CanKind.Tin, new Vector2(4.6f, railTop + 0.35f)));
-            Cans.Add(Can.Spawn(CanKind.Bottle, new Vector2(6.2f, railTop + 0.45f)));
+            SetCanCount(3);
+            Upgrades = TinCan.Upgrades.Make();
             hud = new GameObject("Hud").AddComponent<Hud>();
             hud.Bind(this);
+            shop = new GameObject("Shop").AddComponent<Shop>();
+            shop.Build(this, hud.Canvas);
         }
 
         public void CanHit(Can can, int earned, Vector2 at)
