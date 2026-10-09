@@ -60,6 +60,14 @@ namespace TinCan
             slowVeil.transform.SetAsFirstSibling();
         }
 
+        /// <summary>깡통 위에 붙는 작은 돈 글자 (깡통이 위치를 갱신한다)</summary>
+        public Text CanLabel()
+        {
+            var t = Ui.Text("CanLabel", canvas, Vector2.zero, new Vector2(200f, 30f), 20, TextAnchor.MiddleCenter, new Color(1f, 0.92f, 0.6f));
+            t.gameObject.SetActive(false);
+            return t;
+        }
+
         /// <summary>정산: 큰 글자로 "+$N (M연속)". 터뜨린 거면 더 크고 "터짐!"</summary>
         public void Payout(long amount, int combo, Vector2 world, bool burst)
         {

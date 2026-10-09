@@ -29,6 +29,8 @@ namespace TinCan
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
         public static readonly System.Collections.Generic.List<CanKind> ForSale = new System.Collections.Generic.List<CanKind> { Tin, Bottle, Rubber, Hat };
+        /// <summary>터뜨리면 기본 얼마: 값 × H(H+1). (n번 맞추면 값 × n(n+1)/2 쌓이고, 터뜨리면 ×2) — 예측 가능한 점수</summary>
+        public long BurstBase => (long)Value * Hits * (Hits + 1);
     }
 
     /// <summary>
@@ -109,6 +111,7 @@ namespace TinCan
             Look.Quad("Shine", new Vector2(-kind.Width * 0.3f, 0f), new Vector2(0.06f, kind.Height * 0.8f), new Color(1f, 1f, 1f, 0.35f), 5, visual);
             // 체력 점: 깡통 위에 남은 횟수만큼 (맞을 때마다 하나씩 꺼진다)
             HitsLeft = kind.Hits;
+            if (Game.I != null && Game.I.Hud != null) earnedLabel = Game.I.Hud.CanLabel();
             pips = new SpriteRenderer[kind.Hits];
             float pw = 0.08f, gap = 0.03f, total = kind.Hits * pw + (kind.Hits - 1) * gap;
             for (int i = 0; i < kind.Hits; i++)
@@ -268,8 +271,24 @@ namespace TinCan
             Destroy(gameObject);
         }
 
+        UnityEngine.UI.Text earnedLabel;
+        void OnDestroy() { if (earnedLabel != null) Destroy(earnedLabel.gameObject); }
+
         void Update()
         {
+            // 지금 쌓인 돈이 깡통 위에 따라다닌다 (예측 가능한 점수)
+            if (earnedLabel != null)
+            {
+                bool show = Airborne && !Done && Earned > 0;
+                earnedLabel.gameObject.SetActive(show);
+                if (show)
+                {
+                    earnedLabel.text = Cursed ? $"-${Earned:N0}" : $"${Earned:N0}";
+                    earnedLabel.color = Cursed ? new Color(0.85f, 0.5f, 1f) : (HitsLeft <= 1 ? new Color(1f, 0.6f, 0.3f) : new Color(1f, 0.92f, 0.6f));
+                    var sp = Camera.main.WorldToScreenPoint(transform.position + Vector3.up * (Kind.Height * 0.5f + 0.42f));
+                    ((RectTransform)earnedLabel.transform).anchoredPosition = new Vector2(sp.x - Screen.width * 0.5f, sp.y - Screen.height * 0.5f) * (1080f / Screen.height);
+                }
+            }
             if (flashLeft > 0f)
             {
                 flashLeft -= Time.deltaTime;
