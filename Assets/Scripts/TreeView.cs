@@ -65,7 +65,7 @@ namespace TinCan
             // 위 돈, 아래 안내
             money = Txt("Money", veil.transform, new Vector2(0f, 480f), new Vector2(800f, 60f), 40, TextAnchor.MiddleCenter, SkillTree.Yellow);
             var hint = Txt("Hint", veil.transform, new Vector2(0f, -500f), new Vector2(1400f, 40f), 22, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.55f));
-            hint.text = "클릭 = 산다   ·   휠 = 확대   ·   드래그·WASD = 이동   ·   Tab = 닫는다";
+            hint.text = "클릭 = 산다   ·   휠 = 확대   ·   드래그·방향키 = 이동   ·   Q 총기류  W 깡통류  E 스킬   ·   Tab = 닫는다";
         }
 
         NodeView MakeNode(SkillNode n)
@@ -141,8 +141,8 @@ namespace TinCan
             if (kb != null)
             {
                 var pan = Vector2.zero;
-                if (kb.wKey.isPressed) pan.y -= 1f; if (kb.sKey.isPressed) pan.y += 1f;
-                if (kb.aKey.isPressed) pan.x += 1f; if (kb.dKey.isPressed) pan.x -= 1f;
+                if (kb.upArrowKey.isPressed) pan.y -= 1f; if (kb.downArrowKey.isPressed) pan.y += 1f;
+                if (kb.leftArrowKey.isPressed) pan.x += 1f; if (kb.rightArrowKey.isPressed) pan.x -= 1f;
                 world.anchoredPosition += pan * 600f * Time.unscaledDeltaTime;
             }
             // 마우스 → 트리 좌표

@@ -27,13 +27,13 @@ namespace TinCan
             best = Make("Best", new Vector2(-660f, 415f), new Vector2(500f, 40f), 24, TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.7f));
             hint = Make("Hint", new Vector2(0f, -490f), new Vector2(1200f, 40f), 22, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.6f));
             hint.text = "";
-            bullets = new Image[12];
+            bullets = new Image[33];
             for (int i = 0; i < bullets.Length; i++)
             {
                 var go = new GameObject($"Bullet{i}", typeof(RectTransform));
                 var rt = (RectTransform)go.transform; rt.SetParent(canvas, false);
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = new Vector2(500f + i * 34f, -470f); rt.sizeDelta = new Vector2(22f, 22f);
+                rt.anchoredPosition = new Vector2(380f + (i % 11) * 34f, -455f - (i / 11) * 26f); rt.sizeDelta = new Vector2(22f, 22f);
                 bullets[i] = go.AddComponent<Image>(); bullets[i].raycastTarget = false;
             }
         }
@@ -87,8 +87,8 @@ namespace TinCan
             if (game == null) return;
             money.text = $"${game.Money:N0}";
             best.text = $"최고 연속 {game.BestCombo}   ·   최고 정산 ${game.BestPayout:N0}";
-            hint.text = game.TreeOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnKind.Cost})   ·   좌클릭 = 쏜다   ·   R = 장전   ·   Tab = 스킬      선반 {game.CansOnShelf}/{game.MaxCans}";
             var gun = game.Gun;
+            hint.text = game.MenuOpen ? "" : $"{gun.Kind.Name}   ·   Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)})   ·   좌클릭 = 쏜다   ·   R = 장전   ·   Tab = 가게      선반 {game.CansOnShelf}/{game.MaxCans}";
             for (int i = 0; i < bullets.Length; i++)
             {
                 bullets[i].gameObject.SetActive(i < gun.Capacity);

@@ -14,10 +14,19 @@ namespace TinCan
         public float Mass;
         public float Pitch;        // 탱 소리 높이
         public Color Body, Rim, Label;
+        public long Price;         // 깡통류 구매 값 (0 = 처음부터)
+        public string Desc;
+        // 깡통마다 붙는 기능 (2주 안엔 하나만)
+        public int LandBounces;    // 낙하지역에 닿으면 이 횟수만큼 혼자 다시 튀어오른다
 
-        public static readonly CanKind Tin = new CanKind { Name = "깡통", Value = 1, Cost = 2, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
-        public static readonly CanKind Bottle = new CanKind { Name = "병", Value = 3, Cost = 8, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
-        public static readonly CanKind Hat = new CanKind { Name = "모자", Value = 10, Cost = 30, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
+        public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 모든 것의 시작.", Value = 1, Cost = 2, Price = 0, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
+        public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 가볍다.", Value = 3, Cost = 8, Price = 60, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
+        public static readonly CanKind Rubber = new CanKind { Id = "rubber", Name = "고무 깡통", Desc = "값 2. 떨어지면 혼자 한 번 다시 튀어오른다.", Value = 2, Cost = 6, Price = 200, LandBounces = 1, Width = 0.5f, Height = 0.7f, Mass = 0.7f, Pitch = 0.85f, Body = new Color(0.9f, 0.45f, 0.5f), Rim = new Color(0.55f, 0.2f, 0.25f), Label = new Color(1f, 0.9f, 0.5f) };
+        public static readonly CanKind Hat = new CanKind { Id = "hat", Name = "모자", Desc = "값 10. 납작하고 아주 가볍다.", Value = 10, Cost = 30, Price = 400, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
+        public string Id;
+
+        /// <summary>깡통류 가게 목록 (순서대로)</summary>
+        public static readonly System.Collections.Generic.List<CanKind> ForSale = new System.Collections.Generic.List<CanKind> { Tin, Bottle, Rubber, Hat };
     }
 
     /// <summary>
@@ -78,7 +87,7 @@ namespace TinCan
         }
 
         /// <summary>총에 맞았다. hitPoint = 맞은 자리(월드). 맞은 쪽 반대로, 위로 튄다. 돌려주는 값 = 이번 한 발로 쌓인 돈</summary>
-        public int Hit(Vector2 hitPoint, float scale = 1f)
+        public int Hit(Vector2 hitPoint, float scale = 1f, float bounceScale = 1f)
         {
             if (Done) return 0;
             if (!Airborne)
@@ -94,7 +103,7 @@ namespace TinCan
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
             var v = rb.linearVelocity;
-            v.y = Mathf.Max(0f, v.y * 0.3f) + 9.5f + BounceBonus + Random.Range(-0.5f, 0.8f);
+            v.y = (Mathf.Max(0f, v.y * 0.3f) + 9.5f + BounceBonus + Random.Range(-0.5f, 0.8f)) * bounceScale;
             v.x = v.x * 0.4f + side * 2.2f + Random.Range(-0.6f, 0.6f);
             rb.linearVelocity = v;
             rb.angularVelocity = -side * Random.Range(400f, 800f) + Random.Range(-200f, 200f);
@@ -118,10 +127,25 @@ namespace TinCan
             visual.localScale = Vector3.one;
         }
 
+        int bouncesLeft = -1;
+
         void OnTriggerEnter2D(Collider2D c)
         {
             if (Done || !Airborne) return;
-            if (c.GetComponent<DropZone>() != null) Land();
+            if (c.GetComponent<DropZone>() == null) return;
+            if (bouncesLeft < 0) bouncesLeft = Kind.LandBounces;
+            if (bouncesLeft > 0)
+            {
+                // 깡통 기능 "고무": 혼자 다시 튀어오른다 (연속은 이어진다)
+                bouncesLeft--;
+                var v = rb.linearVelocity; v.y = 11f + BounceBonus; v.x *= 0.5f; rb.linearVelocity = v;
+                transform.position = new Vector3(transform.position.x, Look.DropY + 0.5f, 0f);
+                flashLeft = 0.06f;
+                StartCoroutine(Squash());
+                Sfx.Play(Sfx.Tang(), 0.5f, Kind.Pitch * 0.6f);
+                return;
+            }
+            Land();
         }
 
         /// <summary>낙하지역에 떨어졌다: 정산하고 사라진다</summary>
