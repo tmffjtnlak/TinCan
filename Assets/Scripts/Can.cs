@@ -17,6 +17,7 @@ namespace TinCan
 
         public static readonly CanKind Tin = new CanKind { Name = "깡통", Value = 1, Cost = 2, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
         public static readonly CanKind Bottle = new CanKind { Name = "병", Value = 3, Cost = 8, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
+        public static readonly CanKind Hat = new CanKind { Name = "모자", Value = 10, Cost = 30, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
     }
 
     /// <summary>
@@ -77,7 +78,7 @@ namespace TinCan
         }
 
         /// <summary>총에 맞았다. hitPoint = 맞은 자리(월드). 맞은 쪽 반대로, 위로 튄다. 돌려주는 값 = 이번 한 발로 쌓인 돈</summary>
-        public int Hit(Vector2 hitPoint)
+        public int Hit(Vector2 hitPoint, float scale = 1f)
         {
             if (Done) return 0;
             if (!Airborne)
@@ -88,7 +89,7 @@ namespace TinCan
                 if (shelf != null) Physics2D.IgnoreCollision(GetComponent<Collider2D>(), shelf.GetComponent<Collider2D>(), true);
             }
             Combo++;
-            int earned = Kind.Value * Combo;
+            int earned = Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;
             Earned += earned;
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);

@@ -17,8 +17,20 @@ namespace TinCan
         public float AimRadius = 0.22f;
         public int Shots { get; private set; }
         public int Hits { get; private set; }
-        /// <summary>상점이 열려 있으면 꺼진다</summary>
+        /// <summary>스킬트리가 열려 있으면 꺼진다</summary>
         public bool Enabled { get; set; } = true;
+        /// <summary>"연속 장전": 공중 연속 N번마다 즉시 장전. 0 = 없음</summary>
+        public int ComboReloadEvery { get; set; } = 0;
+
+        public void OnComboHit(int combo)
+        {
+            if (ComboReloadEvery > 0 && combo > 0 && combo % ComboReloadEvery == 0 && Ammo < Capacity)
+            {
+                Reloading = false;
+                Ammo = Capacity;
+                Sfx.Play(Sfx.Reload(), 0.7f, 2.4f);
+            }
+        }
 
         Transform crosshair;
         SpriteRenderer[] crossParts;
