@@ -20,6 +20,9 @@ namespace TinCan
         public float ComboMult { get; set; } = 1f;
         public float PayoutMult { get; set; } = 1f;
         public float SpawnDiscount { get; set; } = 0f;
+        public bool ClusterSpawn { get; set; } = false;   // 스킬 "붙여 놓기": 마지막 깡통 옆에
+        public int SpawnCount { get; set; } = 1;           // 스킬 "짝 소환": Space 한 번에 몇 개
+        float lastSpawnX = float.NaN;
         public float AutoGunSeconds { get; set; } = 0f;
         public Gun Gun { get; private set; }
         public List<Can> Cans { get; } = new List<Can>();
@@ -126,29 +129,55 @@ namespace TinCan
 
         public int CansOnShelf => Cans.FindAll(c => c != null && !c.Airborne).Count;
 
-        /// <summary>돈을 내고 선반에 깡통 하나. 자리는 선반 위 빈 곳 중 무작위</summary>
+        /// <summary>돈을 내고 선반에 깡통. 짝 소환이면 여러 개, 붙여 놓기면 마지막 깡통 옆에</summary>
         public bool TrySpawn()
         {
             long cost = SpawnCost(SpawnKind);
             if (CansOnShelf >= MaxCans) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("선반이 꽉 찼다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (Money < cost) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("돈이 모자라다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
-            Money -= cost;
-            float x = FreeX();
-            Cans.Add(Can.Spawn(SpawnKind, new Vector2(x, Look.ShelfY + 0.11f + SpawnKind.Height * 0.5f)));
+            int n = 0;
+            for (int i = 0; i < SpawnCount; i++)
+            {
+                if (CansOnShelf >= MaxCans || Money < cost) break;
+                Money -= cost;
+                float x = FreeX();
+                Cans.Add(Can.Spawn(SpawnKind, new Vector2(x, Look.ShelfY + 0.11f + SpawnKind.Height * 0.5f)));
+                lastSpawnX = x; n++;
+            }
             Sfx.Play(Sfx.Reload(), 0.4f, 2.2f);
-            return true;
+            return n > 0;
         }
 
         float FreeX()
         {
+            float gap = SpawnKind.Width + 0.25f;
+            // 붙여 놓기: 선반 위 깡통 옆자리 중 비어 있는 곳 (오른쪽, 왼쪽 순)
+            if (ClusterSpawn)
+            {
+                float anchor = float.NaN;
+                foreach (var c in Cans) if (c != null && !c.Airborne) { anchor = c.transform.position.x; }
+                if (float.IsNaN(anchor) && !float.IsNaN(lastSpawnX)) anchor = lastSpawnX;
+                if (!float.IsNaN(anchor))
+                    for (int k = 1; k <= 4; k++)
+                        foreach (float s in new[] { 1f, -1f })
+                        {
+                            float x = anchor + s * gap * k;
+                            if (x < Look.ShelfLeft + 0.5f || x > Look.ShelfRight - 0.5f) continue;
+                            if (Clear(x, gap * 0.9f)) return x;
+                        }
+            }
             for (int tries = 0; tries < 20; tries++)
             {
                 float x = Random.Range(Look.ShelfLeft + 0.8f, Look.ShelfRight - 0.8f);
-                bool clear = true;
-                foreach (var c in Cans) if (c != null && !c.Airborne && Mathf.Abs(c.transform.position.x - x) < 0.9f) { clear = false; break; }
-                if (clear) return x;
+                if (Clear(x, 0.9f)) return x;
             }
             return Random.Range(Look.ShelfLeft + 0.8f, Look.ShelfRight - 0.8f);
+        }
+
+        bool Clear(float x, float minGap)
+        {
+            foreach (var c in Cans) if (c != null && !c.Airborne && Mathf.Abs(c.transform.position.x - x) < minGap) return false;
+            return true;
         }
 
         /// <summary>지금 공중에 떠 있는 깡통 수 (사용자 10-10: 하나만 띄우면 너무 쉽다 → 동시에 띄운 수가 배수)</summary>
