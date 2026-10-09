@@ -60,9 +60,21 @@ namespace TinCan
             }
             else
             {
+                int nc = CanKind.ForSale.Count;
                 for (int i = 0; i < rows.Count; i++)
                 {
-                    if (i >= CanKind.ForSale.Count) { rows[i].text = ""; continue; }
+                    if (i >= nc)
+                    {
+                        // 저주 칸: 깡통 목록 아래
+                        int ci = i - nc;
+                        if (ci >= game.Curses.Count) { rows[i].text = ""; continue; }
+                        var cu = game.Curses[ci];
+                        string st = cu.Active ? "<color=#cc66ff>켜짐</color>" : cu.Owned ? "<color=#bbbbbb>꺼짐</color>" : (game.Money >= cu.Price ? $"<color=#ffd966>${cu.Price:N0}</color>" : $"<color=#ff6666>${cu.Price:N0}</color>");
+                        rows[i].text = $"{i + 1}. <color=#cc88ff>저주</color>  {cu.Name}   {st}\n<size=20><color=#99ff99>{cu.Gain}</color>  <color=#ff9999>{cu.Loss}</color></size>";
+                        rows[i].color = Color.white;
+                        if (kb != null && Digit(kb, i + 1)) game.ToggleCurse(cu);
+                        continue;
+                    }
                     var k = CanKind.ForSale[i];
                     bool owned = game.OwnedCans.Contains(k.Id);
                     bool current = game.SpawnKind == k;

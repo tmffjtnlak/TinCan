@@ -24,6 +24,9 @@ namespace TinCan
         public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 6번 맞으면 터진다.", Value = 1, Cost = 2, Price = 0, Hits = 6, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
         public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 가볍다. 4번이면 깨진다.", Value = 3, Cost = 8, Price = 60, Hits = 4, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
         public static readonly CanKind Rubber = new CanKind { Id = "rubber", Name = "고무 깡통", Desc = "값 2. 떨어지면 혼자 한 번 다시 튄다. 8번이면 터진다.", Value = 2, Cost = 6, Price = 200, Hits = 8, LandBounces = 1, Width = 0.5f, Height = 0.7f, Mass = 0.7f, Pitch = 0.85f, Body = new Color(0.9f, 0.45f, 0.5f), Rim = new Color(0.55f, 0.2f, 0.25f), Label = new Color(1f, 0.9f, 0.5f) };
+        /// <summary>저주 깡통: 값 0, 체력 3. 떨어지면 돈 절반, 터뜨리면 무사. 가만두면 혼자 뛰어내린다</summary>
+        public static readonly CanKind Cursed = new CanKind { Id = "cursed", Name = "저주 깡통", Desc = "떨어지면 돈 절반. 터뜨리면 무사.", Value = 0, Cost = 0, Price = 0, Hits = 3, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 0.5f, Body = new Color(0.12f, 0.08f, 0.14f), Rim = new Color(0.5f, 0.1f, 0.5f), Label = new Color(0.7f, 0.2f, 0.8f), Cursed = true };
+        public bool Cursed;
         public static readonly CanKind Hat = new CanKind { Id = "hat", Name = "모자", Desc = "값 10. 납작하고 아주 가볍다. 10번이면 찢어진다.", Value = 10, Cost = 30, Price = 400, Hits = 10, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
         public string Id;
 
@@ -85,6 +88,30 @@ namespace TinCan
                 pips[i] = Look.Quad("Pip", new Vector2(-total * 0.5f + pw * 0.5f + i * (pw + gap), kind.Height * 0.5f + 0.14f), new Vector2(pw, pw), new Color(1f, 1f, 1f, 0.9f), 6, visual);
             visual.localScale = Vector3.zero;
             StartCoroutine(PopIn());
+            if (kind.Cursed) StartCoroutine(CursedIdle());
+        }
+
+        /// <summary>저주 깡통: 선반 위에서 떨며 기다리다, 5초 뒤 혼자 뛰어내린다 (공중 취급 → 떨어지면 저주 발동)</summary>
+        IEnumerator CursedIdle()
+        {
+            float t = 0f;
+            while (!Airborne && !Done)
+            {
+                t += Time.deltaTime;
+                float shake = Mathf.Min(1f, t / 5f);
+                visual.localPosition = new Vector3(Mathf.Sin(t * 40f) * 0.03f * shake, 0f, 0f);
+                if (t >= 5f)
+                {
+                    Airborne = true;
+                    rb.constraints = RigidbodyConstraints2D.None;
+                    var shelf = Object.FindFirstObjectByType<Shelf>();
+                    if (shelf != null) Physics2D.IgnoreCollision(GetComponent<Collider2D>(), shelf.GetComponent<Collider2D>(), true);
+                    rb.linearVelocity = new Vector2(Random.Range(-1f, 1f), 3f);
+                    Sfx.Play(Sfx.Tang(), 0.5f, 0.4f);
+                    yield break;
+                }
+                yield return null;
+            }
         }
 
         static PhysicsMaterial2D mat;

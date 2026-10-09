@@ -50,6 +50,22 @@ namespace TinCan
             return t;
         }
 
+        Image hurt;
+        /// <summary>저주 맞음: 화면이 보라색으로 확 어두워졌다 돌아온다</summary>
+        public void Hurt() => StartCoroutine(HurtCo());
+        IEnumerator HurtCo()
+        {
+            if (hurt == null)
+            {
+                var go = new GameObject("Hurt", typeof(RectTransform));
+                var rt = (RectTransform)go.transform; rt.SetParent(canvas, false); rt.SetAsFirstSibling();
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.sizeDelta = new Vector2(4000f, 3000f);
+                hurt = go.AddComponent<Image>(); hurt.raycastTarget = false;
+            }
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.5f) { hurt.color = new Color(0.4f, 0f, 0.5f, 0.45f * (1f - t)); yield return null; }
+            hurt.color = Color.clear;
+        }
+
         /// <summary>정산: 큰 글자로 "+$N (M연속)". 터뜨린 거면 더 크고 "터짐!"</summary>
         public void Payout(long amount, int combo, Vector2 world, bool burst)
         {
