@@ -24,11 +24,16 @@ namespace TinCan
         public bool Enabled { get; set; } = true;
         /// <summary>"연속 장전": 공중 연속 N번마다 즉시 장전. 0 = 없음</summary>
         public int ComboReloadEvery { get; set; } = 0;
+        /// <summary>스킬 "첫 발": 장전 직후 첫 발 값 배수 (1 = 없음)</summary>
+        public float FirstShotMult { get; set; } = 1f;
+        /// <summary>스킬 "마지막 발": 탄창 마지막 발의 튀는 힘 배수 (1 = 없음)</summary>
+        public float LastShotBounce { get; set; } = 1f;
+        bool firstShotPending;
 
         Transform crosshair, ring;
         GunView view;
         Camera cam;
-        float kickLeft, nextFire;
+        float kickLeft, nextFire, shotValue = 1f, shotBounce = 1f;
         Vector3 camHome;
 
         // 저스트 장전 (엔터 더 건전식): 조준점 위 칸, 슬래시 구간에 R/클릭이면 즉시 장전.
@@ -86,7 +91,7 @@ namespace TinCan
             if (ComboReloadEvery > 0 && combo > 0 && combo % ComboReloadEvery == 0 && Ammo < Capacity)
             {
                 Reloading = false;
-                Ammo = Capacity;
+                Ammo = Capacity; firstShotPending = true;
                 Sfx.Play(Sfx.Reload(), 0.7f, 2.4f);
             }
         }
@@ -151,8 +156,14 @@ namespace TinCan
         {
             if (Reloading) return;
             if (Ammo <= 0) { if (!Kind.Auto) Sfx.Play(Sfx.Click(), 0.7f, 1f); return; }
+            bool wasFull = Ammo == Capacity;
+            bool last = Ammo == 1;
             Ammo--; Shots++;
             kickLeft = 1f;
+            shotValue = wasFull && firstShotPending ? FirstShotMult : 1f;
+            shotBounce = last ? LastShotBounce : 1f;
+            firstShotPending = false;
+            if (shotValue > 1f) Game.I?.Hud.Float("첫 발 ×2", aim + Vector2.up * 0.5f, 4);
             Sfx.Play(Sfx.Bang(), Kind.Auto ? 0.5f : 0.9f, Kind.Pitch * Random.Range(0.95f, 1.08f));
             StartCoroutine(MuzzleFlash(aim));
             view.Fire(aim, Kind.Kick);
@@ -177,7 +188,7 @@ namespace TinCan
         {
             // 샷건은 깡통마다 맞은 자리가 다르다: 깡통 쪽으로 살짝 당긴 점
             Vector2 at = Kind.HitAll ? Vector2.Lerp(aim, can.transform.position, 0.7f) : aim;
-            int earned = can.Hit(at, Kind.ValueScale, Kind.BounceScale);
+            int earned = can.Hit(at, Kind.ValueScale * shotValue, Kind.BounceScale * shotBounce);
             if (can.IsMenu) return;
             Game.I?.CanHit(can, earned, at);
             if (Kind.CurseChance > 0f && !can.Cursed && !can.Done && Random.value < Kind.CurseChance)
@@ -222,6 +233,7 @@ namespace TinCan
             }
             Ammo = Capacity;
             Reloading = false;
+            firstShotPending = true;
         }
 
         /// <summary>저스트 장전 시도: 슬래시 구간 안이면 즉시 끝, 아니면 실패</summary>
@@ -232,7 +244,7 @@ namespace TinCan
             {
                 ReloadStreak++;
                 justDone = true;
-                Ammo = Capacity;
+                Ammo = Capacity; firstShotPending = true;
                 Sfx.Play(Sfx.Tang(), 0.6f, 1.8f + Mathf.Min(ReloadStreak, 8) * 0.1f);
                 view.ReloadSnap();
                 Game.I?.Hud.Float($"저스트!  ×{ReloadStreak}", (Vector2)crosshair.position + Vector2.up * 0.9f, 3 + ReloadStreak);

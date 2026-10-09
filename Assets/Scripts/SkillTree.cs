@@ -44,11 +44,12 @@ namespace TinCan
                 Links = new[] { "reload1", "shelf1", "value1", "auto1", "slow1" } },
 
             // 장전 (빨강) — 왼쪽 위
-            N("reload1", "빠른 장전", "장", new Vector2(-1.4f, 1f), Red, 30, "장전 시간 -20%", g => g.Gun.ReloadScale *= 0.8f, "reload2", "capacity", "comboreload"),
+            // 탄창 수는 총의 성격이라 트리에 없다 (사용자 10-10). 트리는 "그 탄창을 어떻게 쓰나"만
+            N("reload1", "빠른 장전", "장", new Vector2(-1.4f, 1f), Red, 30, "장전 시간 -20%", g => g.Gun.ReloadScale *= 0.8f, "reload2", "firstshot", "comboreload"),
             N("reload2", "더 빠른 장전", "장", new Vector2(-2.8f, 1.5f), Red, 120, "장전 시간 -20% 더", g => g.Gun.ReloadScale *= 0.8f, "reload3"),
             N("reload3", "번개 장전", "번", new Vector2(-4.1f, 1.9f), Red, 400, "장전 시간 -25% 더", g => g.Gun.ReloadScale *= 0.75f),
-            N("capacity", "큰 탄창", "탄", new Vector2(-2.2f, 2.7f), Red, 150, "모든 총 +2발", g => g.Gun.CapacityBonus += 2, "capacity2"),
-            N("capacity2", "더 큰 탄창", "탄", new Vector2(-3.2f, 3.6f), Red, 450, "모든 총 +3발 더", g => g.Gun.CapacityBonus += 3),
+            N("firstshot", "첫 발", "첫", new Vector2(-2.2f, 2.7f), Red, 150, "장전 직후 첫 발은 값 2배 (어느 총이든)", g => g.Gun.FirstShotMult = 2f, "lastshot"),
+            N("lastshot", "마지막 발", "끝", new Vector2(-3.2f, 3.6f), Red, 220, "탄창의 마지막 한 발은 더 높이 띄운다", g => g.Gun.LastShotBounce = 1.5f),
             N("comboreload", "연속 장전", "연", new Vector2(-0.9f, 2.3f), Red, 200, "공중 연속 5번마다 즉시 장전", g => g.Gun.ComboReloadEvery = 5),
 
             // 선반 (하늘) — 오른쪽 위
