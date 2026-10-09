@@ -72,20 +72,28 @@ namespace TinCan
             Look.Quad("PumpBit", Vector2.zero, new Vector2(0.26f, 0.3f), wood, 44, pump);
             pump.gameObject.SetActive(false);
             barrelTip = new GameObject("Tip").transform; barrelTip.SetParent(body, false); barrelTip.localPosition = new Vector2(-0.04f, 1.26f);
+            // 옆면 (장전 때만 보인다): 총열이 오른쪽, 손잡이가 아래. 손가락(방아쇠울)이 원점 근처
+            side = new GameObject("Side").transform; side.SetParent(pivot, false);
+            side.localPosition = new Vector2(0.12f, -0.1f);
+            Look.Quad("SBarrel", new Vector2(0.62f, 0.34f), new Vector2(1.0f, 0.16f), steel, 42, side);
+            Look.Quad("SBarrelLight", new Vector2(0.62f, 0.38f), new Vector2(0.95f, 0.05f), steelLight, 43, side);
+            Look.Quad("SFrame", new Vector2(0.05f, 0.26f), new Vector2(0.5f, 0.38f), steel, 42, side);
+            Look.Quad("SCyl", new Vector2(0.08f, 0.28f), new Vector2(0.34f, 0.34f), dark, 44, side);
+            Look.Quad("SCylDot1", new Vector2(0.0f, 0.28f), new Vector2(0.06f, 0.06f), new Color(0.65f, 0.58f, 0.4f), 45, side);
+            Look.Quad("SCylDot2", new Vector2(0.16f, 0.28f), new Vector2(0.06f, 0.06f), new Color(0.65f, 0.58f, 0.4f), 45, side);
+            Look.Quad("SHammer", new Vector2(-0.24f, 0.46f), new Vector2(0.08f, 0.16f), dark, 43, side);
+            var sGrip = Look.Quad("SGrip", new Vector2(-0.2f, -0.16f), new Vector2(0.26f, 0.5f), wood, 42, side);
+            sGrip.transform.localRotation = Quaternion.Euler(0f, 0f, 22f);
+            Look.Quad("STriggerGuard", new Vector2(0.08f, -0.02f), new Vector2(0.22f, 0.06f), dark, 43, side);
+            Look.Quad("STrigger", new Vector2(0.06f, 0.04f), new Vector2(0.05f, 0.12f), dark, 44, side);
+            side.gameObject.SetActive(false);
             root.localScale = Vector3.one * 1.35f;
-            bodyParts = body.GetComponentsInChildren<SpriteRenderer>(true);
-            bodyOrders = new int[bodyParts.Length];
-            for (int i = 0; i < bodyParts.Length; i++) bodyOrders[i] = bodyParts[i].sortingOrder;
         }
 
-        SpriteRenderer[] bodyParts; int[] bodyOrders; bool behindHand;
-        /// <summary>뒷면으로 넘어가면 총이 손 뒤로 들어간다</summary>
-        void SetBehindHand(bool back)
-        {
-            if (back == behindHand) return;
-            behindHand = back;
-            for (int i = 0; i < bodyParts.Length; i++) bodyParts[i].sortingOrder = bodyOrders[i] - (back ? 30 : 0);
-        }
+        Transform side;
+        float sideShow;     // 0 = 뒷면만, 1 = 옆면만 (사이는 납작하게 넘어가는 중)
+        float sideSpin;     // 옆면이 돈 각도
+        float handTilt;     // 장전 때 손 기울기
 
         public void SetKind(GunKind k)
         {
@@ -149,23 +157,34 @@ namespace TinCan
 
         float twirl;   // 총이 돈 각도 (도)
 
+        /// <summary>
+        /// 1) 손을 기울이며 총이 납작해졌다 옆면으로 펴진다 (뒷면 → 옆면)
+        /// 2) 옆면이 손가락에 걸려 원을 그리며 돈다. 돌면서 탄피
+        /// 3) 옆면이 납작해졌다 뒷면으로 펴지고 손이 제자리. 탁.
+        /// </summary>
         IEnumerator ReloadCo(float seconds, int shells)
         {
             reloading = true;
-            float t = 0f; bool spat = false;
-            int spins = seconds > 0.75f ? 3 : 2;
-            Sfx.Play(Sfx.Twirl(), 0.7f, Mathf.Clamp(0.7f / seconds, 0.6f, 2.5f));
-            while (t < seconds && reloading)
+            float flip = Mathf.Min(0.12f, seconds * 0.15f);
+            float spinTime = Mathf.Max(0.2f, seconds - flip * 2f);
+            int spins = spinTime > 0.6f ? 3 : 2;
+            // 1) 뒷면 → 옆면
+            for (float t = 0f; t < 1f && reloading; t += Time.deltaTime / flip) { sideShow = t; handTilt = t; yield return null; }
+            sideShow = 1f; handTilt = 1f;
+            // 2) 돈다
+            Sfx.Play(Sfx.Twirl(), 0.7f, Mathf.Clamp(0.7f / spinTime, 0.6f, 2.5f));
+            float s = 0f; bool spat = false;
+            while (s < spinTime && reloading)
             {
-                t += Time.deltaTime;
-                float k = Mathf.Clamp01(t / seconds);
-                float e = 1f - Mathf.Pow(1f - k, 2.2f);                // 빠르게 돌다 느려진다
-                twirl = 360f * spins * e;                                // 앞으로 넘어가며 돈다
-                dip = Mathf.Sin(k * Mathf.PI) * 0.15f;
-                cylinder.localRotation = Quaternion.Euler(0f, 0f, k * 1080f);
-                if (!spat && k > 0.25f) { spat = true; Shells(Mathf.Min(shells, 6)); }
+                s += Time.deltaTime;
+                float k = Mathf.Clamp01(s / spinTime);
+                float e = 1f - Mathf.Pow(1f - k, 2.4f);                // 빠르게 돌다 느려진다
+                sideSpin = -360f * spins * e;
+                if (!spat && k > 0.2f) { spat = true; Shells(Mathf.Min(shells, 6)); }
                 yield return null;
             }
+            // 3) 옆면 → 뒷면
+            for (float t = 1f; t > 0f && reloading; t -= Time.deltaTime / flip) { sideShow = t; handTilt = t; yield return null; }
             if (reloading) Snap();
             reloading = false;
         }
@@ -175,7 +194,7 @@ namespace TinCan
 
         void Snap()
         {
-            dip = 0f; swing = 0f; twirl = 0f; cylinder.localRotation = Quaternion.identity; body.localScale = Vector3.one;
+            dip = 0f; swing = 0f; twirl = 0f; sideShow = 0f; sideSpin = 0f; handTilt = 0f; cylinder.localRotation = Quaternion.identity; body.localScale = Vector3.one;
             recoil = Mathf.Max(recoil, 0.55f);   // 탁 잡는 출렁임
             hammerBack = 0.8f;
         }
@@ -228,28 +247,21 @@ namespace TinCan
             float lean = -Mathf.Sign(ang == 0f ? 1f : ang);
             pivot.localRotation = Quaternion.Euler(0f, 0f, ang + recoil * 14f * lean);
             // 몸통: 총열 방향으로 뒤로 밀린다 + 손 흔들림 + 장전 때 옆으로 기움
-            // 돌릴 때: 맥크리식. 손가락(방아쇠)을 축으로, 카메라 쪽으로 기운 원을 그리며 돈다.
-            // 총열 끝이 타원을 그리고(가로폭 0.45), 그에 맞춰 총이 짧아졌다 길어지고, 뒷면으로 넘어가면 좌우를 뒤집는다.
-            var axis = new Vector2(0.12f, -0.1f);
-            Quaternion rot; Vector3 scale = Vector3.one;
-            if (twirl != 0f)
-            {
-                float a = twirl * Mathf.Deg2Rad;
-                var dir = new Vector2(Mathf.Sin(a) * 0.38f, Mathf.Cos(a));     // 총열이 가리키는 방향 (타원, 가로폭 0.38)
-                float len = dir.magnitude;                                      // 앞뒤로 넘어가면 짧아 보인다
-                const float tilt = -22f;                                         // 원 자체가 비스듬히 (맥크리처럼 대각선으로)
-                rot = Quaternion.Euler(0f, 0f, -Mathf.Atan2(dir.x, dir.y) * Mathf.Rad2Deg + tilt + swing * 30f);
-                bool back = Mathf.Sin(a) < 0f;                                  // 뒷면
-                scale = new Vector3(back ? -1f : 1f, Mathf.Max(0.2f, len), 1f);
-                SetBehindHand(Mathf.Cos(a) < -0.2f);                            // 아래로 넘어갈 때 손 뒤로
-            }
-            else { rot = Quaternion.Euler(0f, 0f, swing * 30f); SetBehindHand(false); }
-            body.localRotation = rot;
-            body.localScale = scale;
-            body.localPosition = (Vector3)(axis - (Vector2)(rot * Vector3.Scale(axis, scale))) + new Vector3(lagPos.x, -recoil * 0.3f, 0f);
-            // 손은 돌지 않고 반동·흔들림만 같이. 돌리는 동안 살짝 위로 들어 올린다
-            hand.localPosition = new Vector3(lagPos.x, -recoil * 0.3f + (twirl != 0f ? 0.05f : 0f), 0f);
-            hand.localRotation = Quaternion.Euler(0f, 0f, swing * 30f);
+            // 뒷면: sideShow가 0.5까지는 가로로 납작해지며 사라진다. 옆면: 0.5부터 펴진다
+            float backW = Mathf.Clamp01(1f - sideShow * 2f);
+            float sideW = Mathf.Clamp01(sideShow * 2f - 1f);
+            body.gameObject.SetActive(backW > 0.01f);
+            body.localRotation = Quaternion.Euler(0f, 0f, swing * 30f);
+            body.localScale = new Vector3(Mathf.Max(0.02f, backW), 1f, 1f);
+            body.localPosition = new Vector3(lagPos.x, -recoil * 0.3f, 0f);
+            // 옆면: 손가락(원점)을 축으로 돈다. 뒷면과 손은 돌지 않는다
+            side.gameObject.SetActive(sideW > 0.01f);
+            side.localRotation = Quaternion.Euler(0f, 0f, sideSpin);
+            side.localScale = new Vector3(Mathf.Max(0.02f, sideW), 1f, 1f);
+            side.localPosition = new Vector3(0.12f + lagPos.x, -0.1f - recoil * 0.3f, 0f);
+            // 손: 장전 때 기울어지며(총을 옆으로 눕히는 느낌) 살짝 들린다
+            hand.localPosition = new Vector3(lagPos.x, -recoil * 0.3f + handTilt * 0.06f, 0f);
+            hand.localRotation = Quaternion.Euler(0f, 0f, swing * 30f - handTilt * 28f);
             cylinderSwing.localPosition = new Vector3(-0.02f - swing, 0.12f, 0f);
             hammer.localRotation = Quaternion.Euler(0f, 0f, -hammerBack * 45f);
             pump.localPosition = new Vector3(-0.04f, 0.55f - pumpBack, 0f);
