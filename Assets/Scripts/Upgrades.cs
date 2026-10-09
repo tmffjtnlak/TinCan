@@ -24,20 +24,26 @@ namespace TinCan
             new Upgrade
             {
                 Id = "reload", Name = "빠른 장전", Desc = "실린더를 더 빨리 돌린다",
-                MaxLevel = 5, Cost = l => 10 + l * l * 15,
+                MaxLevel = 5, Cost = l => 15 + l * l * 20,
                 Apply = (g, l) => g.Gun.ReloadSeconds = 0.9f - l * 0.13f,
             },
             new Upgrade
             {
-                Id = "cans", Name = "깡통 추가", Desc = "울타리에 깡통이 하나 더",
-                MaxLevel = 3, Cost = l => 25 + l * 60,
-                Apply = (g, l) => g.SetCanCount(3 + l),
+                Id = "shelf", Name = "넓은 선반", Desc = "선반에 깡통을 하나 더 둘 수 있다",
+                MaxLevel = 3, Cost = l => 30 + l * 70,
+                Apply = (g, l) => g.MaxCans = 3 + l,
             },
             new Upgrade
             {
                 Id = "bounce", Name = "가벼운 깡통", Desc = "맞으면 더 높이 튄다",
-                MaxLevel = 4, Cost = l => 20 + l * l * 25,
+                MaxLevel = 4, Cost = l => 25 + l * l * 30,
                 Apply = (g, l) => Can.BounceBonus = l * 0.9f,
+            },
+            new Upgrade
+            {
+                Id = "bottle", Name = "병 납품", Desc = "병을 소환한다 (비싸지만 3배)",
+                MaxLevel = 1, Cost = l => 60,
+                Apply = (g, l) => g.SpawnKind = CanKind.Bottle,
             },
         };
     }

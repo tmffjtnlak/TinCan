@@ -26,7 +26,7 @@ namespace TinCan
             money = Make("Money", new Vector2(-660f, 470f), new Vector2(500f, 70f), 48, TextAnchor.MiddleLeft, new Color(1f, 0.9f, 0.4f));
             best = Make("Best", new Vector2(-660f, 415f), new Vector2(500f, 40f), 24, TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.7f));
             hint = Make("Hint", new Vector2(0f, -490f), new Vector2(1200f, 40f), 22, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.6f));
-            hint.text = "좌클릭 = 쏜다   ·   R = 장전   ·   깡통을 공중에서 계속 맞춰라";
+            hint.text = "";
             bullets = new Image[6];
             for (int i = 0; i < 6; i++)
             {
@@ -48,6 +48,12 @@ namespace TinCan
             t.font = font; t.fontSize = fontSize; t.alignment = anchor; t.color = color; t.raycastTarget = false;
             t.horizontalOverflow = HorizontalWrapMode.Overflow; t.verticalOverflow = VerticalWrapMode.Overflow;
             return t;
+        }
+
+        /// <summary>정산: 큰 글자로 "+$N (M연속)"</summary>
+        public void Payout(long amount, int combo, Vector2 world)
+        {
+            Float(combo >= 3 ? $"+${amount:N0}  {combo}연속!" : $"+${amount:N0}", world + Vector2.up * 0.8f, Mathf.Max(combo, 4));
         }
 
         /// <summary>떠오르는 글자 (월드 위치에서). 콤보가 높을수록 크고 노랗다</summary>
@@ -80,7 +86,8 @@ namespace TinCan
         {
             if (game == null) return;
             money.text = $"${game.Money:N0}";
-            best.text = $"최고 연속 {game.BestCombo}";
+            best.text = $"최고 연속 {game.BestCombo}   ·   최고 정산 ${game.BestPayout:N0}";
+            hint.text = game.ShopOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnKind.Cost})   ·   좌클릭 = 쏜다   ·   R = 장전   ·   Tab = 잡화점      선반 {game.CansOnShelf}/{game.MaxCans}";
             var gun = game.Gun;
             for (int i = 0; i < bullets.Length; i++)
             {

@@ -17,6 +17,8 @@ namespace TinCan
         public float AimRadius = 0.22f;
         public int Shots { get; private set; }
         public int Hits { get; private set; }
+        /// <summary>상점이 열려 있으면 꺼진다</summary>
+        public bool Enabled { get; set; } = true;
 
         Transform crosshair;
         SpriteRenderer[] crossParts;
@@ -52,6 +54,9 @@ namespace TinCan
         {
             var aim = MouseWorld();
             crosshair.position = aim;
+            crosshair.gameObject.SetActive(Enabled);
+            Cursor.visible = !Enabled;
+            if (!Enabled) return;
             var mouse = Mouse.current; var kb = Keyboard.current;
             if (kb != null && kb.rKey.wasPressedThisFrame && !Reloading && Ammo < Capacity) StartCoroutine(Reload());
             if (mouse != null && mouse.leftButton.wasPressedThisFrame) Fire(aim);

@@ -5,33 +5,38 @@ using UnityEngine.UI;
 
 namespace TinCan
 {
-    /// <summary>오른쪽 위 상점. 줄 하나 = 업그레이드 하나. 숫자키 1~9로 산다 (마우스는 조준에 쓰니까).</summary>
+    /// <summary>상점 화면. Tab으로 열고 닫는다. 열려 있는 동안 사격은 멈춘다. 숫자키로 산다.</summary>
     public class Shop : MonoBehaviour
     {
         Game game;
         readonly List<Text> rows = new List<Text>();
         Font font;
         Transform canvas;
-        Image panel;
+        Image veil, panel;
+        Text money;
 
         public void Build(Game g, Transform canvasRoot)
         {
             game = g; canvas = canvasRoot;
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            panel = MakePanel("ShopPanel", new Vector2(640f, 300f), new Vector2(560f, 60f + game.Upgrades.Count * 52f), new Color(0.1f, 0.06f, 0.04f, 0.6f));
-            var title = MakeText("ShopTitle", panel.transform, new Vector2(0f, panel.rectTransform.sizeDelta.y * 0.5f - 28f), new Vector2(520f, 40f), 26, TextAnchor.MiddleLeft, new Color(1f, 0.85f, 0.5f));
-            title.text = "잡화점   (숫자키로 산다)";
+            veil = MakePanel("ShopVeil", canvas, Vector2.zero, new Vector2(4000f, 3000f), new Color(0.05f, 0.03f, 0.02f, 0.75f));
+            panel = MakePanel("ShopPanel", veil.transform, Vector2.zero, new Vector2(900f, 140f + game.Upgrades.Count * 70f), new Color(0.25f, 0.16f, 0.1f, 0.95f));
+            float top = panel.rectTransform.sizeDelta.y * 0.5f;
+            var title = MakeText("Title", panel.transform, new Vector2(0f, top - 45f), new Vector2(840f, 50f), 36, TextAnchor.MiddleLeft, new Color(1f, 0.85f, 0.5f));
+            title.text = "잡화점";
+            money = MakeText("Money", panel.transform, new Vector2(0f, top - 45f), new Vector2(840f, 50f), 32, TextAnchor.MiddleRight, new Color(1f, 0.9f, 0.4f));
             for (int i = 0; i < game.Upgrades.Count; i++)
-            {
-                var t = MakeText($"Row{i}", panel.transform, new Vector2(0f, panel.rectTransform.sizeDelta.y * 0.5f - 72f - i * 52f), new Vector2(520f, 48f), 22, TextAnchor.MiddleLeft, Color.white);
-                rows.Add(t);
-            }
+                rows.Add(MakeText($"Row{i}", panel.transform, new Vector2(0f, top - 110f - i * 70f), new Vector2(840f, 60f), 28, TextAnchor.MiddleLeft, Color.white));
+            var hint = MakeText("Hint", panel.transform, new Vector2(0f, -top + 30f), new Vector2(840f, 40f), 22, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.6f));
+            hint.text = "숫자키 = 산다   ·   Tab = 닫는다";
         }
 
-        Image MakePanel(string name, Vector2 pos, Vector2 size, Color color)
+        public void SetOpen(bool open) => veil.gameObject.SetActive(open);
+
+        Image MakePanel(string name, Transform parent, Vector2 pos, Vector2 size, Color color)
         {
             var go = new GameObject(name, typeof(RectTransform));
-            var rt = (RectTransform)go.transform; rt.SetParent(canvas, false);
+            var rt = (RectTransform)go.transform; rt.SetParent(parent, false);
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = pos; rt.sizeDelta = size;
             var img = go.AddComponent<Image>(); img.color = color; img.raycastTarget = false;
@@ -45,23 +50,23 @@ namespace TinCan
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = pos; rt.sizeDelta = size;
             var t = go.AddComponent<Text>();
-            t.font = font; t.fontSize = fontSize; t.alignment = anchor; t.color = color; t.raycastTarget = false;
+            t.font = font; t.fontSize = fontSize; t.alignment = anchor; t.color = color; t.raycastTarget = false; t.supportRichText = true;
             t.horizontalOverflow = HorizontalWrapMode.Overflow; t.verticalOverflow = VerticalWrapMode.Overflow;
             return t;
         }
 
         void Update()
         {
-            if (game == null) return;
+            if (game == null || !veil.gameObject.activeSelf) return;
+            money.text = $"${game.Money:N0}";
             var kb = Keyboard.current;
             for (int i = 0; i < game.Upgrades.Count && i < 9; i++)
             {
                 var u = game.Upgrades[i];
                 bool can = !u.Maxed && game.Money >= u.NextCost;
                 rows[i].text = u.Maxed
-                    ? $"{i + 1}. {u.Name}  <color=#88ff88>최대</color>"
-                    : $"{i + 1}. {u.Name}  Lv{u.Level}  <color=#ffd966>${u.NextCost:N0}</color>   <size=18><color=#bbbbbb>{u.Desc}</color></size>";
-                rows[i].supportRichText = true;
+                    ? $"{i + 1}. {u.Name}  <color=#88ff88>완료</color>   <size=22><color=#bbbbbb>{u.Desc}</color></size>"
+                    : $"{i + 1}. {u.Name}  Lv{u.Level}  <color=#ffd966>${u.NextCost:N0}</color>   <size=22><color=#bbbbbb>{u.Desc}</color></size>";
                 rows[i].color = u.Maxed ? new Color(1f, 1f, 1f, 0.5f) : (can ? Color.white : new Color(1f, 1f, 1f, 0.45f));
                 if (kb != null && Digit(kb, i + 1)) game.Buy(u);
             }
