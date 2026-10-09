@@ -142,7 +142,7 @@ namespace TinCan
                 if (CansOnShelf >= MaxCans || Money < cost) break;
                 Money -= cost;
                 float x = FreeX();
-                var kind = (CursedChance > 0f && Random.value < CursedChance) ? CanKind.IsCursed : SpawnKind;
+                var kind = (CursedChance > 0f && Random.value < CursedChance) ? CanKind.Cursed : SpawnKind;
                 Cans.Add(Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f)));
                 if (kind.IsCursed) { hud.Float("저주 깡통!", new Vector2(x, Look.ShelfY + 1.1f), 8); Sfx.Play(Sfx.Tang(), 0.6f, 0.4f); }
                 lastSpawnX = x; n++;
