@@ -25,7 +25,7 @@ namespace TinCan
             canvas = cg.transform;
             money = Make("Money", new Vector2(-660f, 470f), new Vector2(500f, 70f), 48, TextAnchor.MiddleLeft, new Color(1f, 0.9f, 0.4f));
             best = Make("Best", new Vector2(-660f, 415f), new Vector2(500f, 40f), 24, TextAnchor.MiddleLeft, new Color(1f, 1f, 1f, 0.7f));
-            hint = Make("Hint", new Vector2(0f, -490f), new Vector2(1200f, 40f), 22, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.6f));
+            hint = Make("Hint", new Vector2(0f, 470f), new Vector2(1200f, 40f), 20, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.6f));
             hint.text = "";
             bullets = new Image[33];
             for (int i = 0; i < bullets.Length; i++)
@@ -86,7 +86,9 @@ namespace TinCan
         {
             if (game == null) return;
             money.text = $"${game.Money:N0}";
-            best.text = $"최고 연속 {game.BestCombo}   ·   최고 정산 ${game.BestPayout:N0}";
+            int air = game.Airborne;
+            best.text = $"최고 연속 {game.BestCombo}   ·   최고 정산 ${game.BestPayout:N0}" + (air >= 2 ? $"      <color=#ffd966>공중 {air}개  ×{air}</color>" : "");
+            best.supportRichText = true;
             var gun = game.Gun;
             hint.text = game.MenuOpen ? "" : $"{gun.Kind.Name}   ·   Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)})   ·   좌클릭 = 쏜다   ·   R = 장전   ·   Tab = 가게      선반 {game.CansOnShelf}/{game.MaxCans}";
             for (int i = 0; i < bullets.Length; i++)

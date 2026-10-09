@@ -26,6 +26,7 @@ namespace TinCan
         public int ComboReloadEvery { get; set; } = 0;
 
         Transform crosshair, ring;
+        GunView view;
         Camera cam;
         float kickLeft, nextFire;
         Vector3 camHome;
@@ -48,6 +49,8 @@ namespace TinCan
                 float a = i / 16f * Mathf.PI * 2f;
                 Look.Quad("R", new Vector2(Mathf.Cos(a), Mathf.Sin(a)), new Vector2(0.05f, 0.05f), new Color(1f, 1f, 1f, 0.45f), 50, ring);
             }
+            view = new GameObject("GunViewHolder").AddComponent<GunView>();
+            view.Build();
             Equip(GunKind.Revolver);
         }
 
@@ -82,6 +85,7 @@ namespace TinCan
             crosshair.position = aim;
             crosshair.gameObject.SetActive(Enabled);
             Cursor.visible = !Enabled;
+            view.Tick(aim, Enabled);
             if (!Enabled) return;
             var mouse = Mouse.current; var kb = Keyboard.current;
             if (kb != null && kb.rKey.wasPressedThisFrame && !Reloading && Ammo < Capacity) StartCoroutine(Reload());
@@ -109,6 +113,7 @@ namespace TinCan
             kickLeft = 1f;
             Sfx.Play(Sfx.Bang(), Kind.Auto ? 0.5f : 0.9f, Kind.Pitch * Random.Range(0.95f, 1.08f));
             StartCoroutine(MuzzleFlash(aim));
+            view.Fire(aim, Kind.Kick);
             // 판정: 원 안의 깡통. 리볼버는 가장 가까운 하나, 샷건은 전부
             Can best = null; float bestD = float.MaxValue; bool any = false;
             foreach (var col in Physics2D.OverlapCircleAll(aim, Kind.AimRadius))
@@ -150,6 +155,7 @@ namespace TinCan
         {
             Reloading = true;
             Sfx.Play(Sfx.Reload(), 0.8f, 1f);
+            view.Reload(ReloadSeconds, Capacity - Ammo);
             yield return new WaitForSeconds(ReloadSeconds);
             Ammo = Capacity;
             Reloading = false;

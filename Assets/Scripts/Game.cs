@@ -150,12 +150,16 @@ namespace TinCan
             return Random.Range(Look.ShelfLeft + 0.8f, Look.ShelfRight - 0.8f);
         }
 
-        /// <summary>한 발에 쌓이는 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수</summary>
-        public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale));
+        /// <summary>지금 공중에 떠 있는 깡통 수 (사용자 10-10: 하나만 띄우면 너무 쉽다 → 동시에 띄운 수가 배수)</summary>
+        public int Airborne { get { int n = 0; foreach (var c in Cans) if (c != null && c.Airborne && !c.Done) n++; return n; } }
+
+        /// <summary>한 발에 쌓이는 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수 × 동시 공중 수</summary>
+        public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale * Mathf.Max(1, Airborne)));
 
         public void CanHit(Can can, int earned, Vector2 at)
         {
-            hud.Float($"+{earned}", at, can.Combo);
+            int air = Airborne;
+            hud.Float(air >= 2 ? $"+{earned}  ×{air}" : $"+{earned}", at, can.Combo + (air - 1) * 2);
             if (can.Combo > BestCombo) BestCombo = can.Combo;
             Gun.OnComboHit(can.Combo);
             StartCoroutine(HitStop(can.Combo >= 5 ? 0.04f : 0.02f));
