@@ -152,10 +152,12 @@ namespace TinCan
             Sfx.Play(Sfx.Bang(), Kind.Auto ? 0.5f : 0.9f, Kind.Pitch * Random.Range(0.95f, 1.08f));
             StartCoroutine(MuzzleFlash(aim));
             view.Fire(aim, Kind.Kick);
-            // 판정: 원 안의 깡통. 리볼버는 가장 가까운 하나, 샷건은 전부
+            // 판정: 원 안의 깡통. 리볼버는 가장 가까운 하나, 샷건은 전부. 쏘는 버튼도 여기서
             Can best = null; float bestD = float.MaxValue; bool any = false;
-            foreach (var col in Physics2D.OverlapCircleAll(aim, Kind.AimRadius))
+            foreach (var col in Physics2D.OverlapCircleAll(aim, Mathf.Max(Kind.AimRadius, 0.3f)))
             {
+                var btn = col.GetComponent<ShootButton>();
+                if (btn != null) { btn.Shot(); any = true; continue; }
                 var can = col.GetComponent<Can>();
                 if (can == null || can.Done) continue;
                 if (Kind.HitAll) { HitOne(can, aim); any = true; continue; }
@@ -172,6 +174,7 @@ namespace TinCan
             // 샷건은 깡통마다 맞은 자리가 다르다: 깡통 쪽으로 살짝 당긴 점
             Vector2 at = Kind.HitAll ? Vector2.Lerp(aim, can.transform.position, 0.7f) : aim;
             int earned = can.Hit(at, Kind.ValueScale, Kind.BounceScale);
+            if (can.IsMenu) return;
             Game.I?.CanHit(can, earned, at);
             if (Kind.CurseChance > 0f && !can.Cursed && !can.Done && Random.value < Kind.CurseChance)
             {

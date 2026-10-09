@@ -46,6 +46,10 @@ namespace TinCan
         public static float BounceBonus;
 
         public int HitsLeft { get; private set; }
+        /// <summary>타이틀 메뉴 깡통: 떨어지면 이걸 부른다 (돈 정산 대신). 체력 점은 숨긴다</summary>
+        public System.Action OnMenuLanded;
+        public bool IsMenu => OnMenuLanded != null;
+        public void MakeMenu(System.Action onLanded) { OnMenuLanded = onLanded; foreach (var p in pips) p.gameObject.SetActive(false); }
         Rigidbody2D rb;
         SpriteRenderer body, rim, label;
         SpriteRenderer[] pips;
@@ -129,9 +133,12 @@ namespace TinCan
             Combo++;
             int earned = Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;
             Earned += earned;
-            HitsLeft--;
-            for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
-            if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
+            if (!IsMenu)
+            {
+                HitsLeft--;
+                for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
+                if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
+            }
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
             var v = rb.linearVelocity;
@@ -208,7 +215,7 @@ namespace TinCan
         {
             Done = true;
             Sfx.Play(Sfx.Drop(), 0.6f, Kind.Pitch);
-            Game.I?.CanLanded(this);
+            if (IsMenu) OnMenuLanded(); else Game.I?.CanLanded(this);
             StopAllCoroutines();
             StartCoroutine(Vanish());
         }

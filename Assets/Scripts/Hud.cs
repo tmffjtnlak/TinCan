@@ -20,6 +20,9 @@ namespace TinCan
 
         public void Bind(Game g) => game = g;
         public Transform Canvas => canvas;
+        Image moneyBoard, hintStrip, cylBoard;
+        /// <summary>타이틀에선 돈·안내·실린더 판자를 숨긴다</summary>
+        public void SetPlayVisible(bool v) { moneyBoard.gameObject.SetActive(v); hintStrip.gameObject.SetActive(v); cylBoard.gameObject.SetActive(v); }
 
         void Awake()
         {
@@ -31,16 +34,16 @@ namespace TinCan
             hurtVeil = Ui.Image("Hurt", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
 
             // 왼쪽 위: 돈 판자
-            var board = Ui.Panel("MoneyBoard", canvas, new Vector2(-720f, 455f), new Vector2(420f, 130f));
+            var board = moneyBoard = Ui.Panel("MoneyBoard", canvas, new Vector2(-720f, 455f), new Vector2(420f, 130f));
             money = Ui.Text("Money", board.transform, new Vector2(10f, 18f), new Vector2(380f, 60f), 52, TextAnchor.MiddleLeft, Ui.Gold);
             stats = Ui.Text("Stats", board.transform, new Vector2(10f, -32f), new Vector2(380f, 34f), 19, TextAnchor.MiddleLeft, Ui.Dim);
 
             // 위 가운데: 안내 띠
-            var strip = Ui.Panel("HintStrip", canvas, new Vector2(60f, 490f), new Vector2(1000f, 50f), nails: false);
+            var strip = hintStrip = Ui.Panel("HintStrip", canvas, new Vector2(60f, 490f), new Vector2(1000f, 50f), nails: false);
             hint = Ui.Text("Hint", strip.transform, Vector2.zero, new Vector2(980f, 40f), 20, TextAnchor.MiddleCenter, Ui.Dim);
 
             // 오른쪽 아래: 실린더 (6~12칸이 원으로)
-            var cylBoard = Ui.Panel("CylBoard", canvas, new Vector2(800f, -440f), new Vector2(260f, 170f));
+            cylBoard = Ui.Panel("CylBoard", canvas, new Vector2(800f, -440f), new Vector2(260f, 170f));
             cylinder = Ui.Rect("Cylinder", cylBoard.transform, new Vector2(-60f, 0f), new Vector2(120f, 120f));
             chambers = new Image[12];
             for (int i = 0; i < chambers.Length; i++) chambers[i] = Ui.Image($"Ch{i}", cylinder, Vector2.zero, new Vector2(18f, 18f), Ui.Ink);
@@ -93,7 +96,7 @@ namespace TinCan
 
         void Update()
         {
-            if (game == null) return;
+            if (game == null || game.State != GameState.Play) return;
             var gun = game.Gun;
             money.text = $"${game.Money:N0}";
             int air = game.Airborne;
