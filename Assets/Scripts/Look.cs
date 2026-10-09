@@ -68,9 +68,18 @@ namespace TinCan
             var drop = new GameObject("DropCollider"); drop.transform.position = new Vector3(0f, DropY - 0.3f, 0f);
             var dc = drop.AddComponent<BoxCollider2D>(); dc.size = new Vector2(40f, 0.6f); dc.isTrigger = true;
             drop.AddComponent<DropZone>();
-            // 양옆 벽: 깡통이 화면 밖으로 안 나가게
-            var wl = new GameObject("WallL"); wl.transform.position = new Vector3(-9.2f, 0f, 0f); wl.AddComponent<BoxCollider2D>().size = new Vector2(0.5f, 30f);
-            var wr = new GameObject("WallR"); wr.transform.position = new Vector3(9.2f, 0f, 0f); wr.AddComponent<BoxCollider2D>().size = new Vector2(0.5f, 30f);
+            // 양옆 벽: 화면 끝. 깡통이 튕겨 돌아온다 (사용자 10-10)
+            float halfW = Camera.main.orthographicSize * Camera.main.aspect;
+            var bouncy = new PhysicsMaterial2D("wall") { bounciness = 0.75f, friction = 0.1f };
+            foreach (float sx in new[] { -1f, 1f })
+            {
+                var w = new GameObject(sx < 0 ? "WallL" : "WallR"); w.transform.position = new Vector3(sx * (halfW + 0.25f), 0f, 0f);
+                var wc = w.AddComponent<BoxCollider2D>(); wc.size = new Vector2(0.5f, 40f); wc.sharedMaterial = bouncy;
+                w.AddComponent<Wall>();
+                // 벽 표시: 가장자리 기둥
+                Quad("WallPost", new Vector2(sx * (halfW - 0.12f), 0.5f), new Vector2(0.24f, 9f), Wood, -4);
+                Quad("WallPostLight", new Vector2(sx * (halfW - 0.2f), 0.5f), new Vector2(0.06f, 9f), WoodLight, -3);
+            }
             // 서부 티: 왼쪽 위 술집 간판 조각
             var sign = new GameObject("Saloon").transform; sign.position = new Vector3(7.0f, 3.4f, 0f);
             Quad("Board", Vector2.zero, new Vector2(3.6f, 1.0f), WoodLight, -7, sign);
@@ -85,4 +94,7 @@ namespace TinCan
 
     /// <summary>낙하지역 표식: 깡통이 여기 닿으면 정산</summary>
     public class DropZone : MonoBehaviour { }
+
+    /// <summary>옆 벽 표식: 깡통이 튕긴다</summary>
+    public class Wall : MonoBehaviour { }
 }

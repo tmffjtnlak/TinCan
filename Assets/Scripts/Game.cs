@@ -49,6 +49,7 @@ namespace TinCan
             tree.SetOpen(false);
             armory = new GameObject("Armory").AddComponent<Armory>();
             armory.Build(this, hud.Canvas);
+            new GameObject("Markers").AddComponent<OffscreenMarkers>();
         }
 
         void Update()
