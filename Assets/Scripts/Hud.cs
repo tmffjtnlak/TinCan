@@ -112,7 +112,8 @@ namespace TinCan
             shown = Mathf.Abs(shownTarget - shown) < 2 ? shownTarget : (long)Mathf.Lerp(shown, shownTarget, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 10f)) + System.Math.Sign(shownTarget - shown);
             moneyBump = Mathf.Max(0f, moneyBump - Time.unscaledDeltaTime * 5f);
             money.transform.localScale = Vector3.one * (1f + moneyBump * 0.18f);
-            money.text = $"${shown:N0}";
+            money.text = game.DebugMoney ? "$∞  <size=18><color=#ff8888>디버그</color></size>" : $"${shown:N0}";
+            money.supportRichText = true;
             int air = game.Airborne;
             stats.text = $"터뜨림 {game.Bursts}  ·  최고 연속 {game.BestCombo}  ·  최고 정산 ${game.BestPayout:N0}"
                 + (air >= 2 ? $"   <color=#ffd966>공중 {air}  ×{air}</color>" : "")

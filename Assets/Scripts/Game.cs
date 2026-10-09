@@ -65,6 +65,8 @@ namespace TinCan
         public HashSet<string> OwnedGuns { get; } = new HashSet<string> { "revolver" };
         public HashSet<string> OwnedCans { get; } = new HashSet<string> { "tin" };
         public bool MenuOpen { get; private set; }
+        /// <summary>디버그 (F1): 돈 무한</summary>
+        public bool DebugMoney { get; private set; }
         public CanKind SpawnKind { get; set; } = CanKind.Tin;
         Hud hud;
         public Hud Hud => hud;
@@ -235,12 +237,15 @@ namespace TinCan
             }
             if (MenuOpen)
             {
+                if (DebugMoney) Money = 999_999_999;
                 if (kb.qKey.wasPressedThisFrame) OpenPage(0);
                 if (kb.wKey.wasPressedThisFrame) OpenPage(1);
                 if (kb.eKey.wasPressedThisFrame) OpenPage(2);
                 return;
             }
             if (kb.spaceKey.wasPressedThisFrame) TrySpawn();
+            if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
+            if (DebugMoney) Money = 999_999_999;
             UpdateSlow(kb);
             AutoGun();
             saveTimer += Time.deltaTime;
