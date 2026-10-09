@@ -172,6 +172,11 @@ namespace TinCan
             Vector2 at = Kind.HitAll ? Vector2.Lerp(aim, can.transform.position, 0.7f) : aim;
             int earned = can.Hit(at, Kind.ValueScale, Kind.BounceScale);
             Game.I?.CanHit(can, earned, at);
+            if (Kind.CurseChance > 0f && !can.Cursed && !can.Done && Random.value < Kind.CurseChance)
+            {
+                can.Curse();
+                Game.I?.Hud.Float("저주!", at + Vector2.up * 0.5f, 6);
+            }
         }
 
         IEnumerator MuzzleFlash(Vector2 at)

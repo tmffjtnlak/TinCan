@@ -53,28 +53,17 @@ namespace TinCan
                     bool owned = game.OwnedGuns.Contains(k.Id);
                     bool current = game.Gun.Kind == k;
                     string state = current ? "<color=#88ff88>장착 중</color>" : owned ? "<color=#bbbbbb>보유</color>" : (game.Money >= k.Price ? $"<color=#ffd966>${k.Price:N0}</color>" : $"<color=#ff6666>${k.Price:N0}</color>");
-                    rows[i].text = $"{i + 1}. {k.Name}   {state}\n<size=20><color=#cccccc>{k.Desc}   ·   {k.Capacity}발, 장전 {k.ReloadSeconds:0.0}초</color></size>";
+                    string nm = k.IsCursed ? $"<color=#cc88ff>{k.Name}</color>" : k.Name;
+                    rows[i].text = $"{i + 1}. {nm}   {state}\n<size=20><color=#cccccc>{k.Desc}   ·   {k.Capacity}발, 장전 {k.ReloadSeconds:0.0}초</color></size>";
                     rows[i].color = owned || game.Money >= k.Price ? Color.white : new Color(1f, 1f, 1f, 0.5f);
                     if (kb != null && Digit(kb, i + 1)) game.PickGun(k);
                 }
             }
             else
             {
-                int nc = CanKind.ForSale.Count;
                 for (int i = 0; i < rows.Count; i++)
                 {
-                    if (i >= nc)
-                    {
-                        // 저주 칸: 깡통 목록 아래
-                        int ci = i - nc;
-                        if (ci >= game.Curses.Count) { rows[i].text = ""; continue; }
-                        var cu = game.Curses[ci];
-                        string st = cu.Active ? "<color=#cc66ff>켜짐</color>" : cu.Owned ? "<color=#bbbbbb>꺼짐</color>" : (game.Money >= cu.Price ? $"<color=#ffd966>${cu.Price:N0}</color>" : $"<color=#ff6666>${cu.Price:N0}</color>");
-                        rows[i].text = $"{i + 1}. <color=#cc88ff>저주</color>  {cu.Name}   {st}\n<size=20><color=#99ff99>{cu.Gain}</color>  <color=#ff9999>{cu.Loss}</color></size>";
-                        rows[i].color = Color.white;
-                        if (kb != null && Digit(kb, i + 1)) game.ToggleCurse(cu);
-                        continue;
-                    }
+                    if (i >= CanKind.ForSale.Count) { rows[i].text = ""; continue; }
                     var k = CanKind.ForSale[i];
                     bool owned = game.OwnedCans.Contains(k.Id);
                     bool current = game.SpawnKind == k;
