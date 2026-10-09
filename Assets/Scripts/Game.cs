@@ -73,7 +73,7 @@ namespace TinCan
         TreeView tree;
         Armory armory;
         MenuTabs tabs;
-        float autoGunTimer, saveTimer;
+        float saveTimer;
         float lastSpawnX = float.NaN;
         int lastPage = 2;
 
@@ -288,20 +288,14 @@ namespace TinCan
             Sfx.Play(Sfx.Tang(), 0.5f, k.Pitch);
         }
 
-        /// <summary>자동 사격기: 공중에 있는 깡통 중 하나를 주기적으로 맞춘다 (값 절반)</summary>
+        AutoTurret turret;
+        /// <summary>자동 사격기: 스킬을 사면 선반 옆에 기계가 서고, 보이는 깡통에 조준점이 움직여 가서 쏜다</summary>
         void AutoGun()
         {
             if (AutoGunSeconds <= 0f) return;
-            autoGunTimer += Time.deltaTime;
-            if (autoGunTimer < AutoGunSeconds) return;
-            Can target = null;
-            foreach (var c in Cans) if (c != null && c.Airborne && !c.Done) { target = c; break; }
-            if (target == null) return;
-            autoGunTimer = 0f;
-            var at = (Vector2)target.transform.position + new Vector2(Random.Range(-0.1f, 0.1f), -0.1f);
-            int earned = target.Hit(at, 0.5f);
-            hud.Float($"+{earned}", at, 1);
-            Sfx.Play(Sfx.Bang(), 0.35f, 1.4f);
+            if (turret == null) { turret = AutoTurret.Make(); hud.Float("자동 사격기 설치", new Vector2(Look.ShelfRight + 0.5f, Look.ShelfY + 1.2f), 5); }
+            turret.Interval = AutoGunSeconds;
+            turret.Tick(Time.deltaTime);
         }
 
         public int CansOnShelf => Cans.FindAll(c => c != null && !c.Airborne).Count;
