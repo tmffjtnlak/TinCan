@@ -88,9 +88,9 @@ namespace TinCan
             if (game == null) return;
             money.text = $"${game.Money:N0}";
             int air = game.Airborne;
+            var gun = game.Gun;
             best.text = $"터뜨림 {game.Bursts}   ·   최고 연속 {game.BestCombo}   ·   최고 정산 ${game.BestPayout:N0}" + (air >= 2 ? $"      <color=#ffd966>공중 {air}개  ×{air}</color>" : "") + (gun.ReloadStreak >= 1 ? $"      <color=#88ffaa>저스트 장전 {gun.ReloadStreak}</color>" : "");
             best.supportRichText = true;
-            var gun = game.Gun;
             hint.text = game.MenuOpen ? "" : $"{gun.Kind.Name}   ·   Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)})   ·   좌클릭 = 쏜다   ·   R = 장전   ·   Tab = 가게      선반 {game.CansOnShelf}/{game.MaxCans}";
             for (int i = 0; i < bullets.Length; i++)
             {
