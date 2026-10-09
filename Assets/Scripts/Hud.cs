@@ -16,7 +16,8 @@ namespace TinCan
         RectTransform cylinder;
         Transform canvas;
         Image hurtVeil;
-        float cylSpin;
+        float cylSpin, moneyBump;
+        long shown, shownTarget;
 
         public void Bind(Game g) => game = g;
         public Transform Canvas => canvas;
@@ -98,7 +99,12 @@ namespace TinCan
         {
             if (game == null || game.State != GameState.Play) return;
             var gun = game.Gun;
-            money.text = $"${game.Money:N0}";
+            // 돈: 굴러 올라가고, 오를 때 한 번 튄다
+            if (game.Money != shownTarget) { shownTarget = game.Money; if (shownTarget > shown) moneyBump = 1f; }
+            shown = Mathf.Abs(shownTarget - shown) < 2 ? shownTarget : (long)Mathf.Lerp(shown, shownTarget, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 10f)) + System.Math.Sign(shownTarget - shown);
+            moneyBump = Mathf.Max(0f, moneyBump - Time.unscaledDeltaTime * 5f);
+            money.transform.localScale = Vector3.one * (1f + moneyBump * 0.18f);
+            money.text = $"${shown:N0}";
             int air = game.Airborne;
             stats.text = $"터뜨림 {game.Bursts}  ·  최고 연속 {game.BestCombo}  ·  최고 정산 ${game.BestPayout:N0}"
                 + (air >= 2 ? $"   <color=#ffd966>공중 {air}  ×{air}</color>" : "")

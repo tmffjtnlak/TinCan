@@ -165,7 +165,7 @@ namespace TinCan
                 if (d < bestD) { bestD = d; best = can; }
             }
             if (best != null) { HitOne(best, aim); any = true; }
-            if (any) Hits++;
+            if (any) { Hits++; Fx.HitMark(aim); }
             if (Ammo == 0) StartCoroutine(AutoReload());
         }
 

@@ -342,6 +342,7 @@ namespace TinCan
             Money += pay;
             if (pay > BestPayout) BestPayout = pay;
             hud.Payout(pay, can.Combo, can.transform.position, burst: false);
+            if (pay > 0) Fx.Coins(can.transform.position, pay);
         }
 
         public void CurseLanded(Can can)
@@ -362,6 +363,7 @@ namespace TinCan
             Bursts++;
             if (pay > BestPayout) BestPayout = pay;
             hud.Payout(pay, can.Combo, can.transform.position, burst: true);
+            Fx.Coins(can.transform.position, pay * 3);
             StartCoroutine(HitStop(0.07f));
         }
 

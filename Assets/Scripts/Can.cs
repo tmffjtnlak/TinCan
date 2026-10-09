@@ -117,6 +117,11 @@ namespace TinCan
         {
             for (float t = 0f; t < 1f; t += Time.deltaTime * 7f) { float s = Mathf.Sin(t * Mathf.PI * 0.5f); visual.localScale = new Vector3(s * 1.15f, s, 1f); yield return null; }
             visual.localScale = Vector3.one;
+            // 선반에 쿵 하고 앉는다: 납작해졌다 돌아오고 먼지
+            yield return new WaitForSeconds(0.12f);
+            if (!IsMenu) { Fx.Dust(new Vector2(transform.position.x, Look.ShelfY + 0.15f), 3, 0.5f); Sfx.Play(Sfx.Drop(), 0.3f, Kind.Pitch * 1.2f); }
+            for (float t = 0f; t < 1f; t += Time.deltaTime * 9f) { float s = Mathf.Sin(t * Mathf.PI); visual.localScale = new Vector3(1f + s * 0.25f, 1f - s * 0.25f, 1f); yield return null; }
+            visual.localScale = Vector3.one;
         }
 
         /// <summary>총에 맞았다. hitPoint = 맞은 자리(월드). 맞은 쪽 반대로, 위로 튄다. 돌려주는 값 = 이번 한 발로 쌓인 돈</summary>
@@ -149,6 +154,8 @@ namespace TinCan
             flashLeft = 0.06f;
             StopAllCoroutines(); StartCoroutine(Squash());
             Sfx.Play(Sfx.Tang(), 0.8f, Kind.Pitch * (1f + Mathf.Min(Combo, 12) * 0.03f));
+            Fx.Spark(hitPoint, 5 + Mathf.Min(Combo, 6), 0.8f + Mathf.Min(Combo, 8) * 0.08f);
+            Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f);
             return earned;
         }
 
@@ -193,6 +200,9 @@ namespace TinCan
             Done = true;
             Sfx.Play(Sfx.Bang(), 0.7f, Kind.Pitch * 1.6f);
             Sfx.Play(Sfx.Tang(), 0.9f, Kind.Pitch * 0.5f);
+            Fx.Ring(transform.position, Cursed ? CurseLabel : new Color(1f, 0.95f, 0.7f), 2.2f);
+            Fx.Spark(transform.position, 14, 1.4f);
+            Fx.Shake(0.7f);
             for (int i = 0; i < 10; i++)
             {
                 var chip = Look.Quad("Chip", (Vector2)transform.position + Random.insideUnitCircle * 0.2f, new Vector2(Random.Range(0.08f, 0.18f), Random.Range(0.06f, 0.14f)), i % 3 == 0 ? LabelColor : BodyColor, 7);
@@ -215,6 +225,8 @@ namespace TinCan
         {
             Done = true;
             Sfx.Play(Sfx.Drop(), 0.6f, Kind.Pitch);
+            Fx.Dust(new Vector2(transform.position.x, Look.DropY + 0.3f), 6, 1f);
+            Fx.Shake(0.2f);
             if (IsMenu) OnMenuLanded(); else Game.I?.CanLanded(this);
             StopAllCoroutines();
             StartCoroutine(Vanish());
