@@ -142,9 +142,9 @@ namespace TinCan
                 if (CansOnShelf >= MaxCans || Money < cost) break;
                 Money -= cost;
                 float x = FreeX();
-                var kind = (CursedChance > 0f && Random.value < CursedChance) ? CanKind.Cursed : SpawnKind;
+                var kind = (CursedChance > 0f && Random.value < CursedChance) ? CanKind.IsCursed : SpawnKind;
                 Cans.Add(Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f)));
-                if (kind.Cursed) { hud.Float("저주 깡통!", new Vector2(x, Look.ShelfY + 1.1f), 8); Sfx.Play(Sfx.Tang(), 0.6f, 0.4f); }
+                if (kind.IsCursed) { hud.Float("저주 깡통!", new Vector2(x, Look.ShelfY + 1.1f), 8); Sfx.Play(Sfx.Tang(), 0.6f, 0.4f); }
                 lastSpawnX = x; n++;
             }
             Sfx.Play(Sfx.Reload(), 0.4f, 2.2f);
@@ -187,7 +187,7 @@ namespace TinCan
         public int Airborne { get { int n = 0; foreach (var c in Cans) if (c != null && c.Airborne && !c.Done) n++; return n; } }
 
         /// <summary>한 발에 쌓이는 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수 × 동시 공중 수</summary>
-        public int EarnFor(CanKind kind, int combo, float scale) => kind.Cursed ? 0 : Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale * Mathf.Max(1, Airborne) * IncomeMult));
+        public int EarnFor(CanKind kind, int combo, float scale) => kind.IsCursed ? 0 : Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale * Mathf.Max(1, Airborne) * IncomeMult));
 
         public void CanHit(Can can, int earned, Vector2 at)
         {
@@ -201,7 +201,7 @@ namespace TinCan
         /// <summary>떨어져서 정산: 쌓인 돈 × 정산 배수. 터뜨리기 전에 떨어진 것</summary>
         public void CanLanded(Can can)
         {
-            if (can.Kind.Cursed) { CurseLanded(can); return; }
+            if (can.Kind.IsCursed) { CurseLanded(can); return; }
             long pay = (long)Mathf.Round(can.Earned * PayoutMult);
             Money += pay;
             if (pay > BestPayout) BestPayout = pay;
@@ -241,7 +241,7 @@ namespace TinCan
         /// <summary>터뜨려서 정산: 쌓인 돈 × 정산 배수 × 터짐 배수. 이게 최고치</summary>
         public void CanBurst(Can can)
         {
-            if (can.Kind.Cursed) { hud.Float("저주 풀림", (Vector2)can.transform.position + Vector2.up * 0.6f, 6); Bursts++; return; }
+            if (can.Kind.IsCursed) { hud.Float("저주 풀림", (Vector2)can.transform.position + Vector2.up * 0.6f, 6); Bursts++; return; }
             long pay = (long)Mathf.Round(can.Earned * PayoutMult * BurstMult);
             Money += pay;
             Bursts++;
