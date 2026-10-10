@@ -145,7 +145,7 @@ namespace TinCan
             if (dual) dualNext = 1 - dualNext;
             if (second) recoil2 = Mathf.Min(1.6f, recoil2 + 1f * kick);
             else { recoil = Mathf.Min(1.6f, recoil + 1f * kick); hammerBack = 1f; }
-            if (kind.HitAll) StartCoroutine(Pump());
+            if (kind.HitAll || kind.LeverCycle) StartCoroutine(Pump());   // 샷건 펌프 / 레버 철컥
             StartCoroutine(Flash(aim, kick, second));
         }
 

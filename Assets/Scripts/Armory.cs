@@ -25,7 +25,7 @@ namespace TinCan
             veil = Ui.Image("Armory", canvas, Vector2.zero, new Vector2(4000f, 3000f), Ui.BoardDark);
             title = Ui.Text("Title", veil.transform, new Vector2(-300f, 330f), new Vector2(700f, 60f), 40, TextAnchor.MiddleLeft, Ui.Gold);
             money = Ui.Text("Money", veil.transform, new Vector2(300f, 330f), new Vector2(700f, 60f), 34, TextAnchor.MiddleRight, Ui.Gold);
-            for (int i = 0; i < 5; i++) cards.Add(MakeCard(i));
+            for (int i = 0; i < 6; i++) cards.Add(MakeCard(i));
             hint = Ui.Text("Hint", veil.transform, new Vector2(0f, -500f), new Vector2(1400f, 40f), 20, TextAnchor.MiddleCenter, Ui.Dim);
             hint.text = "숫자키 = 산다 / 고른다   ·   Tab = 닫는다";
             veil.gameObject.SetActive(false);
@@ -34,7 +34,7 @@ namespace TinCan
         Card MakeCard(int i)
         {
             var c = new Card();
-            c.Root = Ui.Panel($"Card{i}", veil.transform, new Vector2(0f, 250f - i * 118f), new Vector2(1300f, 104f), nails: false);
+            c.Root = Ui.Panel($"Card{i}", veil.transform, new Vector2(0f, 262f - i * 104f), new Vector2(1300f, 94f), nails: false);
             c.Key = Ui.Text("Key", c.Root.transform, new Vector2(-610f, 0f), new Vector2(50f, 60f), 34, TextAnchor.MiddleCenter, Ui.Dim);
             c.Icon = Ui.Diamond("Icon", c.Root.transform, new Vector2(-540f, 0f), 64f, Ui.BoardEdge, Ui.BoardDark);
             c.IconFill = c.Icon.transform.GetChild(0).GetComponent<Image>();
@@ -63,8 +63,9 @@ namespace TinCan
                     var k = GunKind.ForSale[i];
                     c.Root.gameObject.SetActive(true);
                     bool owned = game.OwnedGuns.Contains(k.Id), current = game.Primary == k, second = game.Secondary == k;
+                    string fam = k.Kin switch { GunKind.Family.Revolver => "리볼버", GunKind.Family.Lever => "레버액션", GunKind.Family.Single => "단발", _ => "샷건" };
                     Fill(c, i, k.Name, k.IsCursed ? Ui.Curse : Ui.Ink, k.IsCursed ? new Color(0.35f, 0.15f, 0.45f) : new Color(0.3f, 0.3f, 0.36f),
-                        owned, current || second, k.Price, $"{k.Desc}   ·   {k.Capacity}발, 장전 {k.ReloadSeconds:0.0}초", current ? "1 주무장" : second ? "2 보조무기 (누르면 자리 교대)" : "보유 (누르면 보조로)");
+                        owned, current || second, k.Price, $"<color=#bbaa88>[{fam}]</color>  {k.Desc}   ·   {k.Capacity}발, 장전 {k.ReloadSeconds:0.0}초", current ? "1 주무장" : second ? "2 보조무기 (누르면 자리 교대)" : "보유 (누르면 보조로)");
                     if (kb != null && Digit(kb, i + 1)) game.PickGun(k);
                 }
                 else

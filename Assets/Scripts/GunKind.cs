@@ -30,14 +30,24 @@ namespace TinCan
         /// <summary>쌍권총: 두 자루가 번갈아 쏜다 (화면에 둘 다 보인다)</summary>
         public bool Dual = false;
 
-        public static readonly GunKind Revolver = new GunKind { Id = "revolver", Name = "리볼버", Desc = "6발. 정확하다. 모든 것의 시작.", Capacity = 6, ReloadSeconds = 0.9f, AimRadius = 0.22f, HitAll = false, ValueScale = 1f, FireInterval = 0f, Auto = false, Kick = 1f, Pitch = 1f, Price = 0 };
-        public static readonly GunKind Shotgun = new GunKind { Id = "shotgun", Name = "샷건", Desc = "2발. 퍼진다. 원 안의 깡통을 전부 띄운다. 값은 70%.", Capacity = 2, ReloadSeconds = 1.3f, AimRadius = 0.9f, HitAll = true, ValueScale = 0.7f, FireInterval = 0f, Auto = false, Kick = 1.8f, Pitch = 0.7f, Price = 150, BounceScale = 1.15f };
-        public static readonly GunKind DualRevolver = new GunKind { Id = "dual", Name = "쌍권총", Desc = "두 자루. 12발, 번갈아 쏜다. 장전은 둘 다.", Capacity = 12, ReloadSeconds = 1.4f, AimRadius = 0.22f, HitAll = false, ValueScale = 1f, FireInterval = 0.06f, Auto = false, Kick = 0.9f, Pitch = 1.05f, Price = 300, Dual = true };
-        public static readonly GunKind CursedRevolver = new GunKind { Id = "cursed_revolver", Name = "저주받은 권총", Desc = "값 2배. 대신 맞춘 깡통이 넷에 하나꼴로 저주통이 된다. 저주통은 떨어지면 쌓인 돈을 뺏고, 터뜨리면 평소대로.", Capacity = 6, ReloadSeconds = 0.9f, AimRadius = 0.22f, HitAll = false, ValueScale = 2f, FireInterval = 0f, Auto = false, Kick = 1.2f, Pitch = 0.85f, Price = 250, CurseChance = 0.25f };
-        public static readonly GunKind Magnum = new GunKind { Id = "magnum", Name = "매그넘", Desc = "4발. 세게 튄다(더 오래 공중에). 값 1.5배.", Capacity = 4, ReloadSeconds = 1.1f, AimRadius = 0.22f, HitAll = false, ValueScale = 1.5f, FireInterval = 0f, Auto = false, Kick = 1.6f, Pitch = 0.8f, Price = 400, BounceScale = 1.4f };
-        public static readonly GunKind MachineGun = new GunKind { Id = "mg", Name = "머신건", Desc = "30발. 누르고 있으면 연사. 값은 35%.", Capacity = 30, ReloadSeconds = 2.0f, AimRadius = 0.2f, HitAll = false, ValueScale = 0.35f, FireInterval = 0.09f, Auto = true, Kick = 0.4f, Pitch = 1.3f, Price = 900, BounceScale = 0.75f };
+        /// <summary>가족 (사용자 10-11, 서부 네 가족): 리볼버 · 레버액션 소총 · 단발 라이플 · 샷건. 변종(쌍·저주)은 가족 안에</summary>
+        public enum Family { Revolver, Lever, Single, Shotgun }
+        public Family Kin = Family.Revolver;
+        /// <summary>발사 뒤 손잡이 동작(레버 철컥)이 보이나</summary>
+        public bool LeverCycle = false;
 
-        /// <summary>2주 안엔 리볼버 + 샷건만 산다. 나머지는 데이터만 있고 가게에 안 나온다</summary>
-        public static readonly List<GunKind> ForSale = new List<GunKind> { Revolver, Shotgun, DualRevolver, CursedRevolver };
+        // ---- 리볼버 가족: 빠르게 6발, 멈춤 ----
+        public static readonly GunKind Revolver = new GunKind { Id = "revolver", Kin = Family.Revolver, Name = "리볼버", Desc = "6발. 빠르고 정확하다. 모든 것의 시작.", Capacity = 6, ReloadSeconds = 0.9f, AimRadius = 0.22f, HitAll = false, ValueScale = 1f, FireInterval = 0f, Auto = false, Kick = 1f, Pitch = 1f, Price = 0 };
+        public static readonly GunKind DualRevolver = new GunKind { Id = "dual", Kin = Family.Revolver, Name = "쌍권총", Desc = "리볼버 두 자루. 12발, 번갈아 쏜다. 장전은 둘 다.", Capacity = 12, ReloadSeconds = 1.4f, AimRadius = 0.22f, HitAll = false, ValueScale = 1f, FireInterval = 0.06f, Auto = false, Kick = 0.9f, Pitch = 1.05f, Price = 300, Dual = true };
+        public static readonly GunKind CursedRevolver = new GunKind { Id = "cursed_revolver", Kin = Family.Revolver, Name = "저주받은 권총", Desc = "값 2배. 대신 맞춘 깡통이 넷에 하나꼴로 저주통이 된다. 저주통은 떨어지면 쌓인 돈을 뺏고, 터뜨리면 평소대로.", Capacity = 6, ReloadSeconds = 0.9f, AimRadius = 0.22f, HitAll = false, ValueScale = 2f, FireInterval = 0f, Auto = false, Kick = 1.2f, Pitch = 0.85f, Price = 250, CurseChance = 0.25f };
+        // ---- 레버액션 소총: 한 발마다 철컥, 꾸준히 ----
+        public static readonly GunKind LeverAction = new GunKind { Id = "lever", Kin = Family.Lever, Name = "레버액션 소총", Desc = "8발. 한 발마다 레버를 당긴다. 값 1.3배, 더 높이 띄운다.", Capacity = 8, ReloadSeconds = 1.6f, AimRadius = 0.2f, HitAll = false, ValueScale = 1.3f, FireInterval = 0.35f, Auto = false, Kick = 1.3f, Pitch = 0.75f, Price = 120, BounceScale = 1.25f, LeverCycle = true };
+        // ---- 단발 라이플: 한 발, 세게, 바로 장전 ----
+        public static readonly GunKind SingleShot = new GunKind { Id = "single", Kin = Family.Single, Name = "단발 라이플", Desc = "1발. 쏠 때마다 장전. 값 3배, 아주 높이 띄운다.", Capacity = 1, ReloadSeconds = 0.7f, AimRadius = 0.18f, HitAll = false, ValueScale = 3f, FireInterval = 0f, Auto = false, Kick = 2.2f, Pitch = 0.55f, Price = 200, BounceScale = 1.6f };
+        // ---- 샷건: 두 발 묵직, 여럿 ----
+        public static readonly GunKind Shotgun = new GunKind { Id = "shotgun", Kin = Family.Shotgun, Name = "샷건", Desc = "2발. 퍼진다. 원 안의 깡통을 전부 띄운다. 값은 70%.", Capacity = 2, ReloadSeconds = 1.3f, AimRadius = 0.9f, HitAll = true, ValueScale = 0.7f, FireInterval = 0f, Auto = false, Kick = 1.8f, Pitch = 0.7f, Price = 150, BounceScale = 1.15f };
+
+        /// <summary>가게 목록: 가족 넷 + 리볼버 변종 둘</summary>
+        public static readonly List<GunKind> ForSale = new List<GunKind> { Revolver, LeverAction, SingleShot, Shotgun, DualRevolver, CursedRevolver };
     }
 }
