@@ -57,7 +57,7 @@ namespace TinCan
             N("shelf1", "넓은 선반", "선", new Vector2(1.4f, 1f), Cyan, 40, "선반 자리 +1", g => g.MaxCans += 1, "shelf2", "bounce", "cluster"),
             N("shelf2", "더 넓은 선반", "선", new Vector2(1.9f, 2.1f), Cyan, 160, "선반 자리 +1 더", g => g.MaxCans += 1, "cheap"),
             N("cheap", "단골 할인", "할", new Vector2(2.6f, 3.1f), Cyan, 220, "소환 비용 -30%", g => g.SpawnDiscount = 0.3f),
-            N("bounce", "가벼운 깡통", "경", new Vector2(2.8f, 1.3f), Cyan, 60, "맞으면 더 높이 튄다", g => Can.BounceBonus += 1.6f, "rebound"),
+            N("bounce", "가벼운 깡통", "경", new Vector2(2.8f, 1.3f), Cyan, 60, "맞으면 더 높이 튄다", g => Can.BounceBonus += 1.0f, "rebound"),
             N("rebound", "다시 튐", "튐", new Vector2(4.1f, 1.7f), Cyan, 300, "떨어진 깡통이 혼자 한 번 다시 튀어오른다 (연속 유지)", g => g.LandBounces = 1),
             N("cluster", "붙여 놓기", "붙", new Vector2(0.5f, 2.2f), Cyan, 50, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true, "pair"),
             N("pair", "짝 소환", "짝", new Vector2(0.0f, 3.3f), Cyan, 250, "Space 한 번에 2개 (비용도 2개)", g => g.SpawnCount = 2),
