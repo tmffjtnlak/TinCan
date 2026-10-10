@@ -106,6 +106,9 @@ namespace TinCan
             var col = gameObject.AddComponent<BoxCollider2D>();
             col.size = new Vector2(kind.Width, kind.Height);
             col.sharedMaterial = Mat();
+            // 깡통끼리는 안 부딪힌다 (사용자 10-11): 예측이 깨지고, 플레이어가 통제하는 건 자기 손뿐이어야 한다
+            foreach (var other in All) if (other != null && other != this) Physics2D.IgnoreCollision(col, other.GetComponent<Collider2D>(), true);
+            All.Add(this);
             visual = new GameObject("Visual").transform; visual.SetParent(transform, false);
             body = Look.Quad("Body", Vector2.zero, new Vector2(kind.Width, kind.Height), kind.Body, 2, visual);
             label = Look.Quad("Label", Vector2.zero, new Vector2(kind.Width + 0.02f, kind.Height * 0.4f), kind.Label, 3, visual);
@@ -281,8 +284,9 @@ namespace TinCan
             Destroy(gameObject);
         }
 
+        static readonly System.Collections.Generic.List<Can> All = new System.Collections.Generic.List<Can>();
         UnityEngine.UI.Text earnedLabel;
-        void OnDestroy() { if (earnedLabel != null) Destroy(earnedLabel.gameObject); }
+        void OnDestroy() { All.Remove(this); if (earnedLabel != null) Destroy(earnedLabel.gameObject); }
 
         void Update()
         {
