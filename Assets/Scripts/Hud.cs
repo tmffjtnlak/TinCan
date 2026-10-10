@@ -51,9 +51,9 @@ namespace TinCan
             gunName = Ui.Text("GunName", cylBoard.transform, new Vector2(0f, 18f), new Vector2(240f, 36f), 24, TextAnchor.MiddleCenter, Ui.Ink);
             shelf = Ui.Text("Shelf", cylBoard.transform, new Vector2(0f, -22f), new Vector2(240f, 50f), 15, TextAnchor.MiddleCenter, Ui.Dim);
             // 슬로우 게이지: 총알 기둥 왼쪽에 세로 막대
-            slowBg = Ui.Image("SlowBg", canvas, new Vector2(800f, 0f), new Vector2(12f, 300f), new Color(0f, 0f, 0f, 0.5f));
+            slowBg = Ui.Image("SlowBg", canvas, new Vector2(760f, 0f), new Vector2(12f, 300f), new Color(0f, 0f, 0f, 0.5f));
             slowFill = Ui.Image("SlowFill", slowBg.transform, Vector2.zero, new Vector2(8f, 294f), new Color(0.5f, 0.8f, 1f));
-            slowLabel = Ui.Text("SlowLabel", canvas, new Vector2(800f, 170f), new Vector2(120f, 24f), 14, TextAnchor.MiddleCenter, Ui.Dim);
+            slowLabel = Ui.Text("SlowLabel", canvas, new Vector2(760f, 170f), new Vector2(120f, 24f), 14, TextAnchor.MiddleCenter, Ui.Dim);
             slowLabel.text = "우클릭";
             slowVeil = Ui.Image("SlowVeil", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
             slowVeil.transform.SetAsFirstSibling();

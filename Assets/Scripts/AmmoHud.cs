@@ -11,10 +11,10 @@ namespace TinCan
     /// </summary>
     public class AmmoHud : MonoBehaviour
     {
-        const float Scale = 3f;
-        const float Gap = 6f;
-        const float SpentShift = 14f;
-        static readonly Vector2 Anchor = new Vector2(880f, 0f);
+        const float Scale = 4.2f;            // 3 × 1.4
+        const float Gap = 8f;
+        const float SpentShift = 18f;
+        static readonly Vector2 Anchor = new Vector2(860f, 0f);
         static readonly Color Spent = new Color(200f / 255f, 200f / 255f, 200f / 255f, 1f);   // 알파 1, RGB 200: 살짝 어둡게 (사용자 지시)
 
         class Slot { public Image Img, White; public RectTransform Rt; public Vector2 Home; public bool Full; }
@@ -126,7 +126,7 @@ namespace TinCan
         IEnumerator Toss(Slot s)
         {
             var from = s.Rt.anchoredPosition;
-            var vel = new Vector2(Random.Range(40f, 110f), Random.Range(520f, 680f));   // 초반에 확 위로
+            var vel = new Vector2(Random.Range(-160f, 160f), Random.Range(520f, 680f));   // 초반에 확 위로, 좌우로 퍼진다
             float spin = Random.Range(900f, 1500f) * (Random.value < 0.5f ? -1f : 1f);   // 회전 세게
             var c = s.Img.color;
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.0f)
