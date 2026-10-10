@@ -11,7 +11,8 @@ namespace TinCan
     public class GunViewer : MonoBehaviour
     {
         VoxelGun gun;
-        Image veil; Text info;
+        SpriteRenderer veil;          // 월드 판 (총은 월드 메시라 UI 위엔 못 그린다 → 게임 UI는 끈다)
+        Canvas mainCanvas, ownCanvas; Text info;
         float lay, tilt = 28f, spin, zoom = 2.6f;
         Vector2 lastMouse;
         public bool Open { get; private set; }
@@ -19,9 +20,14 @@ namespace TinCan
         public static GunViewer Make(Transform canvas)
         {
             var v = new GameObject("GunViewer").AddComponent<GunViewer>();
-            v.veil = Ui.Image("ViewerVeil", canvas, Vector2.zero, new Vector2(4000f, 3000f), new Color(0.08f, 0.1f, 0.16f, 1f));
-            v.info = Ui.Text("ViewerInfo", v.veil.transform, new Vector2(0f, -440f), new Vector2(1600f, 90f), 22, TextAnchor.MiddleCenter, Ui.Ink);
-            v.veil.gameObject.SetActive(false);
+            v.mainCanvas = canvas.GetComponent<Canvas>();
+            v.veil = Look.Quad("ViewerVeil", Vector2.zero, new Vector2(60f, 40f), new Color(0.08f, 0.1f, 0.16f, 1f), 250, v.transform);
+            var cg = new GameObject("ViewerCanvas", typeof(Canvas), typeof(CanvasScaler));
+            cg.transform.SetParent(v.transform, false);
+            v.ownCanvas = cg.GetComponent<Canvas>(); v.ownCanvas.renderMode = RenderMode.ScreenSpaceOverlay; v.ownCanvas.sortingOrder = 50;
+            var s = cg.GetComponent<CanvasScaler>(); s.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; s.referenceResolution = new Vector2(1920f, 1080f);
+            v.info = Ui.Text("ViewerInfo", cg.transform, new Vector2(0f, -440f), new Vector2(1600f, 90f), 22, TextAnchor.MiddleCenter, Ui.Ink);
+            v.veil.gameObject.SetActive(false); cg.SetActive(false);
             return v;
         }
 
@@ -29,12 +35,15 @@ namespace TinCan
         {
             Open = !Open;
             veil.gameObject.SetActive(Open);
+            ownCanvas.gameObject.SetActive(Open);
+            mainCanvas.enabled = !Open;
             if (Open)
             {
                 if (gun == null) { gun = VoxelGun.Make(transform); foreach (var r in gun.GetComponentsInChildren<Renderer>()) r.sortingOrder = 300; }
                 gun.transform.position = new Vector3(0f, -0.6f, 0f);
                 gun.gameObject.SetActive(true);
                 if (Game.I != null) Game.I.Gun.Enabled = false;
+                Cursor.visible = true;
             }
             else
             {
