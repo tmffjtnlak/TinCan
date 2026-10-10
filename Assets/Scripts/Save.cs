@@ -19,7 +19,7 @@ namespace TinCan
             public List<int> nodeLevels = new List<int>();
             public List<string> ownedGuns = new List<string>();
             public List<string> ownedCans = new List<string>();
-            public string gun = "revolver", spawn = "tin";
+            public string gun = "revolver", spawn = "tin", secondary = "";
             public float volume = 1f;
         }
 
@@ -28,7 +28,7 @@ namespace TinCan
 
         public static void Write(Game g)
         {
-            var d = new Data { money = g.Money, bursts = g.Bursts, bestCombo = g.BestCombo, bestPayout = g.BestPayout, gun = g.Gun.Kind.Id, spawn = g.SpawnKind.Id, volume = AudioListener.volume };
+            var d = new Data { money = g.Money, bursts = g.Bursts, bestCombo = g.BestCombo, bestPayout = g.BestPayout, gun = g.Primary.Id, spawn = g.SpawnKind.Id, secondary = g.Secondary != null ? g.Secondary.Id : "", volume = AudioListener.volume };
             foreach (var n in g.Nodes) { d.nodeIds.Add(n.Id); d.nodeLevels.Add(n.Level); }
             d.ownedGuns.AddRange(g.OwnedGuns); d.ownedCans.AddRange(g.OwnedCans);
             PlayerPrefs.SetString(Key, JsonUtility.ToJson(d));

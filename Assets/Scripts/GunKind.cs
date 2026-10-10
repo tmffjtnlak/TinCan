@@ -7,6 +7,9 @@ namespace TinCan
     /// 총 종류 = 쏘는 방식. 스킬트리(얼마나 잘)와 다르다.
     /// 한 발의 판정이 다르다: 리볼버는 점 하나, 샷건은 퍼진 원 안 전부, 머신건은 연사.
     /// </summary>
+    /// <summary>무기 슬롯 종류 (FPS 도구 느낌, 사용자 10-11): 1 주무장, 2 보조무기, 3 투척류(소모품). 근접무기 등은 나중에</summary>
+    public enum WeaponSlot { Primary = 0, Secondary = 1, Throwable = 2 }
+
     public class GunKind
     {
         public string Id, Name, Desc;

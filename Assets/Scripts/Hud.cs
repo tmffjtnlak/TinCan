@@ -50,7 +50,7 @@ namespace TinCan
             chambers = new Image[12];
             for (int i = 0; i < chambers.Length; i++) chambers[i] = Ui.Image($"Ch{i}", cylinder, Vector2.zero, new Vector2(18f, 18f), Ui.Ink);
             gunName = Ui.Text("GunName", cylBoard.transform, new Vector2(55f, 30f), new Vector2(130f, 36f), 24, TextAnchor.MiddleCenter, Ui.Ink);
-            shelf = Ui.Text("Shelf", cylBoard.transform, new Vector2(55f, -20f), new Vector2(130f, 60f), 18, TextAnchor.MiddleCenter, Ui.Dim);
+            shelf = Ui.Text("Shelf", cylBoard.transform, new Vector2(55f, -24f), new Vector2(150f, 64f), 15, TextAnchor.MiddleCenter, Ui.Dim);
             // 슬로우 게이지: 실린더 판자 위에 가로 막대
             slowBg = Ui.Image("SlowBg", cylBoard.transform, new Vector2(0f, 72f), new Vector2(230f, 14f), new Color(0f, 0f, 0f, 0.5f));
             slowFill = Ui.Image("SlowFill", slowBg.transform, Vector2.zero, new Vector2(224f, 8f), new Color(0.5f, 0.8f, 1f));
@@ -126,9 +126,12 @@ namespace TinCan
             stats.text = $"터뜨림 {game.Bursts}  ·  최고 연속 {game.BestCombo}  ·  최고 정산 ${game.BestPayout:N0}"
                 + (air >= 2 ? $"   <color=#ffd966>공중 {air}  ×{air}</color>" : "")
                 + (gun.ReloadStreak >= 1 ? $"   <color=#88ffaa>저스트 {gun.ReloadStreak}</color>" : "");
-            hint.text = game.MenuOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)})   ·   좌클릭 = 쏜다   ·   우클릭 = 느리게   ·   R = 장전   ·   Tab = 가게";
+            hint.text = game.MenuOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)})   ·   좌클릭 = 쏜다   ·   우클릭 = 느리게   ·   R = 장전   ·   1/2 = 무기   ·   Tab = 가게";
             gunName.text = gun.Kind.Name;
-            shelf.text = $"선반 {game.CansOnShelf}/{game.MaxCans}";
+            string p = $"{(game.ActiveSlot == 0 ? "<color=#ffd966>" : "<color=#999999>")}1 {game.Primary.Name} {gun.StoredAmmo(game.Primary)}</color>";
+            string s = game.Secondary != null ? $"   {(game.ActiveSlot == 1 ? "<color=#ffd966>" : "<color=#999999>")}2 {game.Secondary.Name} {gun.StoredAmmo(game.Secondary)}</color>" : "   <color=#666666>2 —</color>";
+            shelf.supportRichText = true;
+            shelf.text = $"{p}{s}\n선반 {game.CansOnShelf}/{game.MaxCans}";
             // 슬로우 게이지와 푸른 화면
             float g = game.SlowGaugeMax > 0f ? game.SlowGauge / game.SlowGaugeMax : 0f;
             slowFill.rectTransform.sizeDelta = new Vector2(224f * g, 8f);

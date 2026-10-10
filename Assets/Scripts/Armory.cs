@@ -53,7 +53,7 @@ namespace TinCan
             if (game == null || !Visible) return;
             money.text = $"${game.Money:N0}";
             var kb = Keyboard.current;
-            title.text = page == Page.Guns ? "총기류  —  쏘는 방식이 다르다" : "깡통류  —  뭘 띄우나";
+            title.text = page == Page.Guns ? "총기류  —  1 주무장 · 2 보조무기 · 3 투척류(추후)" : "깡통류  —  뭘 띄우나";
             for (int i = 0; i < cards.Count; i++)
             {
                 var c = cards[i];
@@ -62,9 +62,9 @@ namespace TinCan
                     if (i >= GunKind.ForSale.Count) { c.Root.gameObject.SetActive(false); continue; }
                     var k = GunKind.ForSale[i];
                     c.Root.gameObject.SetActive(true);
-                    bool owned = game.OwnedGuns.Contains(k.Id), current = game.Gun.Kind == k;
+                    bool owned = game.OwnedGuns.Contains(k.Id), current = game.Primary == k, second = game.Secondary == k;
                     Fill(c, i, k.Name, k.IsCursed ? Ui.Curse : Ui.Ink, k.IsCursed ? new Color(0.35f, 0.15f, 0.45f) : new Color(0.3f, 0.3f, 0.36f),
-                        owned, current, k.Price, $"{k.Desc}   ·   {k.Capacity}발, 장전 {k.ReloadSeconds:0.0}초", current ? "장착 중" : "보유");
+                        owned, current || second, k.Price, $"{k.Desc}   ·   {k.Capacity}발, 장전 {k.ReloadSeconds:0.0}초", current ? "1 주무장" : second ? "2 보조무기 (누르면 자리 교대)" : "보유 (누르면 보조로)");
                     if (kb != null && Digit(kb, i + 1)) game.PickGun(k);
                 }
                 else

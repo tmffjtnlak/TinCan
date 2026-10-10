@@ -50,7 +50,8 @@ namespace TinCan
             N("reload3", "번개 장전", "번", new Vector2(-4.1f, 1.9f), Red, 400, "장전 시간 -25% 더", g => g.Gun.ReloadScale *= 0.75f),
             N("firstshot", "첫 발", "첫", new Vector2(-2.2f, 2.7f), Red, 150, "장전 직후 첫 발은 값 2배 (어느 총이든)", g => g.Gun.FirstShotMult = 2f, "lastshot"),
             N("lastshot", "마지막 발", "끝", new Vector2(-3.2f, 3.6f), Red, 220, "탄창의 마지막 한 발은 더 높이 띄운다", g => g.Gun.LastShotBounce = 1.5f),
-            N("comboreload", "연속 장전", "연", new Vector2(-0.9f, 2.3f), Red, 200, "공중 연속 5번마다 즉시 장전", g => g.Gun.ComboReloadEvery = 5),
+            N("comboreload", "연속 장전", "연", new Vector2(-0.9f, 2.3f), Red, 200, "공중 연속 5번마다 즉시 장전", g => g.Gun.ComboReloadEvery = 5, "holster"),
+            N("holster", "허리춤 장전", "허", new Vector2(-1.4f, 3.5f), Red, 260, "꺼내지 않은 보조무기가 1.5초마다 한 발씩 찬다", g => g.HolsterReloadSeconds = 1.5f),
 
             // 선반 (하늘) — 오른쪽 위
             N("shelf1", "넓은 선반", "선", new Vector2(1.4f, 1f), Cyan, 40, "선반 자리 +1", g => g.MaxCans += 1, "shelf2", "bounce", "cluster"),

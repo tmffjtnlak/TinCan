@@ -215,7 +215,9 @@ namespace TinCan
                 n.Level = d.nodeLevels[i];
                 if (n.Level > 0) n.Apply(this, n.Level);
             }
-            var g = GunKind.ForSale.Find(x => x.Id == d.gun); if (g != null) Gun.Equip(g);
+            var g = GunKind.ForSale.Find(x => x.Id == d.gun); if (g != null) { Primary = g; Gun.Equip(g); }
+            var s2 = GunKind.ForSale.Find(x => x.Id == d.secondary); if (s2 != null && s2 != Primary) Secondary = s2;
+            ActiveSlot = 0;
             var k = CanKind.ForSale.Find(x => x.Id == d.spawn); if (k != null) SpawnKind = k;
         }
 
@@ -248,6 +250,10 @@ namespace TinCan
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
             if (DebugMoney) Money = 999_999_999;
             if (kb.f2Key.wasPressedThisFrame) bounty.Summon();
+            if (kb.digit1Key.wasPressedThisFrame) SelectSlot(0);
+            if (kb.digit2Key.wasPressedThisFrame) SelectSlot(1);
+            if (kb.digit3Key.wasPressedThisFrame) hud.Float("3: 투척류 — 아직 없다", new Vector2(0f, 1.5f), 0);
+            HolsterReload();
             bounty.Tick();
             UpdateSlow(kb);
             AutoGun();
@@ -265,16 +271,59 @@ namespace TinCan
             tabs.Show(p);
         }
 
-        // ---------- 총기류 ----------
+        // ---------- 총기류: 주무기·보조무기 (사용자 10-11) ----------
+        public GunKind Secondary { get; private set; }
+        public float HolsterReloadSeconds { get; set; } = 0f;   // 스킬 "허리춤 장전": 꺼내지 않은 총이 N초마다 한 발
+        float holsterTimer;
+
+        /// <summary>가게에서 번호를 누르면: 안 샀으면 사서 보조로, 보조를 누르면 주무기와 교대, 다른 보유 총이면 보조로</summary>
         public void PickGun(GunKind k)
         {
             if (!OwnedGuns.Contains(k.Id))
             {
                 if (Money < k.Price) { Sfx.Play(Sfx.Click(), 0.5f, 0.8f); return; }
                 Money -= k.Price; OwnedGuns.Add(k.Id);
+                Secondary = k;
+                Sfx.Play(Sfx.Reload(), 0.8f, 1.2f);
+                return;
             }
-            Gun.Equip(k);
-            Sfx.Play(Sfx.Reload(), 0.8f, 1.2f);
+            if (k == Primary) return;
+            if (k == Secondary) { SwapGuns(); Sfx.Play(Sfx.Reload(), 0.6f, 1.4f); return; }
+            Secondary = k;
+            if (ActiveSlot == 1) Gun.Equip(k);
+            Sfx.Play(Sfx.Reload(), 0.6f, 1.4f);
+        }
+
+        /// <summary>슬롯 두 개: [0] 주무장, [1] 보조무기. 숫자키로 고른다 (FPS 도구 느낌)</summary>
+        public GunKind Primary { get; private set; } = GunKind.Revolver;
+        public int ActiveSlot { get; private set; } = 0;
+
+        public void SelectSlot(int slot)
+        {
+            var want = slot == 0 ? Primary : Secondary;
+            if (want == null) { Sfx.Play(Sfx.Click(), 0.4f, 0.9f); hud.Float("보조무기가 없다", new Vector2(0f, 1.5f), 0); return; }
+            if (slot == ActiveSlot) return;
+            ActiveSlot = slot;
+            Gun.Equip(want);
+            Gun.View.Swap();
+            Sfx.Play(Sfx.Reload(), 0.7f, 1.6f);
+        }
+
+        /// <summary>(가게에서 보조를 누르면) 주무장과 보조무기 자리를 바꾼다</summary>
+        public void SwapGuns()
+        {
+            if (Secondary == null) return;
+            var p = Primary; Primary = Secondary; Secondary = p;
+            Gun.Equip(ActiveSlot == 0 ? Primary : Secondary);
+        }
+
+        void HolsterReload()
+        {
+            if (HolsterReloadSeconds <= 0f || Secondary == null) return;
+            holsterTimer += Time.deltaTime;
+            if (holsterTimer < HolsterReloadSeconds) return;
+            holsterTimer = 0f;
+            Gun.HolsterFeed(Secondary);
         }
 
         // ---------- 깡통류 ----------

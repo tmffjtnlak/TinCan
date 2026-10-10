@@ -119,6 +119,14 @@ namespace TinCan
         float sideSpin;     // 옆면이 돈 각도
         float handTilt;     // 장전 때 손 기울기
 
+        /// <summary>교대: 총이 아래로 쑥 내려갔다 다른 총이 올라온다</summary>
+        public void Swap() { StopAllCoroutines(); reloading = false; StartCoroutine(SwapCo()); }
+        IEnumerator SwapCo()
+        {
+            for (float t = 0f; t < 1f; t += Time.deltaTime * 7f) { dip = Mathf.Sin(t * Mathf.PI) * 1.1f; yield return null; }
+            dip = 0f; recoil = Mathf.Max(recoil, 0.4f);
+        }
+
         public void SetKind(GunKind k)
         {
             kind = k;

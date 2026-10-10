@@ -10,7 +10,7 @@ namespace TinCan
     /// </summary>
     public class Gun : MonoBehaviour
     {
-        public GunKind Kind { get; private set; } = GunKind.Revolver;
+        public GunKind Kind { get; private set; }   // Build에서 Equip으로 채운다
         public int Capacity => Kind.Capacity + CapacityBonus;
         public int CapacityBonus { get; set; }
         public int Ammo { get; private set; }
@@ -32,6 +32,7 @@ namespace TinCan
 
         Transform crosshair, ring;
         GunView view;
+        public GunView View => view;
         Camera cam;
         float kickLeft, nextFire, shotValue = 1f, shotBounce = 1f;
         Vector3 camHome;
@@ -77,10 +78,26 @@ namespace TinCan
             Equip(GunKind.Revolver);
         }
 
+        // 총마다 탄 상태를 기억한다 (주/보조 교대용)
+        readonly System.Collections.Generic.Dictionary<string, int> ammoByKind = new System.Collections.Generic.Dictionary<string, int>();
+        int reloadToken;
+
+        /// <summary>허리춤 장전 스킬: 꺼내지 않은 총에 한 발</summary>
+        public void HolsterFeed(GunKind kind)
+        {
+            if (kind == null || kind == Kind) return;
+            int cap = kind.Capacity + CapacityBonus;
+            int a = ammoByKind.TryGetValue(kind.Id, out var v) ? v : cap;
+            if (a < cap) ammoByKind[kind.Id] = a + 1;
+        }
+        public int StoredAmmo(GunKind kind) => kind == Kind ? Ammo : (ammoByKind.TryGetValue(kind.Id, out var v) ? v : kind.Capacity + CapacityBonus);
+
         public void Equip(GunKind kind)
         {
+            if (Kind != null) ammoByKind[Kind.Id] = Ammo;
+            reloadToken++; Reloading = false; attempted = false;
             Kind = kind;
-            Ammo = Capacity; Reloading = false;
+            Ammo = ammoByKind.TryGetValue(kind.Id, out var stored) ? Mathf.Min(stored, Capacity) : Capacity;
             view.SetKind(kind);
             ring.localScale = Vector3.one * kind.AimRadius;
             ring.gameObject.SetActive(kind.AimRadius > 0.4f);
@@ -217,6 +234,7 @@ namespace TinCan
         public IEnumerator Reload()
         {
             if (Reloading) yield break;
+            int token = ++reloadToken;
             Reloading = true; attempted = false; missed = false; justDone = false;
             ReloadProgress = 0f;
             windowStart = WindowStart; windowEnd = WindowEnd;
@@ -224,13 +242,14 @@ namespace TinCan
             Sfx.Play(Sfx.Reload(), 0.8f, 1f);
             view.Reload(seconds, Capacity - Ammo);
             float t = 0f;
-            while (t < seconds && !justDone)
+            while (t < seconds && !justDone && token == reloadToken)
             {
                 t += Time.deltaTime;
                 if (missed) t += Time.deltaTime * 0.35f;   // 실패: 이번 장전은 느려진다
                 ReloadProgress = Mathf.Clamp01(t / seconds);
                 yield return null;
             }
+            if (token != reloadToken) { view.ReloadSnap(); yield break; }   // 교대로 끊김
             Ammo = Capacity;
             Reloading = false;
             firstShotPending = true;
