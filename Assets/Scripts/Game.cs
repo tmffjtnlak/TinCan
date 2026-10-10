@@ -256,6 +256,7 @@ namespace TinCan
             if (kb.digit2Key.wasPressedThisFrame) SelectSlot(1);
             if (kb.digit3Key.wasPressedThisFrame) hud.Float("3: 투척류 — 아직 없다", new Vector2(0f, 1.5f), 0);
             HolsterReload();
+            Nudge();
             bounty.Tick();
             UpdateSlow(kb);
             AutoGun();
@@ -406,13 +407,30 @@ namespace TinCan
             return true;
         }
 
-        /// <summary>한 발에 쌓이는 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수 × 동시 공중 수</summary>
-        public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale * Mathf.Max(1, Airborne)));
+        /// <summary>동시 공중 배수 (사용자 10-11: 둘을 띄우게 유도): 1개 ×1, 2개 ×3, 3개 ×6, 4개 ×10 — n(n+1)/2</summary>
+        public static int AirMult(int n) => Mathf.Max(1, n * (n + 1) / 2);
+        public int MostAirborne { get; private set; }
+
+        /// <summary>한 발에 쌓이는 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수 × 동시 공중 배수</summary>
+        public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale * AirMult(Airborne)));
+
+        float nudgeTimer; int nudges;
+        /// <summary>하나만 떠 있고 선반에 깡통이 있으면 "하나 더 띄우면 ×3" (처음 다섯 번, 10초에 한 번)</summary>
+        void Nudge()
+        {
+            if (nudges >= 5 || MostAirborne >= 2) return;
+            nudgeTimer -= Time.deltaTime;
+            if (nudgeTimer > 0f) return;
+            if (Airborne != 1 || CansOnShelf == 0) return;
+            foreach (var c in Cans) if (c != null && !c.Airborne) { hud.Float("하나 더 띄우면 ×3", (Vector2)c.transform.position + Vector2.up * 0.9f, 5); break; }
+            nudgeTimer = 10f; nudges++;
+        }
 
         public void CanHit(Can can, int earned, Vector2 at)
         {
             int air = Airborne;
-            hud.Float(air >= 2 ? $"+{earned}  ×{air}" : $"+{earned}", at, can.Combo + (air - 1) * 2);
+            if (air > MostAirborne) MostAirborne = air;
+            hud.Float(air >= 2 ? $"+{earned}  ×{AirMult(air)}" : $"+{earned}", at, can.Combo + (air - 1) * 3);
             if (can.Combo > BestCombo) BestCombo = can.Combo;
             Gun.OnComboHit(can.Combo);
             FillSlow();
