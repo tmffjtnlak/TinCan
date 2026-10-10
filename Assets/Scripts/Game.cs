@@ -174,7 +174,8 @@ namespace TinCan
             settingButtons.Add(ShootButton.Make("Vol", new Vector2(-1.2f, y), new Vector2(1.9f, 0.9f), () => $"소리 {Mathf.RoundToInt(AudioListener.volume * 100)}%", () => { }, hud.Canvas));
             settingButtons.Add(ShootButton.Make("VolUp", new Vector2(0.8f, y), new Vector2(1.6f, 0.9f), () => "소리 +", () => SetVolume(AudioListener.volume + 0.1f), hud.Canvas));
             settingButtons.Add(ShootButton.Make("Full", new Vector2(3.0f, y), new Vector2(2.2f, 0.9f), () => Screen.fullScreen ? "창 모드로" : "전체 화면으로", () => Screen.fullScreen = !Screen.fullScreen, hud.Canvas));
-            settingButtons.Add(ShootButton.Make("Back", new Vector2(0f, y - 1.4f), new Vector2(2.4f, 0.9f), () => "돌아가기", CloseSettings, hud.Canvas));
+            settingButtons.Add(ShootButton.Make("AutoReload", new Vector2(-1.6f, y - 1.4f), new Vector2(3.0f, 0.9f), () => Gun.AutoReloadOnEmpty ? "다 쏘면 자동 장전: 켜짐" : "다 쏘면 자동 장전: 꺼짐", () => Gun.AutoReloadOnEmpty = !Gun.AutoReloadOnEmpty, hud.Canvas));
+            settingButtons.Add(ShootButton.Make("Back", new Vector2(1.6f, y - 1.4f), new Vector2(2.4f, 0.9f), () => "돌아가기", CloseSettings, hud.Canvas));
         }
 
         void SetVolume(float v) { AudioListener.volume = Mathf.Clamp01(v); PlayerPrefs.SetFloat("volume", AudioListener.volume); PlayerPrefs.Save(); }

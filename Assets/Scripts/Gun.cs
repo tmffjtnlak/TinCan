@@ -223,9 +223,17 @@ namespace TinCan
             Destroy(f.gameObject);
         }
 
+        /// <summary>다 쏘면 즉시 장전 (설정으로 끌 수 있다. PlayerPrefs "autoReload")</summary>
+        public static bool AutoReloadOnEmpty
+        {
+            get => PlayerPrefs.GetInt("autoReload", 1) == 1;
+            set { PlayerPrefs.SetInt("autoReload", value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+
         IEnumerator AutoReload()
         {
-            yield return new WaitForSeconds(0.35f);
+            if (!AutoReloadOnEmpty) yield break;   // 꺼져 있으면 R을 눌러야 한다
+            yield return null;                      // 마지막 발의 반동 한 프레임 뒤 바로
             if (Ammo == 0 && !Reloading) yield return Reload();
         }
 
