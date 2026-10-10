@@ -97,6 +97,7 @@ namespace TinCan
             tabs.Build(hud.Canvas);
             new GameObject("Markers").AddComponent<OffscreenMarkers>();
             bounty = Bounty.Make(hud.Canvas);
+            viewer = GunViewer.Make(hud.Canvas);
             AudioListener.volume = PlayerPrefs.GetFloat("volume", 1f);
 
             if (pendingPlay) { bool load = pendingLoad; pendingPlay = pendingLoad = false; BeginPlay(load); }
@@ -228,6 +229,8 @@ namespace TinCan
             Cans.RemoveAll(c => c == null);
             var kb = Keyboard.current;
             if (kb == null) return;
+            if (kb.f3Key.wasPressedThisFrame) viewer.Toggle();   // 시험용 총 뷰어
+            if (viewer.Open) return;
             if (State != GameState.Play)
             {
                 Gun.Enabled = State != GameState.Settings || settingButtons.Count > 0;
@@ -345,6 +348,7 @@ namespace TinCan
 
         AutoTurret turret;
         Bounty bounty;
+        GunViewer viewer;
         /// <summary>자동 사격기: 스킬을 사면 선반 옆에 기계가 서고, 보이는 깡통에 조준점이 움직여 가서 쏜다</summary>
         void AutoGun()
         {
