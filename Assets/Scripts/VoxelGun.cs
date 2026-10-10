@@ -67,6 +67,7 @@ namespace TinCan
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
             Muzzle = new GameObject("Muzzle").transform; Muzzle.SetParent(transform, false); Muzzle.localPosition = new Vector3(0f, (25 + 4) * v.Size, 0f);
             Cylinder = transform;
+            PixelLayer.Mark(gameObject);   // 도트처럼 보이게: 낮은 해상도 층에서 그린다
             Apply();
         }
 

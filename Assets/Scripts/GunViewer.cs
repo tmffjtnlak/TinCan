@@ -21,7 +21,7 @@ namespace TinCan
         {
             var v = new GameObject("GunViewer").AddComponent<GunViewer>();
             v.mainCanvas = canvas.GetComponent<Canvas>();
-            v.veil = Look.Quad("ViewerVeil", Vector2.zero, new Vector2(60f, 40f), new Color(0.08f, 0.1f, 0.16f, 1f), 250, v.transform);
+            v.veil = Look.Quad("ViewerVeil", Vector2.zero, new Vector2(60f, 40f), new Color(0.08f, 0.1f, 0.16f, 1f), 44, v.transform);   // 도트 층 판(45) 바로 아래
             var cg = new GameObject("ViewerCanvas", typeof(Canvas), typeof(CanvasScaler));
             cg.transform.SetParent(v.transform, false);
             v.ownCanvas = cg.GetComponent<Canvas>(); v.ownCanvas.renderMode = RenderMode.ScreenSpaceOverlay; v.ownCanvas.sortingOrder = 50;
@@ -39,7 +39,7 @@ namespace TinCan
             mainCanvas.enabled = !Open;
             if (Open)
             {
-                if (gun == null) { gun = VoxelGun.Make(transform); foreach (var r in gun.GetComponentsInChildren<Renderer>()) r.sortingOrder = 300; }
+                if (gun == null) gun = VoxelGun.Make(transform);
                 gun.transform.position = new Vector3(0f, -0.6f, 0f);
                 gun.gameObject.SetActive(true);
                 if (Game.I != null) Game.I.Gun.Enabled = false;
@@ -73,10 +73,14 @@ namespace TinCan
                 if (kb.qKey.isPressed) spin -= 120f * Time.unscaledDeltaTime;
                 if (kb.eKey.isPressed) spin += 120f * Time.unscaledDeltaTime;
                 if (kb.rKey.wasPressedThisFrame) { lay = 0f; tilt = 28f; spin = 0f; zoom = 2.6f; }
+                if (kb.digit1Key.wasPressedThisFrame) PixelLayer.PixelSize = 2;
+                if (kb.digit2Key.wasPressedThisFrame) PixelLayer.PixelSize = 3;
+                if (kb.digit3Key.wasPressedThisFrame) PixelLayer.PixelSize = 4;
+                if (kb.digit4Key.wasPressedThisFrame) PixelLayer.PixelSize = 6;
             }
             gun.Lay = lay; gun.Tilt = tilt; gun.Spin = spin; gun.Apply();
             gun.transform.localScale = Vector3.one * zoom;
-            info.text = $"기울기 {tilt:0}°  ·  눕힘 {lay:0}°  ·  돌림 {spin:0}°  ·  크기 ×{zoom:0.0}\n좌드래그·방향키 = 기울기/눕힘   우드래그·Q/E = 돌림   휠 = 크기   R = 초기화   F3 = 닫기";
+            info.text = $"기울기 {tilt:0}°  ·  눕힘 {lay:0}°  ·  돌림 {spin:0}°  ·  크기 ×{zoom:0.0}  ·  도트 1칸 = {PixelLayer.PixelSize}px\n좌드래그·방향키 = 기울기/눕힘   우드래그·Q/E = 돌림   휠 = 크기   1~4 = 도트 굵기   R = 초기화   F3 = 닫기";
         }
     }
 }
