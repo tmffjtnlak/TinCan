@@ -183,6 +183,11 @@ namespace TinCan
             var v = rb.linearVelocity / TimeScale;   // 느려진 시간 안에서 계산하고 다시 줄인다
             v.y = (Mathf.Max(0f, v.y * 0.3f) + 9.5f + BounceBonus + Random.Range(-0.5f, 0.8f)) * bounceScale;
             v.x = v.x * 0.4f + side * 2.2f + Random.Range(-0.6f, 0.6f);
+            // 천장 한계 (사용자 10-11): 화면 밖으로 나가면 연속이 끊기니, 꼭대기가 화면 위 끝 바로 아래가 되도록 자른다
+            float top = Look.CeilingY - Kind.Height * 0.5f - transform.position.y;
+            float g = -Physics2D.gravity.y * BaseGravity * Kind.Weight;
+            float vmax = top > 0f ? Mathf.Sqrt(2f * g * top) : 0f;
+            if (v.y > vmax) v.y = vmax;
             rb.linearVelocity = v * TimeScale;
             rb.angularVelocity = (-side * Random.Range(400f, 800f) + Random.Range(-200f, 200f)) * TimeScale;
             flashLeft = 0.06f;

@@ -41,6 +41,7 @@ namespace TinCan
         public const float ShelfY = -1.6f;      // 소환지역: 깡통이 올라가는 선반
         public const float DropY = -4.3f;       // 낙하지역: 여기 닿으면 정산
         public const float ShelfLeft = -6.5f, ShelfRight = 6.5f;
+        public const float CeilingY = 4.75f;    // 천장: 깡통은 이 아래에서만 논다 (화면 위 끝 바로 아래)
 
         /// <summary>
         /// 사격장: 위 = 타격지역(하늘), 가운데 = 소환지역(긴 선반), 아래 = 낙하지역(모래).
@@ -62,8 +63,12 @@ namespace TinCan
             var rail = new GameObject("RailCollider"); rail.transform.position = new Vector3(0f, ShelfY, 0f);
             var rc = rail.AddComponent<BoxCollider2D>(); rc.size = new Vector2(ShelfRight - ShelfLeft, 0.22f);
             rail.AddComponent<Shelf>();
-            // 타격지역: 아무것도 없다 (하늘). 위쪽 경계선만 살짝
-            Quad("HitZoneLine", new Vector2(0f, 4.6f), new Vector2(40f, 0.03f), new Color(1f, 1f, 1f, 0.12f), -9);
+            // 타격지역: 하늘. 맨 위에 들보 — 천장. 넘치면 튕겨 돌아온다
+            Quad("Beam", new Vector2(0f, CeilingY + 0.14f), new Vector2(40f, 0.22f), Wood, -4);
+            Quad("BeamLight", new Vector2(0f, CeilingY + 0.2f), new Vector2(40f, 0.06f), WoodLight, -3);
+            var ceil = new GameObject("Ceiling"); ceil.transform.position = new Vector3(0f, CeilingY + 0.4f, 0f);
+            var cc = ceil.AddComponent<BoxCollider2D>(); cc.size = new Vector2(40f, 0.5f); cc.sharedMaterial = new PhysicsMaterial2D("ceil") { bounciness = 0.5f, friction = 0.1f };
+            ceil.AddComponent<Wall>();
             // 낙하 감지
             var drop = new GameObject("DropCollider"); drop.transform.position = new Vector3(0f, DropY - 0.3f, 0f);
             var dc = drop.AddComponent<BoxCollider2D>(); dc.size = new Vector2(40f, 0.6f); dc.isTrigger = true;

@@ -64,6 +64,7 @@ namespace TinCan
 
         void Rebuild(GunKind kind)
         {
+            StopAllCoroutines();   // 날아가던 탄 연출이 지워진 칸을 만지지 않게
             foreach (var s in slots) if (s != null && s.Img != null) Destroy(s.Img.gameObject);
             int cap = Mathf.Min(gun.Capacity, 30);
             var sp = SpriteFor(kind); var wh = WhiteOf(sp);
@@ -115,6 +116,7 @@ namespace TinCan
         {
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 10f)
             {
+                if (s.Rt == null) yield break;
                 s.Img.color = Color.Lerp(Color.white, Spent, t);
                 s.Rt.anchoredPosition = s.Home + new Vector2(SpentShift * Mathf.SmoothStep(0f, 1f, t), 0f);
                 yield return null;
@@ -131,6 +133,7 @@ namespace TinCan
             var c = s.Img.color;
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.0f)
             {
+                if (s.Rt == null) yield break;
                 s.Rt.anchoredPosition = from + vel * t + new Vector2(0f, -1000f * t * t);   // 중력은 전의 2/3
                 s.Rt.localRotation = Quaternion.Euler(0f, 0f, spin * t);
                 s.Img.color = new Color(c.r, c.g, c.b, c.a * (1f - t * t));
@@ -147,6 +150,7 @@ namespace TinCan
             float delay = Mathf.Max(0, order) * 0.04f; while (delay > 0f) { delay -= Time.unscaledDeltaTime; yield return null; }
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 7f)
             {
+                if (s.Rt == null) yield break;
                 float k = t < 0.6f ? Mathf.Lerp(0f, 1.3f, t / 0.6f) : Mathf.Lerp(1.3f, 1f, (t - 0.6f) / 0.4f);
                 s.Rt.localScale = Vector3.one * k;
                 s.White.color = new Color(1f, 1f, 1f, Mathf.Clamp01(1f - t * 1.6f));
