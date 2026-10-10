@@ -15,7 +15,7 @@ namespace TinCan
         const float Gap = 6f;
         const float SpentShift = 14f;
         static readonly Vector2 Anchor = new Vector2(880f, 0f);
-        static readonly Color Spent = new Color(0.12f, 0.1f, 0.1f, 1f);
+        static readonly Color Spent = new Color(0.3f, 0.26f, 0.26f, 0.45f);   // 어둡고 반투명 (사용자: 완전 검정 아님)
 
         class Slot { public Image Img, White; public RectTransform Rt; public Vector2 Home; public bool Full; }
         Slot[] slots = new Slot[0];
@@ -126,14 +126,14 @@ namespace TinCan
         IEnumerator Toss(Slot s)
         {
             var from = s.Rt.anchoredPosition;
-            var vel = new Vector2(Random.Range(60f, 140f), Random.Range(220f, 320f));
+            var vel = new Vector2(Random.Range(40f, 110f), Random.Range(520f, 680f));   // 초반에 확 위로
             float spin = Random.Range(-540f, 540f);
             var c = s.Img.color;
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.4f)
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.0f)
             {
-                s.Rt.anchoredPosition = from + vel * t + new Vector2(0f, -900f * t * t);
+                s.Rt.anchoredPosition = from + vel * t + new Vector2(0f, -1500f * t * t);
                 s.Rt.localRotation = Quaternion.Euler(0f, 0f, spin * t);
-                s.Img.color = new Color(c.r, c.g, c.b, 1f - t * t);
+                s.Img.color = new Color(c.r, c.g, c.b, c.a * (1f - t * t));
                 yield return null;
             }
             s.Img.color = Color.clear; s.Rt.anchoredPosition = s.Home; s.Rt.localRotation = Quaternion.identity;
