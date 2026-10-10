@@ -11,9 +11,9 @@ namespace TinCan
     /// </summary>
     public class AmmoHud : MonoBehaviour
     {
-        const float Scale = 4.2f;            // 3 × 1.4
-        const float Gap = 8f;
-        const float SpentShift = 18f;
+        const float Scale = 3.6f;            // 3 × 1.2
+        const float Gap = 7f;
+        const float SpentShift = 16f;
         static readonly Vector2 Anchor = new Vector2(860f, 0f);
         static readonly Color Spent = new Color(200f / 255f, 200f / 255f, 200f / 255f, 1f);   // 알파 1, RGB 200: 살짝 어둡게 (사용자 지시)
 
@@ -127,7 +127,7 @@ namespace TinCan
         {
             var from = s.Rt.anchoredPosition;
             var vel = new Vector2(Random.Range(-160f, 160f), Random.Range(520f, 680f));   // 초반에 확 위로, 좌우로 퍼진다
-            float spin = Random.Range(900f, 1500f) * (Random.value < 0.5f ? -1f : 1f);   // 회전 세게
+            float spin = Random.Range(450f, 750f) * (Random.value < 0.5f ? -1f : 1f);
             var c = s.Img.color;
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.0f)
             {
