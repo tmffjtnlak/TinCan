@@ -80,7 +80,8 @@ namespace TinCan
         /// <summary>타이틀 메뉴 깡통: 떨어지면 이걸 부른다 (돈 정산 대신). 체력 점은 숨긴다</summary>
         public System.Action OnMenuLanded;
         public bool IsMenu => OnMenuLanded != null;
-        public void MakeMenu(System.Action onLanded) { OnMenuLanded = onLanded; foreach (var p in pips) p.gameObject.SetActive(false); }
+        /// <summary>타이틀 깡통: 체력 3, 점은 안 보인다. 터뜨리면 즉시, 떨어져도 된다 (사용자 10-11)</summary>
+        public void MakeMenu(System.Action onLanded) { OnMenuLanded = onLanded; HitsLeft = 3; foreach (var p in pips) p.gameObject.SetActive(false); }
         Rigidbody2D rb;
         SpriteRenderer body, rim, label;
         SpriteRenderer[] pips;
@@ -175,12 +176,9 @@ namespace TinCan
             floorSlowed = false;
             int earned = Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;
             Earned += earned;
-            if (!IsMenu)
-            {
-                HitsLeft--;
-                for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
-                if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
-            }
+            HitsLeft--;
+            for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
+            if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
             var v = rb.linearVelocity / TimeScale;   // 느려진 시간 안에서 계산하고 다시 줄인다
@@ -257,7 +255,7 @@ namespace TinCan
                 crb.angularVelocity = Random.Range(-900f, 900f);
                 Destroy(chip.gameObject, Random.Range(0.6f, 1.1f));
             }
-            Game.I?.CanBurst(this);
+            if (IsMenu) OnMenuLanded(); else Game.I?.CanBurst(this);   // 타이틀 깡통은 터지면 바로 시작
             StopAllCoroutines();
             rb.simulated = false;
             visual.gameObject.SetActive(false);
