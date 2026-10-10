@@ -24,7 +24,7 @@ namespace TinCan
         public Transform Canvas => canvas;
         Image moneyBoard, hintStrip, cylBoard;
         /// <summary>타이틀에선 돈·안내·실린더 판자를 숨긴다</summary>
-        public void SetPlayVisible(bool v) { moneyBoard.gameObject.SetActive(v); hintStrip.gameObject.SetActive(v); cylBoard.gameObject.SetActive(v); }
+        public void SetPlayVisible(bool v) { moneyBoard.gameObject.SetActive(v); hintStrip.gameObject.SetActive(v); cylBoard.gameObject.SetActive(v); slowBg.gameObject.SetActive(v); slowLabel.gameObject.SetActive(v); }
 
         void Awake()
         {
@@ -44,18 +44,17 @@ namespace TinCan
             var strip = hintStrip = Ui.Panel("HintStrip", canvas, new Vector2(60f, 490f), new Vector2(1000f, 50f), nails: false);
             hint = Ui.Text("Hint", strip.transform, Vector2.zero, new Vector2(980f, 40f), 20, TextAnchor.MiddleCenter, Ui.Dim);
 
-            // 오른쪽 아래: 실린더 (6~12칸이 원으로)
-            cylBoard = Ui.Panel("CylBoard", canvas, new Vector2(800f, -440f), new Vector2(260f, 170f));
-            cylinder = Ui.Rect("Cylinder", cylBoard.transform, new Vector2(-60f, 0f), new Vector2(120f, 120f));
-            chambers = new Image[12];
-            for (int i = 0; i < chambers.Length; i++) chambers[i] = Ui.Image($"Ch{i}", cylinder, Vector2.zero, new Vector2(18f, 18f), Ui.Ink);
-            gunName = Ui.Text("GunName", cylBoard.transform, new Vector2(55f, 30f), new Vector2(130f, 36f), 24, TextAnchor.MiddleCenter, Ui.Ink);
-            shelf = Ui.Text("Shelf", cylBoard.transform, new Vector2(55f, -24f), new Vector2(150f, 64f), 15, TextAnchor.MiddleCenter, Ui.Dim);
-            // 슬로우 게이지: 실린더 판자 위에 가로 막대
-            slowBg = Ui.Image("SlowBg", cylBoard.transform, new Vector2(0f, 72f), new Vector2(230f, 14f), new Color(0f, 0f, 0f, 0.5f));
-            slowFill = Ui.Image("SlowFill", slowBg.transform, Vector2.zero, new Vector2(224f, 8f), new Color(0.5f, 0.8f, 1f));
-            slowLabel = Ui.Text("SlowLabel", cylBoard.transform, new Vector2(0f, 94f), new Vector2(230f, 24f), 16, TextAnchor.MiddleCenter, Ui.Dim);
-            slowLabel.text = "우클릭 = 느리게";
+            // 오른쪽 아래: 총 이름·슬롯 (탄은 오른쪽 가장자리에 세로로 쌓인 도트 총알 — AmmoHud)
+            cylBoard = Ui.Panel("GunBoard", canvas, new Vector2(800f, -470f), new Vector2(260f, 100f));
+            cylinder = Ui.Rect("Cylinder", cylBoard.transform, Vector2.zero, Vector2.zero);
+            chambers = new Image[0];
+            gunName = Ui.Text("GunName", cylBoard.transform, new Vector2(0f, 18f), new Vector2(240f, 36f), 24, TextAnchor.MiddleCenter, Ui.Ink);
+            shelf = Ui.Text("Shelf", cylBoard.transform, new Vector2(0f, -22f), new Vector2(240f, 50f), 15, TextAnchor.MiddleCenter, Ui.Dim);
+            // 슬로우 게이지: 총알 기둥 왼쪽에 세로 막대
+            slowBg = Ui.Image("SlowBg", canvas, new Vector2(800f, 0f), new Vector2(12f, 300f), new Color(0f, 0f, 0f, 0.5f));
+            slowFill = Ui.Image("SlowFill", slowBg.transform, Vector2.zero, new Vector2(8f, 294f), new Color(0.5f, 0.8f, 1f));
+            slowLabel = Ui.Text("SlowLabel", canvas, new Vector2(800f, 170f), new Vector2(120f, 24f), 14, TextAnchor.MiddleCenter, Ui.Dim);
+            slowLabel.text = "우클릭";
             slowVeil = Ui.Image("SlowVeil", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
             slowVeil.transform.SetAsFirstSibling();
         }
@@ -132,31 +131,13 @@ namespace TinCan
             string s = game.Secondary != null ? $"   {(game.ActiveSlot == 1 ? "<color=#ffd966>" : "<color=#999999>")}2 {game.Secondary.Name} {gun.StoredAmmo(game.Secondary)}</color>" : "   <color=#666666>2 —</color>";
             shelf.supportRichText = true;
             shelf.text = $"{p}{s}\n선반 {game.CansOnShelf}/{game.MaxCans}";
-            // 슬로우 게이지와 푸른 화면
+            // 슬로우 게이지(세로)와 푸른 화면
             float g = game.SlowGaugeMax > 0f ? game.SlowGauge / game.SlowGaugeMax : 0f;
-            slowFill.rectTransform.sizeDelta = new Vector2(224f * g, 8f);
-            slowFill.rectTransform.anchoredPosition = new Vector2(-112f + 112f * g, 0f);
+            slowFill.rectTransform.sizeDelta = new Vector2(8f, 294f * g);
+            slowFill.rectTransform.anchoredPosition = new Vector2(0f, -147f + 147f * g);
             slowFill.color = game.SlowActive ? new Color(0.7f, 0.95f, 1f) : (g >= 0.99f ? new Color(0.6f, 0.9f, 1f) : new Color(0.4f, 0.65f, 0.9f));
             slowVeil.color = Color.Lerp(slowVeil.color, game.SlowActive ? new Color(0.3f, 0.5f, 0.9f, 0.14f) : Color.clear, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 12f));
 
-            // 실린더: 탄창 수만큼 칸을 원으로. 장전 중이면 돈다
-            int cap = Mathf.Min(gun.Capacity, chambers.Length);
-            float radius = cap <= 6 ? 36f : 46f;
-            if (gun.Reloading) cylSpin += Time.unscaledDeltaTime * 540f;
-            cylinder.localRotation = Quaternion.Euler(0f, 0f, cylSpin);
-            for (int i = 0; i < chambers.Length; i++)
-            {
-                bool on = i < cap;
-                chambers[i].gameObject.SetActive(on);
-                if (!on) continue;
-                float a = (i / (float)cap) * Mathf.PI * 2f + Mathf.PI * 0.5f;
-                chambers[i].rectTransform.anchoredPosition = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * radius;
-                chambers[i].rectTransform.localRotation = Quaternion.Euler(0f, 0f, -cylSpin + 45f);
-                bool loaded = i < gun.Ammo;
-                chambers[i].color = gun.Reloading ? new Color(1f, 0.8f, 0.3f, 0.5f + 0.5f * Mathf.PingPong(Time.unscaledTime * 6f, 1f))
-                    : (loaded ? Ui.Ink : new Color(1f, 1f, 1f, 0.15f));
-                chambers[i].rectTransform.sizeDelta = Vector2.one * (cap <= 6 ? 18f : 13f);
-            }
         }
     }
 }

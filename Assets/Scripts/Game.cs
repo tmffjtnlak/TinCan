@@ -87,6 +87,7 @@ namespace TinCan
             Nodes = SkillTree.Make();
             hud = new GameObject("Hud").AddComponent<Hud>();
             hud.Bind(this);
+            new GameObject("AmmoHud").AddComponent<AmmoHud>().Build(hud.Canvas, Gun);
             tree = new GameObject("Tree").AddComponent<TreeView>();
             tree.Build(this, Nodes, hud.Canvas);
             tree.SetOpen(false);
