@@ -45,8 +45,8 @@ namespace TinCan
             airBadge = Ui.Text("AirBadge", canvas, new Vector2(60f, 410f), new Vector2(800f, 90f), 54, TextAnchor.MiddleCenter, Ui.Gold);
             airBadge.gameObject.SetActive(false);
             // 위 가운데: 안내 띠
-            var strip = hintStrip = Ui.Panel("HintStrip", canvas, new Vector2(60f, 490f), new Vector2(1000f, 50f), nails: false);
-            hint = Ui.Text("Hint", strip.transform, Vector2.zero, new Vector2(980f, 40f), 20, TextAnchor.MiddleCenter, Ui.Dim);
+            var strip = hintStrip = Ui.Panel("HintStrip", canvas, new Vector2(60f, 490f), new Vector2(1180f, 50f), nails: false);
+            hint = Ui.Text("Hint", strip.transform, Vector2.zero, new Vector2(1160f, 40f), 19, TextAnchor.MiddleCenter, Ui.Dim);
 
             // 오른쪽 아래: 총 이름·슬롯 (탄은 오른쪽 가장자리에 세로로 쌓인 도트 총알 — AmmoHud)
             cylBoard = Ui.Panel("GunBoard", canvas, new Vector2(800f, -470f), new Vector2(260f, 100f));
