@@ -28,6 +28,9 @@ namespace TinCan
         public string Id;
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
+        /// <summary>현상수배 깡통: 체력 30, 무겁고, 값 5. 터뜨리면 값×30×31 = 4,650 기본. 가게엔 없다</summary>
+        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 30. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 30, Weight = 1.35f, Width = 0.8f, Height = 1.1f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
+        public bool IsBounty;
         public static readonly System.Collections.Generic.List<CanKind> ForSale = new System.Collections.Generic.List<CanKind> { Tin, Bottle, Rubber, Hat };
         /// <summary>터뜨리면 기본 얼마: 값 × H(H+1). (n번 맞추면 값 × n(n+1)/2 쌓이고, 터뜨리면 ×2) — 예측 가능한 점수</summary>
         public long BurstBase => (long)Value * Hits * (Hits + 1);
@@ -113,9 +116,10 @@ namespace TinCan
             HitsLeft = kind.Hits;
             if (Game.I != null && Game.I.Hud != null) earnedLabel = Game.I.Hud.CanLabel();
             pips = new SpriteRenderer[kind.Hits];
-            float pw = 0.08f, gap = 0.03f, total = kind.Hits * pw + (kind.Hits - 1) * gap;
+            int perRow = Mathf.Min(kind.Hits, 10);
+            float pw = kind.Hits > 10 ? 0.06f : 0.08f, gap = 0.03f, total = perRow * pw + (perRow - 1) * gap;
             for (int i = 0; i < kind.Hits; i++)
-                pips[i] = Look.Quad("Pip", new Vector2(-total * 0.5f + pw * 0.5f + i * (pw + gap), kind.Height * 0.5f + 0.14f), new Vector2(pw, pw), new Color(1f, 1f, 1f, 0.9f), 6, visual);
+                pips[i] = Look.Quad("Pip", new Vector2(-total * 0.5f + pw * 0.5f + (i % perRow) * (pw + gap), kind.Height * 0.5f + 0.14f + (i / perRow) * (pw + gap)), new Vector2(pw, pw), new Color(1f, 1f, 1f, 0.9f), 6, visual);
             visual.localScale = Vector3.zero;
             StartCoroutine(PopIn());
         }

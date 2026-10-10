@@ -95,6 +95,7 @@ namespace TinCan
             tabs = new GameObject("MenuTabs").AddComponent<MenuTabs>();
             tabs.Build(hud.Canvas);
             new GameObject("Markers").AddComponent<OffscreenMarkers>();
+            bounty = Bounty.Make(hud.Canvas);
             AudioListener.volume = PlayerPrefs.GetFloat("volume", 1f);
 
             if (pendingPlay) { bool load = pendingLoad; pendingPlay = pendingLoad = false; BeginPlay(load); }
@@ -246,6 +247,8 @@ namespace TinCan
             if (kb.spaceKey.wasPressedThisFrame) TrySpawn();
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
             if (DebugMoney) Money = 999_999_999;
+            if (kb.f2Key.wasPressedThisFrame) bounty.Summon();
+            bounty.Tick();
             UpdateSlow(kb);
             AutoGun();
             saveTimer += Time.deltaTime;
@@ -289,6 +292,7 @@ namespace TinCan
         }
 
         AutoTurret turret;
+        Bounty bounty;
         /// <summary>자동 사격기: 스킬을 사면 선반 옆에 기계가 서고, 보이는 깡통에 조준점이 움직여 가서 쏜다</summary>
         void AutoGun()
         {
@@ -372,6 +376,7 @@ namespace TinCan
             Money += pay;
             if (pay > BestPayout) BestPayout = pay;
             hud.Payout(pay, can.Combo, can.transform.position, burst: false);
+            if (can.Kind.IsBounty) bounty.Escaped(can);
             if (pay > 0) Fx.Coins(can.transform.position, pay);
         }
 
@@ -394,7 +399,8 @@ namespace TinCan
             if (pay > BestPayout) BestPayout = pay;
             hud.Payout(pay, can.Combo, can.transform.position, burst: true);
             Fx.Coins(can.transform.position, pay * 3);
-            StartCoroutine(HitStop(0.07f));
+            StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));
+            if (can.Kind.IsBounty) bounty.Busted(can);
         }
 
         public void BuyNode(SkillNode n)
