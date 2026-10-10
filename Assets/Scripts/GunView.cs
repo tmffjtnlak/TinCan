@@ -97,7 +97,7 @@ namespace TinCan
             }
         }
 
-        public bool UseVoxel = true;
+        public bool UseVoxel = false;   // 복셀은 보류 (사용자 10-11: 도트 그림 + 자유 회전으로 간다)
         VoxelGun vox, vox2;        // 쌍권총이면 둘째 총 (왼손)
         Transform hand2;
         int dualNext;              // 다음에 쏠 총 (0 오른손, 1 왼손)
