@@ -98,9 +98,12 @@ namespace TinCan
         public IEnumerator Tally(System.Collections.Generic.List<(string text, bool lit)> lines, string total, float k, System.Action<Vector2> totalAt)
         {
             var made = new System.Collections.Generic.List<Text>();
-            // 돈 판자 바로 아래, 왼쪽 정렬
-            float x = -720f, top = 365f, gap = Mathf.Lerp(32f, 44f, k);
-            int font = Mathf.RoundToInt(Mathf.Lerp(22f, 34f, k)), dimFont = Mathf.RoundToInt(Mathf.Lerp(18f, 26f, k));
+            // 왼쪽 아래, 선반 밑 기둥 사이 (사용자 10-12 UX: 세트가 끝날 때 눈이 있는 곳 = 낙하지역. 공중·선반을 안 가린다).
+            // 줄은 위→아래, 합계는 모래 띠 바로 위에 가장 크게. 거기서 탄피가 모래로 쏟아지고 돈 판자로 올라간다
+            float x = -690f, gap = Mathf.Lerp(34f, 44f, k);
+            float sumY = -330f;                                   // 모래 띠(-410) 바로 위
+            float top = sumY + Mathf.Lerp(40f, 60f, k) + (lines.Count - 1) * gap;
+            int font = Mathf.RoundToInt(Mathf.Lerp(24f, 36f, k)), dimFont = Mathf.RoundToInt(Mathf.Lerp(20f, 28f, k));
             float lineGap = Mathf.Lerp(0.04f, 0.28f, k), popTime = Mathf.Lerp(0.06f, 0.14f, k);
             for (int i = 0; i < lines.Count; i++)
             {
@@ -112,15 +115,14 @@ namespace TinCan
                 yield return Pop(t, lit ? 1.6f + k * 0.8f : 1.3f, popTime);
                 yield return new WaitForSecondsRealtime(lit ? lineGap : lineGap * 0.5f);
             }
-            float sumY = top - lines.Count * gap - Mathf.Lerp(16f, 30f, k);
-            var sum = Ui.Text("TallyTotal", canvas, new Vector2(x, sumY), new Vector2(420f, 90f), Mathf.RoundToInt(Mathf.Lerp(40f, 68f, k)), TextAnchor.MiddleLeft, Ui.Gold);
+            var sum = Ui.Text("TallyTotal", canvas, new Vector2(x, sumY), new Vector2(420f, 90f), Mathf.RoundToInt(Mathf.Lerp(48f, 72f, k)), TextAnchor.MiddleLeft, Ui.Gold);
             sum.text = total; made.Add(sum);
             Sfx.Play(Sfx.Bang(), 0.4f + k * 0.4f, 1.1f);
             Fx.Shake(0.2f + k * 0.5f);
             yield return Pop(sum, 2f + k, popTime * 1.3f);
             // 합계 글자의 왼쪽 끝 근처 (글자 가운데보다 숫자 쪽)
             var rt = (RectTransform)sum.transform;
-            var a = (rt.anchoredPosition + new Vector2(-120f, 0f)) * (Screen.height / 1080f);
+            var a = (rt.anchoredPosition + new Vector2(-100f, -20f)) * (Screen.height / 1080f);
             totalAt?.Invoke(Camera.main.ScreenToWorldPoint(new Vector3(Screen.width * 0.5f + a.x, Screen.height * 0.5f + a.y, 10f)));
             yield return new WaitForSecondsRealtime(Mathf.Lerp(0.25f, 0.9f, k));
             StartCoroutine(FadeOut(made));

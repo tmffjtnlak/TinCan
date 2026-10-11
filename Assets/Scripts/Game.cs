@@ -486,6 +486,7 @@ namespace TinCan
                 ($"저스트리로드  ×{just:0.#}", just > 1f),
             };
             if (k < 0.5f) lines.RemoveAll(l => !l.Item2);   // 작은 세트는 ×1 줄을 안 찍는다
+            if (k < 0.2f) lines.Clear();                      // 아주 작으면 합계 한 줄만
             Vector2 totalAt = Vector2.zero;
             yield return hud.Tally(lines, best ? $"${total:N0}  최고!" : $"${total:N0}", k, at => totalAt = at);
             // 합계 글자에서 탄피가 주르르륵 쏟아진다. 클수록 많이, 천천히. 바닥에 눕는 것부터 판자로 올라간다
@@ -495,8 +496,8 @@ namespace TinCan
             var target = hud.MoneyWorld();
             for (int i = 0; i < count; i++)
             {
-                var c = Casing.Drop(totalAt + Vector2.down * 0.2f, per + (i == count - 1 ? rem : 0), k > 0.6f && i % 3 == 0,
-                    new Vector2(Random.Range(-1f, 3f), Random.Range(-1f, 2f)));
+                var c = Casing.Drop(totalAt + Vector2.right * Random.Range(0f, 2.5f), per + (i == count - 1 ? rem : 0), k > 0.6f && i % 3 == 0,
+                    new Vector2(Random.Range(-0.5f, 2.5f), Random.Range(1f, 4f)));
                 int idx = i;
                 c.OnRest = () => StartCoroutine(c.FlyTo(target, Random.Range(0.05f, 0.2f), v => { Money += v; hud.BumpMoney(); Sfx.Play(Sfx.Click(), 0.25f, 1.4f + Mathf.Min(idx, 30) * 0.03f); }));
                 Sfx.Play(Sfx.Click(), 0.12f, Random.Range(2f, 2.6f));
