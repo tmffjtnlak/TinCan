@@ -334,7 +334,13 @@ namespace TinCan
                 hand.localScale = new Vector3(left ? -1f : 1f, 1f, 1f);
                 if (sideArt != null)
                 {
-                    // 그림 손잡이 자리에 손을 붙인다 (장전 돌림은 빼고 조준 각도만)
+                    hand.gameObject.SetActive(false);   // 손은 뺀다 (사용자 10-11). 총만
+                    if (dual && vox2 != null) { vox2.gameObject.SetActive(false); hand2.gameObject.SetActive(false); }
+                    return;
+                }
+                if (false)
+                {
+                    // (손을 쓰던 때) 그림 손잡이 자리에 손을 붙인다
                     var gripRot = Quaternion.Euler(0f, 0f, aimDeg + kickDeg);
                     var grip = (Vector2)(gripRot * new Vector3(ArtGrip.x, left ? -ArtGrip.y : ArtGrip.y, 0f));
                     hand.localPosition = new Vector3(0.12f + lagPos.x + back.x + grip.x, -0.1f - dip + back.y + grip.y + 0.5f, 0f);
