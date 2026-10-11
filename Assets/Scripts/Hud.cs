@@ -17,8 +17,6 @@ namespace TinCan
         Transform canvas;
         Image hurtVeil;
         float cylSpin, moneyBump, airBump; bool airShown; int lastMult;
-        Text[] multRows; float[] multVals, multBumps = new float[3];
-        static readonly string[] multNames = { "저글링", "퍼펙트샷", "저스트리로드" };
         Text airBadge;
         Image slowBg, slowFill, slowVeil; Text slowLabel;
         long shown, shownTarget;
@@ -43,15 +41,9 @@ namespace TinCan
             money = Ui.Text("Money", board.transform, new Vector2(10f, 18f), new Vector2(380f, 60f), 52, TextAnchor.MiddleLeft, Ui.Gold);
             stats = Ui.Text("Stats", board.transform, new Vector2(10f, -32f), new Vector2(380f, 34f), 19, TextAnchor.MiddleLeft, Ui.Dim);
 
-            // 화면 가운데 아래: 지금 한 발 배율, 항목별로 (사용자 10-12: "저글링 ×1 / 퍼펙트샷 ×1.2 / 저스트리로드 ×1.4"). 세트 중에만
+            // 동시 공중 배지는 세트 점수판(Tally)으로 대체 (사용자 10-12). 만들어만 두고 안 보인다
             airBadge = Ui.Text("AirBadge", canvas, new Vector2(0f, -400f), new Vector2(600f, 120f), 30, TextAnchor.MiddleCenter, Ui.Gold);
             airBadge.gameObject.SetActive(false);
-            multRows = new Text[3]; multVals = new float[3];
-            for (int i = 0; i < 3; i++)
-            {
-                multRows[i] = Ui.Text($"Mult{i}", canvas, new Vector2(0f, -390f - i * 36f), new Vector2(420f, 36f), 28, TextAnchor.MiddleCenter, Ui.Dim);
-                multRows[i].gameObject.SetActive(false);
-            }
             // 위 가운데: 안내 띠
             var strip = hintStrip = Ui.Panel("HintStrip", canvas, new Vector2(60f, 490f), new Vector2(1180f, 50f), nails: false);
             hint = Ui.Text("Hint", strip.transform, Vector2.zero, new Vector2(1160f, 40f), 19, TextAnchor.MiddleCenter, Ui.Dim);
@@ -95,6 +87,49 @@ namespace TinCan
         {
             if (burst) Float($"터짐!  +${amount:N0}", world + Vector2.up * 0.6f, 10);
             else Float(combo >= 3 ? $"+${amount:N0}  {combo}연속" : $"+${amount:N0}", world + Vector2.up * 0.8f, Mathf.Max(combo, 4));
+        }
+
+        /// <summary>
+        /// 세트 점수판 (사용자 10-12: 낚시 게임/오버워치 점수 느낌). 화면 가운데에 한 줄씩 딱, 딱, 딱 찍히고
+        /// 마지막에 합계가 크게 쾅. 잠깐 머물렀다가 사라진다. ×1인 줄은 흐리고 작게.
+        /// </summary>
+        public IEnumerator Tally(System.Collections.Generic.List<(string text, bool lit)> lines, string total)
+        {
+            var made = new System.Collections.Generic.List<Text>();
+            float top = 140f, gap = 58f;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var (text, lit) = lines[i];
+                var t = Ui.Text("Tally", canvas, new Vector2(0f, top - i * gap), new Vector2(900f, 60f), lit ? 44 : 30, TextAnchor.MiddleCenter, lit ? Ui.Gold : Ui.Dim);
+                t.text = text; made.Add(t);
+                Sfx.Play(lit ? Sfx.Tang() : Sfx.Click(), lit ? 0.6f : 0.3f, lit ? 1.3f + i * 0.15f : 1.2f);
+                if (lit) Fx.Shake(0.15f);
+                yield return Pop(t, lit ? 2.2f : 1.4f, 0.12f);
+                yield return new WaitForSecondsRealtime(lit ? 0.22f : 0.1f);
+            }
+            var sum = Ui.Text("TallyTotal", canvas, new Vector2(0f, top - lines.Count * gap - 30f), new Vector2(900f, 110f), 88, TextAnchor.MiddleCenter, Ui.Gold);
+            sum.text = total; made.Add(sum);
+            Sfx.Play(Sfx.Bang(), 0.7f, 1.1f);
+            Fx.Shake(0.6f);
+            yield return Pop(sum, 3f, 0.16f);
+            yield return new WaitForSecondsRealtime(0.7f);
+            for (float k = 0f; k < 1f; k += Time.unscaledDeltaTime * 3f)
+            {
+                foreach (var t in made) { if (t == null) continue; var c = t.color; c.a = 1f - k; t.color = c; t.transform.localScale = Vector3.one * (1f - k * 0.2f); }
+                yield return null;
+            }
+            foreach (var t in made) if (t != null) Destroy(t.gameObject);
+        }
+
+        IEnumerator Pop(Text t, float from, float seconds)
+        {
+            for (float k = 0f; k < 1f; k += Time.unscaledDeltaTime / seconds)
+            {
+                float e = 1f - (1f - k) * (1f - k);
+                t.transform.localScale = Vector3.one * Mathf.Lerp(from, 1f, e);
+                yield return null;
+            }
+            t.transform.localScale = Vector3.one;
         }
 
         /// <summary>저주 맞음: 화면이 보라색으로 확 어두워졌다 돌아온다</summary>
@@ -149,25 +184,6 @@ namespace TinCan
             stats.text = $"최고 세트 ${game.BestPayout:N0}  ·  터뜨림 {game.Bursts}  ·  최고 연속 {game.BestCombo}"
                 + (game.SetActive ? $"   <color=#ffd966>이번 세트 ${game.SetPending:N0}</color>" : "")
                 + (gun.ReloadStreak >= 1 ? $"   <color=#88ffaa>저스트 {gun.ReloadStreak}</color>" : "");
-            // 지금 한 발 배율, 항목별 세 줄: 세트 중에 화면 가운데 아래. 값이 바뀌면 그 줄만 튀고, ×1이면 흐리게
-            int mult = Game.AirMult(air);
-            bool show = game.SetActive;
-            if (air < 1) mult = lastMult;   // 전부 떨어진 직후엔 마지막 값 그대로
-            if (show) lastMult = mult;
-            float[] now = { mult, game.PerfectNow, game.JustNow };
-            for (int i = 0; i < 3; i++)
-            {
-                var row = multRows[i];
-                if (show && !Mathf.Approximately(now[i], multVals[i])) { multVals[i] = now[i]; multBumps[i] = 1f; }
-                multBumps[i] = Mathf.Max(0f, multBumps[i] - Time.unscaledDeltaTime * 4f);
-                row.gameObject.SetActive(show);
-                if (!show) continue;
-                bool up = now[i] > 1.001f;
-                row.text = $"{multNames[i]}  ×{now[i]:0.#}";
-                row.color = up ? Color.Lerp(Ui.Gold, Color.white, multBumps[i] * 0.7f) : Ui.Dim;
-                row.transform.localScale = Vector3.one * (1f + multBumps[i] * 0.35f);
-            }
-            airShown = show;
             hint.text = game.MenuOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)}, 공중이 비어 있을 때)   ·   좌클릭 = 쏜다   ·   우클릭 = 느리게   ·   R = 장전   ·   1/2 = 무기   ·   Tab = 가게   ·   <color=#ffd966>둘 띄우면 ×3</color>";
             gunName.text = gun.Kind.Name;
             string p = $"{(game.ActiveSlot == 0 ? "<color=#ffd966>" : "<color=#999999>")}1 {game.Primary.Name} {gun.StoredAmmo(game.Primary)}</color>";

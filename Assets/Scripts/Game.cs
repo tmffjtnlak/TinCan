@@ -418,13 +418,15 @@ namespace TinCan
         public static int AirMult(int n) => Mathf.Max(1, n * (n + 1) / 2);
         public int MostAirborne { get; private set; }
 
-        // ---------- 한 발 배율 (사용자 10-12: 어떤 항목 때문에 배율인지 보인다) ----------
-        // 저글링 = 동시 공중 n(n+1)/2 · 퍼펙트샷 = 이번 세트에 빗나감이 없으면 ×1.2 (실시간, 빗나가면 즉시 ×1) · 저스트리로드 = 연속마다 +0.2 (최대 ×2)
+        // ---------- 세트 배율 (사용자 10-12: 세트가 끝날 때 낚시/오버워치 점수판처럼 딱딱딱 보여 준다) ----------
+        // 세트 동안 기본 돈만 쌓이고, 끝에 한꺼번에 곱한다. 저글링 = 세트 중 최대 동시 공중 n(n+1)/2 ·
+        // 퍼펙트샷 = 세트 내내 빗나감 없음 ×1.2 · 저스트리로드 = 세트 중 최대 연속마다 +0.2 (최대 ×2)
         public const float PerfectMult = 1.2f, JustPerStreak = 0.2f, JustMax = 2f;
         bool missed;
+        public int SetMaxAir { get; private set; }
+        public int SetMaxStreak { get; private set; }
         public bool Perfect => SetActive && !missed;
-        public float PerfectNow => Perfect ? PerfectMult : 1f;
-        public float JustNow => Mathf.Min(JustMax, 1f + JustPerStreak * Gun.ReloadStreak);
+        public float JustMultOf(int streak) => Mathf.Min(JustMax, 1f + JustPerStreak * streak);
         /// <summary>총이 한 발 쐈다: 빗나가면 이번 세트 퍼펙트가 깨진다</summary>
         public void Shot(bool hit)
         {
@@ -433,8 +435,8 @@ namespace TinCan
             hud.Float("빗나감", (Vector2)Gun.transform.position + Vector2.up * 1.6f, 0);
         }
 
-        /// <summary>한 발에 쌓이는 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수 × 저글링 × 퍼펙트샷 × 저스트리로드</summary>
-        public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale * AirMult(Airborne) * PerfectNow * JustNow));
+        /// <summary>한 발에 쌓이는 기본 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수. 배율은 세트 끝에</summary>
+        public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale));
 
         float nudgeTimer; int nudges;
         /// <summary>하나만 떠 있고 선반에 깡통이 있으면 "하나 더 띄우면 ×3" (처음 다섯 번, 10초에 한 번)</summary>
@@ -471,18 +473,37 @@ namespace TinCan
             ending = true;
             yield return new WaitForSeconds(0.5f);          // 마지막 탄피가 눕도록
             if (Airborne > 0) { ending = false; yield break; }   // 그새 또 띄웠으면 세트가 이어진다
-            long total = SetPending;
+            long baseSum = SetPending;
+            int airMult = AirMult(SetMaxAir);
+            float perfect = missed ? 1f : PerfectMult, just = JustMultOf(SetMaxStreak);
+            long total = (long)Mathf.Round(baseSum * airMult * perfect * just);
             var flying = new List<Casing>(floor);
             floor.Clear(); SetPending = 0; SetActive = false; ending = false;
             if (total <= 0 && flying.Count == 0) yield break;
+            // 점수판: 기본 → 배율들 → 합계, 한 줄씩 딱딱딱
+            var lines = new List<(string, bool)>
+            {
+                ($"기본  ${baseSum:N0}", true),
+                ($"저글링  ×{airMult}", airMult > 1),
+                ($"퍼펙트샷  ×{perfect:0.#}", perfect > 1f),
+                ($"저스트리로드  ×{just:0.#}", just > 1f),
+            };
+            yield return hud.Tally(lines, $"${total:N0}");
+            // 탄피에 합계를 나눠 싣고 판자로
+            flying.RemoveAll(c => c == null);
+            if (flying.Count > 0)
+            {
+                long per = total / flying.Count, rem = total - per * flying.Count;
+                for (int i = 0; i < flying.Count; i++) flying[i].Value = per + (i == flying.Count - 1 ? rem : 0);
+            }
             var target = hud.MoneyWorld();
             Sfx.Play(Sfx.Whoosh(), 0.5f, 1.2f);
             for (int i = 0; i < flying.Count; i++)
             {
-                if (flying[i] == null) continue;
                 int idx = i;
                 StartCoroutine(flying[i].FlyTo(target, i * 0.035f, v => { Money += v; hud.BumpMoney(); Sfx.Play(Sfx.Click(), 0.25f, 1.4f + Mathf.Min(idx, 30) * 0.03f); }));
             }
+            if (flying.Count == 0) { Money += total; hud.BumpMoney(); }
             yield return new WaitForSecondsRealtime(flying.Count * 0.035f + 0.45f);
             if (total > BestPayout) BestPayout = total;
             hud.Float(total >= BestPayout && total > 0 ? $"+${total:N0}  최고 세트!" : $"+${total:N0}", target + Vector2.down * 1.5f + Vector2.right * 0.8f, 8);
@@ -490,10 +511,12 @@ namespace TinCan
 
         public void CanHit(Can can, int earned, Vector2 at)
         {
-            if (!SetActive) { SetActive = true; SetPending = 0; missed = false; }
+            if (!SetActive) { SetActive = true; SetPending = 0; missed = false; SetMaxAir = 0; SetMaxStreak = 0; }
             int air = Airborne;
             if (air > MostAirborne) MostAirborne = air;
-            hud.Float(air >= 2 ? $"+{earned}  ×{AirMult(air)}" : $"+{earned}", at, can.Combo + (air - 1) * 3);
+            if (air > SetMaxAir) SetMaxAir = air;
+            if (Gun.ReloadStreak > SetMaxStreak) SetMaxStreak = Gun.ReloadStreak;
+            hud.Float($"+{earned}", at, can.Combo + (air - 1) * 3);
             if (can.Combo > BestCombo) BestCombo = can.Combo;
             Gun.OnComboHit(can.Combo);
             FillSlow();
