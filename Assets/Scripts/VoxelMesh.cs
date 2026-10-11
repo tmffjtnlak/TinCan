@@ -37,6 +37,36 @@ namespace TinCan
         }
         public void Remove(int x, int y, int z) => vox.Remove(new Vector3Int(x, y, z));
 
+        /// <summary>스프라이트 스태킹용 단면: Y(총열 축)마다 XZ 평면 그림 한 장. (yIndex, 스프라이트). 피벗은 축(x=0,z=0) 자리</summary>
+        public List<(int y, Sprite sprite)> SlicesY()
+        {
+            int minX = int.MaxValue, maxX = int.MinValue, minY = int.MaxValue, maxY = int.MinValue, minZ = int.MaxValue, maxZ = int.MinValue;
+            foreach (var p in vox.Keys) { minX = Mathf.Min(minX, p.x); maxX = Mathf.Max(maxX, p.x); minY = Mathf.Min(minY, p.y); maxY = Mathf.Max(maxY, p.y); minZ = Mathf.Min(minZ, p.z); maxZ = Mathf.Max(maxZ, p.z); }
+            int w = maxX - minX + 1, h = maxZ - minZ + 1;
+            var list = new List<(int, Sprite)>();
+            float ppu = 1f / Size;
+            for (int y = minY; y <= maxY; y++)
+            {
+                var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+                var px = new Color32[w * h]; bool any = false;
+                for (int x = minX; x <= maxX; x++)
+                    for (int z = minZ; z <= maxZ; z++)
+                    {
+                        if (!vox.TryGetValue(new Vector3Int(x, y, z), out var c)) continue;
+                        any = true;
+                        // 화면 세로 = z(카메라 쪽이 아래), 가로 = x. 단면 안에서도 살짝 명암: 뒤(큰 z)가 밝게
+                        float shade = Mathf.Lerp(0.8f, 1.05f, (z - minZ) / (float)Mathf.Max(1, h - 1));
+                        var cc = c * shade; cc.a = 1f;
+                        px[(z - minZ) * w + (x - minX)] = cc;
+                    }
+                if (!any) { Object.Destroy(tex); continue; }
+                tex.SetPixels32(px); tex.Apply(false);
+                var pivot = new Vector2((0 - minX + 0.5f) / w, (0 - minZ + 0.5f) / h);   // 축 자리
+                list.Add((y, Sprite.Create(tex, new Rect(0, 0, w, h), pivot, ppu)));
+            }
+            return list;
+        }
+
         static readonly Vector3Int[] Dirs = { Vector3Int.up, Vector3Int.down, Vector3Int.left, Vector3Int.right, new Vector3Int(0, 0, 1), new Vector3Int(0, 0, -1) };
         static readonly float[] Shade = { 1.0f, 0.5f, 0.68f, 0.68f, 0.82f, 0.9f };
 

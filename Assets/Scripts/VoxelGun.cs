@@ -29,14 +29,27 @@ namespace TinCan
         static Material mat;
         static Material Mat() => mat != null ? mat : (mat = new Material(Shader.Find("TinCan/VoxelUnlit")));
 
+        /// <summary>리볼버 복셀 모델 (스태킹도 같은 모델을 쓴다)</summary>
+        public static VoxelMesh RevolverModel()
+        {
+            var v = new VoxelMesh { Size = 0.045f };
+            FillRevolver(v);
+            return v;
+        }
+
         void Build()
+        {
+            var v = RevolverModel();
+            BuildFrom(v);
+        }
+
+        static void FillRevolver(VoxelMesh v)
         {
             var steel = new Color(0.3f, 0.29f, 0.34f);
             var steelDark = new Color(0.18f, 0.17f, 0.2f);
             var wood = new Color(0.5f, 0.3f, 0.17f);
             var brass = new Color(0.75f, 0.65f, 0.35f);
-            // 격자: x 좌우(-3..3), y 아래위(-12..22), z 앞뒤(-3..3). 한 칸 0.06
-            var v = new VoxelMesh { Size = 0.045f };
+            // 격자: x 좌우(-3..3), y 아래위(-12..25), z 앞뒤(-5..3)
             // 손잡이: 아래로, 살짝 뒤로 기울어진 나무
             for (int y = -12; y <= -2; y++) { int back = (int)Mathf.Round((-2 - y) * 0.35f); v.Box(-2, y, -1 + back, 2, y, 2 + back, wood); }
             v.Box(-1, -12, 0, 1, -11, 3, steelDark);   // 손잡이 바닥 쇠
@@ -60,6 +73,10 @@ namespace TinCan
             // 공이치기: 몸통 뒤(카메라 쪽) 위
             v.Box(-1, 3, -4, 1, 5, -3, steelDark);
             v.Box(0, 5, -5, 0, 6, -4, steelDark);
+        }
+
+        void BuildFrom(VoxelMesh v)
+        {
             // 피벗 = 방아쇠울 (0,-4,0)
             var mesh = v.Build(new Vector3(0f, -4f, 0f));
             mf = gameObject.AddComponent<MeshFilter>(); mf.sharedMesh = mesh;

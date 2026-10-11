@@ -10,10 +10,10 @@ namespace TinCan
     /// </summary>
     public class GunViewer : MonoBehaviour
     {
-        VoxelGun gun;
+        StackGun gun;
         SpriteRenderer veil;          // 월드 판 (총은 월드 메시라 UI 위엔 못 그린다 → 게임 UI는 끈다)
         Canvas mainCanvas, ownCanvas; Text info;
-        float lay, tilt = 28f, spin, zoom = 2.6f;
+        float lay, tilt = 55f, spin, zoom = 2.6f;
         Vector2 lastMouse;
         public bool Open { get; private set; }
 
@@ -39,7 +39,7 @@ namespace TinCan
             mainCanvas.enabled = !Open;
             if (Open)
             {
-                if (gun == null) gun = VoxelGun.Make(transform);
+                if (gun == null) gun = StackGun.Make(transform, 300);
                 gun.transform.position = new Vector3(0f, -0.6f, 0f);
                 gun.gameObject.SetActive(true);
                 if (Game.I != null) Game.I.Gun.Enabled = false;
@@ -60,7 +60,7 @@ namespace TinCan
             {
                 var pos = m.position.ReadValue();
                 var d = pos - lastMouse; lastMouse = pos;
-                if (m.leftButton.isPressed) { lay += d.x * 0.5f; tilt = Mathf.Clamp(tilt - d.y * 0.5f, -90f, 90f); }
+                if (m.leftButton.isPressed) { lay += d.x * 0.5f; tilt = Mathf.Clamp(tilt - d.y * 0.5f, 5f, 90f); }
                 if (m.rightButton.isPressed) { spin += d.x * 0.5f; }
                 float w = m.scroll.ReadValue().y; if (Mathf.Abs(w) > 0.01f) zoom = Mathf.Clamp(zoom * (w > 0 ? 1.1f : 0.9f), 0.8f, 6f);
             }
@@ -72,15 +72,11 @@ namespace TinCan
                 if (kb.downArrowKey.isPressed) tilt -= 60f * Time.unscaledDeltaTime;
                 if (kb.qKey.isPressed) spin -= 120f * Time.unscaledDeltaTime;
                 if (kb.eKey.isPressed) spin += 120f * Time.unscaledDeltaTime;
-                if (kb.rKey.wasPressedThisFrame) { lay = 0f; tilt = 28f; spin = 0f; zoom = 2.6f; }
-                if (kb.digit1Key.wasPressedThisFrame) PixelLayer.PixelSize = 2;
-                if (kb.digit2Key.wasPressedThisFrame) PixelLayer.PixelSize = 3;
-                if (kb.digit3Key.wasPressedThisFrame) PixelLayer.PixelSize = 4;
-                if (kb.digit4Key.wasPressedThisFrame) PixelLayer.PixelSize = 6;
+                if (kb.rKey.wasPressedThisFrame) { lay = 0f; tilt = 55f; spin = 0f; zoom = 2.6f; }
             }
             gun.Lay = lay; gun.Tilt = tilt; gun.Spin = spin; gun.Apply();
             gun.transform.localScale = Vector3.one * zoom;
-            info.text = $"기울기 {tilt:0}°  ·  눕힘 {lay:0}°  ·  돌림 {spin:0}°  ·  크기 ×{zoom:0.0}  ·  도트 1칸 = {PixelLayer.PixelSize}px\n좌드래그·방향키 = 기울기/눕힘   우드래그·Q/E = 돌림   휠 = 크기   1~4 = 도트 굵기   R = 초기화   F3 = 닫기";
+            info.text = $"스프라이트 스태킹  ·  기울기 {tilt:0}°  ·  눕힘 {lay:0}°  ·  돌림 {spin:0}°  ·  크기 ×{zoom:0.0}\n좌드래그·방향키 = 기울기/눕힘   우드래그·Q/E = 돌림   휠 = 크기   R = 초기화   F3 = 닫기";
         }
     }
 }
