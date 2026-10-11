@@ -22,7 +22,7 @@ namespace TinCan
         bool reloading;
         GunKind kind = GunKind.Revolver;
 
-        public Vector2 Muzzle => vox != null ? (Vector2)vox.Muzzle.position : (Vector2)barrelTip.position;
+        public Vector2 Muzzle => Profile ? (Vector2)side.TransformPoint(new Vector3(1.15f, 0.34f, 0f)) : vox != null ? (Vector2)vox.Muzzle.position : (Vector2)barrelTip.position;
 
         public void Build()
         {
@@ -89,7 +89,7 @@ namespace TinCan
             side.gameObject.SetActive(false);
             root.localScale = Vector3.one * 1.35f;
             // 복셀 총 (시제품): 도형 총 대신. 손가락 축 자리에 놓는다
-            if (UseVoxel)
+            if (UseVoxel && !Profile)
             {
                 vox = VoxelGun.Make(pivot);
                 vox.transform.localPosition = new Vector3(0.12f, -0.1f, 0f);
@@ -97,7 +97,9 @@ namespace TinCan
             }
         }
 
-        public bool UseVoxel = false;   // 복셀은 보류 (사용자 10-11: 도트 그림 + 자유 회전으로 간다)
+        public bool UseVoxel = false;   // 복셀은 보류
+        /// <summary>엔터 더 건전식 (사용자 10-11): 옆면 한 장만. 조준 따라 돌고, 왼쪽이면 상하 반전. 장전은 그 자리에서 빙글</summary>
+        public bool Profile = true;
         VoxelGun vox, vox2;        // 쌍권총이면 둘째 총 (왼손)
         Transform hand2;
         int dualNext;              // 다음에 쏠 총 (0 오른손, 1 왼손)
@@ -208,9 +210,12 @@ namespace TinCan
             float flip = Mathf.Min(0.12f, seconds * 0.15f);
             float spinTime = Mathf.Max(0.2f, seconds - flip * 2f);
             int spins = spinTime > 0.6f ? 3 : 2;
-            // 1) 뒷면 → 옆면
-            for (float t = 0f; t < 1f && reloading; t += Time.deltaTime / flip) { sideShow = t; handTilt = t; yield return null; }
-            sideShow = 1f; handTilt = 1f;
+            // 1) 뒷면 → 옆면 (건전식이면 이미 옆면이라 건너뛴다)
+            if (!Profile)
+            {
+                for (float t = 0f; t < 1f && reloading; t += Time.deltaTime / flip) { sideShow = t; handTilt = t; yield return null; }
+                sideShow = 1f; handTilt = 1f;
+            }
             // 2) 돈다
             Sfx.Play(Sfx.Twirl(), 0.7f, Mathf.Clamp(0.7f / spinTime, 0.6f, 2.5f));
             float s = 0f; bool spat = false;
@@ -223,8 +228,8 @@ namespace TinCan
                 if (!spat && k > 0.2f) { spat = true; Shells(Mathf.Min(shells, 6)); }
                 yield return null;
             }
-            // 3) 옆면 → 뒷면
-            for (float t = 1f; t > 0f && reloading; t -= Time.deltaTime / flip) { sideShow = t; handTilt = t; yield return null; }
+            // 3) 옆면 → 뒷면 (건전식은 건너뛴다)
+            if (!Profile) for (float t = 1f; t > 0f && reloading; t -= Time.deltaTime / flip) { sideShow = t; handTilt = t; yield return null; }
             if (reloading) Snap();
             reloading = false;
         }
@@ -243,7 +248,7 @@ namespace TinCan
         {
             for (int i = 0; i < n; i++)
             {
-                var s = Look.Quad("Shell", vox != null ? (Vector2)vox.transform.position + Vector2.up * 0.4f : (Vector2)cylinder.position, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
+                var s = Look.Quad("Shell", Profile ? (Vector2)side.TransformPoint(new Vector3(0.08f, 0.28f, 0f)) : vox != null ? (Vector2)vox.transform.position + Vector2.up * 0.4f : (Vector2)cylinder.position, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
                 var rb = s.gameObject.AddComponent<Rigidbody2D>();
                 rb.gravityScale = 2f;
                 // 돌던 방향으로 튕겨 나간다
@@ -287,6 +292,27 @@ namespace TinCan
             float lean = -Mathf.Sign(ang == 0f ? 1f : ang);
             pivot.localRotation = Quaternion.Euler(0f, 0f, ang + recoil * 14f * lean);
             // 몸통: 총열 방향으로 뒤로 밀린다 + 손 흔들림 + 장전 때 옆으로 기움
+            if (Profile)
+            {
+                // 건전식: 옆면(총열 +X)을 조준 각도로 돌린다. 왼쪽을 겨누면 상하 반전. 장전 돌림은 그 위에 더한다. 반동은 총열 반대로 밀린다
+                body.gameObject.SetActive(false);
+                side.gameObject.SetActive(true);
+                var dir2 = aim - (Vector2)pivot.position;
+                float aimDeg = Mathf.Atan2(dir2.y, dir2.x) * Mathf.Rad2Deg;
+                bool left = dir2.x < 0f;
+                float kickDeg = recoil * 14f * (left ? 1f : -1f);
+                pivot.localRotation = Quaternion.identity;
+                side.localRotation = Quaternion.Euler(0f, 0f, aimDeg + kickDeg + sideSpin);
+                side.localScale = new Vector3(1f, left ? -1f : 1f, 1f);
+                var back = -(Vector2)(side.localRotation * Vector2.right) * recoil * 0.25f;
+                side.localPosition = new Vector3(0.12f + lagPos.x + back.x, -0.1f - dip + back.y, 0f);
+                // 손: 손잡이를 쥔 채 총과 같이 돈다 (장전 돌림은 안 따라간다)
+                hand.localRotation = Quaternion.Euler(0f, 0f, aimDeg - 90f + kickDeg * 0.5f);
+                hand.localScale = new Vector3(left ? -1f : 1f, 1f, 1f);
+                hand.localPosition = new Vector3(0.12f + lagPos.x + back.x * 0.5f, -0.1f - dip * 0.5f + back.y * 0.5f, 0f);
+                if (dual && vox2 != null) { vox2.gameObject.SetActive(false); hand2.gameObject.SetActive(false); }
+                return;
+            }
             if (vox != null)
             {
                 // 복셀: 눕힘 = 옆면 보이기(0→90), 돌림 = 장전 회전, 반동은 총열이 위로 들린다
