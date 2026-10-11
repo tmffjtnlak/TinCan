@@ -113,7 +113,7 @@ namespace TinCan
         // 그림 기준 자리 (피벗=방아쇠울, 단위=유닛): 총구, 탄피 나오는 곳, 손잡이 중심
         static readonly Vector2 ArtMuzzle = new Vector2(1.5f, 0.44f), ArtEject = new Vector2(-0.44f, 0.3f), ArtGrip = new Vector2(-1.0f, -0.25f);
 
-        static Sprite LoadArt(string name)
+        public static Sprite LoadArt(string name)
         {
 #if UNITY_EDITOR
             return UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/Art/{name}.png");

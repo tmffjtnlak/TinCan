@@ -22,7 +22,16 @@ namespace TinCan
             var go = new GameObject("Casing");
             var c = go.AddComponent<Casing>();
             c.Value = value; c.Gold = gold;
-            c.sr = Look.Quad("Brass", Vector2.zero, new Vector2(gold ? 0.3f : 0.24f, 0.1f), gold ? GoldC : Brass, 1, go.transform);
+            // 사용자 그림 casing.png (27×14, 10-12). 없으면 도형
+            var art = GunView.LoadArt("casing");
+            if (art != null)
+            {
+                c.sr = go.AddComponent<SpriteRenderer>();
+                c.sr.sprite = art; c.sr.sortingOrder = 1;
+                c.sr.color = gold ? new Color(1f, 1f, 0.8f) : Color.white;
+                go.transform.localScale = Vector3.one * (gold ? 0.55f : 0.45f);
+            }
+            else c.sr = Look.Quad("Brass", Vector2.zero, new Vector2(gold ? 0.3f : 0.24f, 0.1f), gold ? GoldC : Brass, 1, go.transform);
             go.transform.position = at;
             go.transform.rotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
             c.vel = new Vector2(Random.Range(-2.5f, 2.5f), Random.Range(2f, 5f));
@@ -60,6 +69,7 @@ namespace TinCan
             flying = true;
             if (delay > 0f) yield return new WaitForSecondsRealtime(delay);
             Vector2 from = transform.position;
+            float baseScale = transform.localScale.x;
             Vector2 lift = from + Vector2.up * Random.Range(0.6f, 1.4f) + Vector2.right * Random.Range(-0.4f, 0.4f);
             float life = 0.42f;
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / life)
@@ -68,7 +78,7 @@ namespace TinCan
                 Vector2 a = Vector2.Lerp(from, lift, t), b = Vector2.Lerp(lift, target, k);
                 transform.position = Vector2.Lerp(a, b, t);
                 transform.Rotate(0f, 0f, 720f * Time.unscaledDeltaTime);
-                transform.localScale = Vector3.one * (1f - k * 0.5f);
+                transform.localScale = Vector3.one * baseScale * (1f - k * 0.5f);
                 yield return null;
             }
             onArrive?.Invoke(Value);

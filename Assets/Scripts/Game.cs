@@ -418,8 +418,23 @@ namespace TinCan
         public static int AirMult(int n) => Mathf.Max(1, n * (n + 1) / 2);
         public int MostAirborne { get; private set; }
 
-        /// <summary>한 발에 쌓이는 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수 × 동시 공중 배수</summary>
-        public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale * AirMult(Airborne)));
+        // ---------- 한 발 배율 (사용자 10-12: 어떤 항목 때문에 배율인지 보인다) ----------
+        // 저글링 = 동시 공중 n(n+1)/2 · 퍼펙트샷 = 이번 세트에 빗나감이 없으면 ×1.2 (실시간, 빗나가면 즉시 ×1) · 저스트리로드 = 연속마다 +0.2 (최대 ×2)
+        public const float PerfectMult = 1.2f, JustPerStreak = 0.2f, JustMax = 2f;
+        bool missed;
+        public bool Perfect => SetActive && !missed;
+        public float PerfectNow => Perfect ? PerfectMult : 1f;
+        public float JustNow => Mathf.Min(JustMax, 1f + JustPerStreak * Gun.ReloadStreak);
+        /// <summary>총이 한 발 쐈다: 빗나가면 이번 세트 퍼펙트가 깨진다</summary>
+        public void Shot(bool hit)
+        {
+            if (hit || !SetActive || missed) return;
+            missed = true;
+            hud.Float("빗나감", (Vector2)Gun.transform.position + Vector2.up * 1.6f, 0);
+        }
+
+        /// <summary>한 발에 쌓이는 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수 × 저글링 × 퍼펙트샷 × 저스트리로드</summary>
+        public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale * AirMult(Airborne) * PerfectNow * JustNow));
 
         float nudgeTimer; int nudges;
         /// <summary>하나만 떠 있고 선반에 깡통이 있으면 "하나 더 띄우면 ×3" (처음 다섯 번, 10초에 한 번)</summary>
@@ -475,7 +490,7 @@ namespace TinCan
 
         public void CanHit(Can can, int earned, Vector2 at)
         {
-            if (!SetActive) { SetActive = true; SetPending = 0; }
+            if (!SetActive) { SetActive = true; SetPending = 0; missed = false; }
             int air = Airborne;
             if (air > MostAirborne) MostAirborne = air;
             hud.Float(air >= 2 ? $"+{earned}  ×{AirMult(air)}" : $"+{earned}", at, can.Combo + (air - 1) * 3);

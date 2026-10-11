@@ -198,6 +198,7 @@ namespace TinCan
             }
             if (best != null) { HitOne(best, aim); any = true; }
             if (any) { Hits++; Fx.HitMark(aim); }
+            Game.I?.Shot(any);
             if (Ammo == 0) StartCoroutine(AutoReload());
         }
 
