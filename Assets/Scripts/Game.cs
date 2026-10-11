@@ -454,33 +454,30 @@ namespace TinCan
         // 첫 발로 띄우면 시작, 공중이 비면 끝. 세트 안에서 번 돈은 바닥 탄피로 쌓여 있다가 끝나면 판자로 날아간다.
         public bool SetActive { get; private set; }
         public long SetPending { get; private set; }     // 이번 세트에서 확정됐지만 아직 안 받은 돈
-        readonly List<Casing> floor = new List<Casing>();
         bool ending;
 
-        void DropCasings(Vector2 at, int count, long total, bool gold)
+        /// <summary>연출 크기 0..1 (사용자 10-12: 점수가 높으면 딱딱딱·후두둑을 길게, 낮으면 빠르게). $10이면 0, $1,000이면 1. 최고 기록이면 최소 0.7</summary>
+        float Ceremony(long total, bool best)
         {
-            count = Mathf.Max(1, count);
-            long per = total / count, rem = total - per * count;
-            for (int i = 0; i < count; i++)
-            {
-                var c = Casing.Drop(at + Random.insideUnitCircle * 0.15f, per + (i == count - 1 ? rem : 0), gold && i % 2 == 0);
-                floor.Add(c);
-            }
+            float k = Mathf.Clamp01((Mathf.Log10(Mathf.Max(1, total)) - 1f) / 2f);
+            return best ? Mathf.Max(k, 0.7f) : k;
         }
 
         IEnumerator EndSet()
         {
             ending = true;
-            yield return new WaitForSeconds(0.5f);          // 마지막 탄피가 눕도록
+            yield return new WaitForSeconds(0.15f);
             if (Airborne > 0) { ending = false; yield break; }   // 그새 또 띄웠으면 세트가 이어진다
             long baseSum = SetPending;
             int airMult = AirMult(SetMaxAir);
             float perfect = missed ? 1f : PerfectMult, just = JustMultOf(SetMaxStreak);
             long total = (long)Mathf.Round(baseSum * airMult * perfect * just);
-            var flying = new List<Casing>(floor);
-            floor.Clear(); SetPending = 0; SetActive = false; ending = false;
-            if (total <= 0 && flying.Count == 0) yield break;
-            // 점수판: 기본 → 배율들 → 합계, 한 줄씩 딱딱딱
+            SetPending = 0; SetActive = false; ending = false;
+            if (total <= 0) yield break;
+            bool best = total > BestPayout;
+            if (best) BestPayout = total;
+            float k = Ceremony(total, best);
+            // 점수판 (돈 판자 아래): 기본 → 켜진 배율들 → 합계. 작으면 빠르게 몇 줄, 크면 천천히 전부
             var lines = new List<(string, bool)>
             {
                 ($"기본  ${baseSum:N0}", true),
@@ -488,25 +485,23 @@ namespace TinCan
                 ($"퍼펙트샷  ×{perfect:0.#}", perfect > 1f),
                 ($"저스트리로드  ×{just:0.#}", just > 1f),
             };
-            yield return hud.Tally(lines, $"${total:N0}");
-            // 탄피에 합계를 나눠 싣고 판자로
-            flying.RemoveAll(c => c == null);
-            if (flying.Count > 0)
-            {
-                long per = total / flying.Count, rem = total - per * flying.Count;
-                for (int i = 0; i < flying.Count; i++) flying[i].Value = per + (i == flying.Count - 1 ? rem : 0);
-            }
+            if (k < 0.5f) lines.RemoveAll(l => !l.Item2);   // 작은 세트는 ×1 줄을 안 찍는다
+            Vector2 totalAt = Vector2.zero;
+            yield return hud.Tally(lines, best ? $"${total:N0}  최고!" : $"${total:N0}", k, at => totalAt = at);
+            // 합계 글자에서 탄피가 주르르륵 쏟아진다. 클수록 많이, 천천히. 바닥에 눕는 것부터 판자로 올라간다
+            int count = Mathf.RoundToInt(Mathf.Lerp(4f, 30f, k));
+            float interval = Mathf.Lerp(0.02f, 0.06f, k);
+            long per = total / count, rem = total - per * count;
             var target = hud.MoneyWorld();
-            Sfx.Play(Sfx.Whoosh(), 0.5f, 1.2f);
-            for (int i = 0; i < flying.Count; i++)
+            for (int i = 0; i < count; i++)
             {
+                var c = Casing.Drop(totalAt + Vector2.down * 0.2f, per + (i == count - 1 ? rem : 0), k > 0.6f && i % 3 == 0,
+                    new Vector2(Random.Range(-1f, 3f), Random.Range(-1f, 2f)));
                 int idx = i;
-                StartCoroutine(flying[i].FlyTo(target, i * 0.035f, v => { Money += v; hud.BumpMoney(); Sfx.Play(Sfx.Click(), 0.25f, 1.4f + Mathf.Min(idx, 30) * 0.03f); }));
+                c.OnRest = () => StartCoroutine(c.FlyTo(target, Random.Range(0.05f, 0.2f), v => { Money += v; hud.BumpMoney(); Sfx.Play(Sfx.Click(), 0.25f, 1.4f + Mathf.Min(idx, 30) * 0.03f); }));
+                Sfx.Play(Sfx.Click(), 0.12f, Random.Range(2f, 2.6f));
+                yield return new WaitForSecondsRealtime(interval);
             }
-            if (flying.Count == 0) { Money += total; hud.BumpMoney(); }
-            yield return new WaitForSecondsRealtime(flying.Count * 0.035f + 0.45f);
-            if (total > BestPayout) BestPayout = total;
-            hud.Float(total >= BestPayout && total > 0 ? $"+${total:N0}  최고 세트!" : $"+${total:N0}", target + Vector2.down * 1.5f + Vector2.right * 0.8f, 8);
         }
 
         public void CanHit(Can can, int earned, Vector2 at)
@@ -529,24 +524,15 @@ namespace TinCan
             if (can.Cursed) { CurseLanded(can); return; }
             long pay = (long)Mathf.Round(can.Earned * PayoutMult);
             SetPending += pay;
-            if (pay > 0) { hud.Float($"+${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.8f, 2); DropCasings(can.transform.position, can.Combo, pay, gold: false); }
+            if (pay > 0) hud.Float($"+${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.8f, 2);
             if (can.Kind.IsBounty) bounty.Escaped(can);
         }
 
-        /// <summary>저주통이 떨어졌다: 이번 세트에 쌓인 돈에서 뺏긴다 (바닥 탄피가 보라색으로 터져 사라진다)</summary>
+        /// <summary>저주통이 떨어졌다: 이번 세트에 쌓인 돈에서 뺏긴다</summary>
         public void CurseLanded(Can can)
         {
             long lost = System.Math.Min(SetPending, (long)Mathf.Round(can.Earned * PayoutMult));
             SetPending -= lost;
-            long gone = 0;
-            for (int i = floor.Count - 1; i >= 0 && gone < lost; i--)
-            {
-                var c = floor[i]; floor.RemoveAt(i);
-                if (c == null) continue;
-                gone += c.Value;
-                Fx.Ring(c.transform.position, new Color(0.75f, 0.25f, 0.85f), 0.5f);
-                Destroy(c.gameObject);
-            }
             hud.Float($"저주!  -${lost:N0}", (Vector2)can.transform.position + Vector2.up * 0.8f, 10);
             hud.Hurt();
             Sfx.Play(Sfx.Bang(), 0.8f, 0.4f);
@@ -560,7 +546,6 @@ namespace TinCan
             SetPending += pay;
             Bursts++;
             hud.Float($"터짐!  +${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
-            DropCasings(can.transform.position, can.Combo, pay, gold: true);
             StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));
             if (can.Kind.IsBounty) bounty.Busted(can);
         }

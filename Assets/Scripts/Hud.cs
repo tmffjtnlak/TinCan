@@ -93,29 +93,44 @@ namespace TinCan
         /// 세트 점수판 (사용자 10-12: 낚시 게임/오버워치 점수 느낌). 화면 가운데에 한 줄씩 딱, 딱, 딱 찍히고
         /// 마지막에 합계가 크게 쾅. 잠깐 머물렀다가 사라진다. ×1인 줄은 흐리고 작게.
         /// </summary>
-        public IEnumerator Tally(System.Collections.Generic.List<(string text, bool lit)> lines, string total)
+        /// <param name="k">연출 크기 0..1: 작으면 빠르고 작게, 크면 천천히 크게 (사용자 10-12)</param>
+        /// <param name="totalAt">합계 글자의 월드 위치를 돌려준다 (탄피가 거기서 쏟아진다)</param>
+        public IEnumerator Tally(System.Collections.Generic.List<(string text, bool lit)> lines, string total, float k, System.Action<Vector2> totalAt)
         {
             var made = new System.Collections.Generic.List<Text>();
-            float top = 140f, gap = 58f;
+            // 돈 판자 바로 아래, 왼쪽 정렬
+            float x = -720f, top = 365f, gap = Mathf.Lerp(32f, 44f, k);
+            int font = Mathf.RoundToInt(Mathf.Lerp(22f, 34f, k)), dimFont = Mathf.RoundToInt(Mathf.Lerp(18f, 26f, k));
+            float lineGap = Mathf.Lerp(0.04f, 0.28f, k), popTime = Mathf.Lerp(0.06f, 0.14f, k);
             for (int i = 0; i < lines.Count; i++)
             {
                 var (text, lit) = lines[i];
-                var t = Ui.Text("Tally", canvas, new Vector2(0f, top - i * gap), new Vector2(900f, 60f), lit ? 44 : 30, TextAnchor.MiddleCenter, lit ? Ui.Gold : Ui.Dim);
+                var t = Ui.Text("Tally", canvas, new Vector2(x, top - i * gap), new Vector2(420f, 44f), lit ? font : dimFont, TextAnchor.MiddleLeft, lit ? Ui.Gold : Ui.Dim);
                 t.text = text; made.Add(t);
-                Sfx.Play(lit ? Sfx.Tang() : Sfx.Click(), lit ? 0.6f : 0.3f, lit ? 1.3f + i * 0.15f : 1.2f);
-                if (lit) Fx.Shake(0.15f);
-                yield return Pop(t, lit ? 2.2f : 1.4f, 0.12f);
-                yield return new WaitForSecondsRealtime(lit ? 0.22f : 0.1f);
+                Sfx.Play(lit ? Sfx.Tang() : Sfx.Click(), lit ? 0.5f : 0.3f, lit ? 1.3f + i * 0.15f : 1.2f);
+                if (lit && k > 0.4f) Fx.Shake(0.1f * k);
+                yield return Pop(t, lit ? 1.6f + k * 0.8f : 1.3f, popTime);
+                yield return new WaitForSecondsRealtime(lit ? lineGap : lineGap * 0.5f);
             }
-            var sum = Ui.Text("TallyTotal", canvas, new Vector2(0f, top - lines.Count * gap - 30f), new Vector2(900f, 110f), 88, TextAnchor.MiddleCenter, Ui.Gold);
+            float sumY = top - lines.Count * gap - Mathf.Lerp(16f, 30f, k);
+            var sum = Ui.Text("TallyTotal", canvas, new Vector2(x, sumY), new Vector2(420f, 90f), Mathf.RoundToInt(Mathf.Lerp(40f, 68f, k)), TextAnchor.MiddleLeft, Ui.Gold);
             sum.text = total; made.Add(sum);
-            Sfx.Play(Sfx.Bang(), 0.7f, 1.1f);
-            Fx.Shake(0.6f);
-            yield return Pop(sum, 3f, 0.16f);
-            yield return new WaitForSecondsRealtime(0.7f);
+            Sfx.Play(Sfx.Bang(), 0.4f + k * 0.4f, 1.1f);
+            Fx.Shake(0.2f + k * 0.5f);
+            yield return Pop(sum, 2f + k, popTime * 1.3f);
+            // 합계 글자의 왼쪽 끝 근처 (글자 가운데보다 숫자 쪽)
+            var rt = (RectTransform)sum.transform;
+            var a = (rt.anchoredPosition + new Vector2(-120f, 0f)) * (Screen.height / 1080f);
+            totalAt?.Invoke(Camera.main.ScreenToWorldPoint(new Vector3(Screen.width * 0.5f + a.x, Screen.height * 0.5f + a.y, 10f)));
+            yield return new WaitForSecondsRealtime(Mathf.Lerp(0.25f, 0.9f, k));
+            StartCoroutine(FadeOut(made));
+        }
+
+        IEnumerator FadeOut(System.Collections.Generic.List<Text> made)
+        {
             for (float k = 0f; k < 1f; k += Time.unscaledDeltaTime * 3f)
             {
-                foreach (var t in made) { if (t == null) continue; var c = t.color; c.a = 1f - k; t.color = c; t.transform.localScale = Vector3.one * (1f - k * 0.2f); }
+                foreach (var t in made) { if (t == null) continue; var c = t.color; c.a = 1f - k; t.color = c; }
                 yield return null;
             }
             foreach (var t in made) if (t != null) Destroy(t.gameObject);

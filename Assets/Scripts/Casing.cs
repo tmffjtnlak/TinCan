@@ -13,11 +13,13 @@ namespace TinCan
     {
         public long Value;
         public bool Gold;
+        /// <summary>바닥에 눕는 순간 (판자로 날아갈 차례)</summary>
+        public System.Action OnRest;
         SpriteRenderer sr;
         Vector2 vel; float spin, floorY; bool resting, flying;
         static readonly Color Brass = new Color(0.72f, 0.56f, 0.28f), GoldC = new Color(1f, 0.85f, 0.35f);
 
-        public static Casing Drop(Vector2 at, long value, bool gold)
+        public static Casing Drop(Vector2 at, long value, bool gold, Vector2? velocity = null)
         {
             var go = new GameObject("Casing");
             var c = go.AddComponent<Casing>();
@@ -34,7 +36,7 @@ namespace TinCan
             else c.sr = Look.Quad("Brass", Vector2.zero, new Vector2(gold ? 0.3f : 0.24f, 0.1f), gold ? GoldC : Brass, 1, go.transform);
             go.transform.position = at;
             go.transform.rotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
-            c.vel = new Vector2(Random.Range(-2.5f, 2.5f), Random.Range(2f, 5f));
+            c.vel = velocity ?? new Vector2(Random.Range(-2.5f, 2.5f), Random.Range(2f, 5f));
             c.spin = Random.Range(-900f, 900f);
             c.floorY = Random.Range(Look.DropY - 0.55f, Look.DropY + 0.25f);   // 모래밭 안에 흩어진다
             return c;
@@ -54,6 +56,7 @@ namespace TinCan
                 {
                     resting = true; vel = Vector2.zero;
                     transform.rotation = Quaternion.Euler(0f, 0f, Random.Range(-12f, 12f) + (Random.value < 0.5f ? 0f : 180f));
+                    OnRest?.Invoke();
                 }
                 else
                 {
