@@ -22,7 +22,7 @@ namespace TinCan
         bool reloading;
         GunKind kind = GunKind.Revolver;
 
-        public Vector2 Muzzle => Profile ? (Vector2)side.TransformPoint(new Vector3(1.15f, 0.34f, 0f)) : vox != null ? (Vector2)vox.Muzzle.position : (Vector2)barrelTip.position;
+        public Vector2 Muzzle => Profile ? (Vector2)side.TransformPoint(sideArt != null ? (Vector3)ArtMuzzle : new Vector3(1.15f, 0.34f, 0f)) : vox != null ? (Vector2)vox.Muzzle.position : (Vector2)barrelTip.position;
 
         public void Build()
         {
@@ -88,6 +88,17 @@ namespace TinCan
             Look.Quad("STrigger", new Vector2(0.06f, 0.04f), new Vector2(0.05f, 0.12f), dark, 44, side);
             side.gameObject.SetActive(false);
             root.localScale = Vector3.one * 1.35f;
+            // 사용자 옆면 도트가 있으면 도형 대신 (피벗 = 방아쇠울, PPU 32 → 도트 한 칸 = 탄 표시와 같은 굵기)
+            sideSprite = LoadArt("gun_revolver_side");
+            if (sideSprite != null)
+            {
+                foreach (Transform c in side) c.gameObject.SetActive(false);
+                var sr = new GameObject("SideArt").AddComponent<SpriteRenderer>();
+                sr.transform.SetParent(side, false);
+                sr.sprite = sideSprite; sr.sortingOrder = 42;
+                sideArt = sr;
+                root.localScale = Vector3.one;   // 그림 크기는 PPU가 정한다
+            }
             // 복셀 총 (시제품): 도형 총 대신. 손가락 축 자리에 놓는다
             if (UseVoxel && !Profile)
             {
@@ -98,6 +109,18 @@ namespace TinCan
         }
 
         public bool UseVoxel = false;   // 복셀은 보류
+        Sprite sideSprite; SpriteRenderer sideArt;
+        // 그림 기준 자리 (피벗=방아쇠울, 단위=유닛): 총구, 탄피 나오는 곳, 손잡이 중심
+        static readonly Vector2 ArtMuzzle = new Vector2(1.5f, 0.44f), ArtEject = new Vector2(-0.44f, 0.3f), ArtGrip = new Vector2(-1.0f, -0.25f);
+
+        static Sprite LoadArt(string name)
+        {
+#if UNITY_EDITOR
+            return UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/Art/{name}.png");
+#else
+            return Resources.Load<Sprite>("Art/" + name);
+#endif
+        }
         /// <summary>엔터 더 건전식 (사용자 10-11): 옆면 한 장만. 조준 따라 돌고, 왼쪽이면 상하 반전. 장전은 그 자리에서 빙글</summary>
         public bool Profile = true;
         VoxelGun vox, vox2;        // 쌍권총이면 둘째 총 (왼손)
@@ -248,7 +271,7 @@ namespace TinCan
         {
             for (int i = 0; i < n; i++)
             {
-                var s = Look.Quad("Shell", Profile ? (Vector2)side.TransformPoint(new Vector3(0.08f, 0.28f, 0f)) : vox != null ? (Vector2)vox.transform.position + Vector2.up * 0.4f : (Vector2)cylinder.position, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
+                var s = Look.Quad("Shell", Profile ? (Vector2)side.TransformPoint(sideArt != null ? (Vector3)ArtEject : new Vector3(0.08f, 0.28f, 0f)) : vox != null ? (Vector2)vox.transform.position + Vector2.up * 0.4f : (Vector2)cylinder.position, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
                 var rb = s.gameObject.AddComponent<Rigidbody2D>();
                 rb.gravityScale = 2f;
                 // 돌던 방향으로 튕겨 나간다
@@ -309,7 +332,15 @@ namespace TinCan
                 // 손: 손잡이를 쥔 채 총과 같이 돈다 (장전 돌림은 안 따라간다)
                 hand.localRotation = Quaternion.Euler(0f, 0f, aimDeg - 90f + kickDeg * 0.5f);
                 hand.localScale = new Vector3(left ? -1f : 1f, 1f, 1f);
-                hand.localPosition = new Vector3(0.12f + lagPos.x + back.x * 0.5f, -0.1f - dip * 0.5f + back.y * 0.5f, 0f);
+                if (sideArt != null)
+                {
+                    // 그림 손잡이 자리에 손을 붙인다 (장전 돌림은 빼고 조준 각도만)
+                    var gripRot = Quaternion.Euler(0f, 0f, aimDeg + kickDeg);
+                    var grip = (Vector2)(gripRot * new Vector3(ArtGrip.x, left ? -ArtGrip.y : ArtGrip.y, 0f));
+                    hand.localPosition = new Vector3(0.12f + lagPos.x + back.x + grip.x, -0.1f - dip + back.y + grip.y + 0.5f, 0f);
+                    hand.localScale = new Vector3(left ? -0.7f : 0.7f, 0.7f, 1f);
+                }
+                else hand.localPosition = new Vector3(0.12f + lagPos.x + back.x * 0.5f, -0.1f - dip * 0.5f + back.y * 0.5f, 0f);
                 if (dual && vox2 != null) { vox2.gameObject.SetActive(false); hand2.gameObject.SetActive(false); }
                 return;
             }
