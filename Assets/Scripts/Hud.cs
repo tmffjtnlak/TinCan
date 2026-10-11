@@ -25,7 +25,7 @@ namespace TinCan
         public Transform Canvas => canvas;
         Image moneyBoard, hintStrip, cylBoard;
         /// <summary>타이틀에선 돈·안내·실린더 판자를 숨긴다</summary>
-        public void SetPlayVisible(bool v) { moneyBoard.gameObject.SetActive(v); hintStrip.gameObject.SetActive(v); cylBoard.gameObject.SetActive(v); slowBg.gameObject.SetActive(v); slowLabel.gameObject.SetActive(v); if (!v) airBadge.gameObject.SetActive(false); }
+        public void SetPlayVisible(bool v) { moneyBoard.gameObject.SetActive(v); hintStrip.gameObject.SetActive(v); cylBoard.gameObject.SetActive(false); slowBg.gameObject.SetActive(v); slowLabel.gameObject.SetActive(v); if (!v) airBadge.gameObject.SetActive(false); }
 
         void Awake()
         {
@@ -48,8 +48,9 @@ namespace TinCan
             var strip = hintStrip = Ui.Panel("HintStrip", canvas, new Vector2(60f, 490f), new Vector2(1180f, 50f), nails: false);
             hint = Ui.Text("Hint", strip.transform, Vector2.zero, new Vector2(1160f, 40f), 19, TextAnchor.MiddleCenter, Ui.Dim);
 
-            // 오른쪽 아래: 총 이름·슬롯 (탄은 오른쪽 가장자리에 세로로 쌓인 도트 총알 — AmmoHud)
+            // 오른쪽 아래 판자는 뺐다 (사용자 10-11). 총 이름·슬롯 글자는 만들어만 두고 안 보인다
             cylBoard = Ui.Panel("GunBoard", canvas, new Vector2(800f, -470f), new Vector2(260f, 100f));
+            cylBoard.gameObject.SetActive(false);
             cylinder = Ui.Rect("Cylinder", cylBoard.transform, Vector2.zero, Vector2.zero);
             chambers = new Image[0];
             gunName = Ui.Text("GunName", cylBoard.transform, new Vector2(0f, 18f), new Vector2(240f, 36f), 24, TextAnchor.MiddleCenter, Ui.Ink);
