@@ -10,7 +10,8 @@ namespace TinCan
     public enum GameState { Title, Settings, Play }
 
     /// <summary>
-    /// 핵심 루프: 돈을 내고 깡통을 소환한다(선반) → 쏴서 띄운다 → 공중에서 계속 맞춘다 → 낙하지역에 떨어지면 정산.
+    /// 핵심 루프 (사용자 10-12 세트 구조): 선반에 깡통을 놓는다(준비) → 첫 발로 띄우면 소환이 잠기고 세트 시작 →
+    /// 맞출 때마다 금액 확정 → 떨어지거나 터지면 탄피가 바닥에 → 공중이 비면 세트 끝, 탄피가 돈 판자로 날아가 돈이 된다.
     /// 콘텐츠 세 축: 총기류(쏘는 방식) · 깡통류(뭘 띄우나) · 스킬트리(얼마나 잘). Tab으로 연다. Q/W/E로 탭.
     /// 타이틀 = 같은 사격장. 선반 위 "시작"/"이어서"/"설정" 깡통을 쏘면 떨어지고, 떨어지면 원형으로 닫혔다 열리며 시작.
     /// </summary>
@@ -252,6 +253,7 @@ namespace TinCan
                 return;
             }
             if (kb.spaceKey.wasPressedThisFrame) TrySpawn();
+            if (SetActive && !ending && Airborne == 0) StartCoroutine(EndSet());
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
             if (DebugMoney) Money = 999_999_999;
             if (kb.f2Key.wasPressedThisFrame) bounty.Summon();
@@ -361,10 +363,11 @@ namespace TinCan
         public int CansOnShelf => Cans.FindAll(c => c != null && !c.Airborne).Count;
         public int Airborne { get { int n = 0; foreach (var c in Cans) if (c != null && c.Airborne && !c.Done) n++; return n; } }
 
-        /// <summary>돈을 내고 선반에 깡통. 짝 소환이면 여러 개, 붙여 놓기면 마지막 깡통 옆에</summary>
+        /// <summary>돈을 내고 선반에 깡통. 짝 소환이면 여러 개, 붙여 놓기면 마지막 깡통 옆에. 공중에 깡통이 있으면 잠긴다 (세트 중)</summary>
         public bool TrySpawn()
         {
             long cost = SpawnCost(SpawnKind);
+            if (Airborne > 0) { Sfx.Play(Sfx.Click(), 0.5f, 0.6f); hud.Float("공중 깡통을 다 처리하면 소환", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (CansOnShelf >= MaxCans) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("선반이 꽉 찼다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (Money < cost) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("돈이 모자라다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             int n = 0;
@@ -430,8 +433,49 @@ namespace TinCan
             nudgeTimer = 10f; nudges++;
         }
 
+        // ---------- 세트 (사용자 10-12) ----------
+        // 첫 발로 띄우면 시작, 공중이 비면 끝. 세트 안에서 번 돈은 바닥 탄피로 쌓여 있다가 끝나면 판자로 날아간다.
+        public bool SetActive { get; private set; }
+        public long SetPending { get; private set; }     // 이번 세트에서 확정됐지만 아직 안 받은 돈
+        readonly List<Casing> floor = new List<Casing>();
+        bool ending;
+
+        void DropCasings(Vector2 at, int count, long total, bool gold)
+        {
+            count = Mathf.Max(1, count);
+            long per = total / count, rem = total - per * count;
+            for (int i = 0; i < count; i++)
+            {
+                var c = Casing.Drop(at + Random.insideUnitCircle * 0.15f, per + (i == count - 1 ? rem : 0), gold && i % 2 == 0);
+                floor.Add(c);
+            }
+        }
+
+        IEnumerator EndSet()
+        {
+            ending = true;
+            yield return new WaitForSeconds(0.5f);          // 마지막 탄피가 눕도록
+            if (Airborne > 0) { ending = false; yield break; }   // 그새 또 띄웠으면 세트가 이어진다
+            long total = SetPending;
+            var flying = new List<Casing>(floor);
+            floor.Clear(); SetPending = 0; SetActive = false; ending = false;
+            if (total <= 0 && flying.Count == 0) yield break;
+            var target = hud.MoneyWorld();
+            Sfx.Play(Sfx.Whoosh(), 0.5f, 1.2f);
+            for (int i = 0; i < flying.Count; i++)
+            {
+                if (flying[i] == null) continue;
+                int idx = i;
+                StartCoroutine(flying[i].FlyTo(target, i * 0.035f, v => { Money += v; hud.BumpMoney(); Sfx.Play(Sfx.Click(), 0.25f, 1.4f + Mathf.Min(idx, 30) * 0.03f); }));
+            }
+            yield return new WaitForSecondsRealtime(flying.Count * 0.035f + 0.45f);
+            if (total > BestPayout) BestPayout = total;
+            hud.Float(total >= BestPayout && total > 0 ? $"+${total:N0}  최고 세트!" : $"+${total:N0}", target + Vector2.down * 1.5f + Vector2.right * 0.8f, 8);
+        }
+
         public void CanHit(Can can, int earned, Vector2 at)
         {
+            if (!SetActive) { SetActive = true; SetPending = 0; }
             int air = Airborne;
             if (air > MostAirborne) MostAirborne = air;
             hud.Float(air >= 2 ? $"+{earned}  ×{AirMult(air)}" : $"+{earned}", at, can.Combo + (air - 1) * 3);
@@ -441,37 +485,44 @@ namespace TinCan
             StartCoroutine(HitStop(can.Combo >= 5 ? 0.04f : 0.02f));
         }
 
-        /// <summary>떨어져서 정산: 쌓인 돈 × 정산 배수. 저주통이면 뺏긴다</summary>
+        /// <summary>떨어졌다: 쌓인 돈 × 정산 배수가 세트에 들어가고, 맞춘 발 수만큼 탄피가 바닥에. 돈은 세트가 끝나야 온다. 저주통이면 뺏긴다</summary>
         public void CanLanded(Can can)
         {
             if (can.Cursed) { CurseLanded(can); return; }
             long pay = (long)Mathf.Round(can.Earned * PayoutMult);
-            Money += pay;
-            if (pay > BestPayout) BestPayout = pay;
-            hud.Payout(pay, can.Combo, can.transform.position, burst: false);
+            SetPending += pay;
+            if (pay > 0) { hud.Float($"+${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.8f, 2); DropCasings(can.transform.position, can.Combo, pay, gold: false); }
             if (can.Kind.IsBounty) bounty.Escaped(can);
-            if (pay > 0) Fx.Coins(can.transform.position, pay);
         }
 
+        /// <summary>저주통이 떨어졌다: 이번 세트에 쌓인 돈에서 뺏긴다 (바닥 탄피가 보라색으로 터져 사라진다)</summary>
         public void CurseLanded(Can can)
         {
-            long lost = System.Math.Min(Money, (long)Mathf.Round(can.Earned * PayoutMult));
-            Money -= lost;
+            long lost = System.Math.Min(SetPending, (long)Mathf.Round(can.Earned * PayoutMult));
+            SetPending -= lost;
+            long gone = 0;
+            for (int i = floor.Count - 1; i >= 0 && gone < lost; i--)
+            {
+                var c = floor[i]; floor.RemoveAt(i);
+                if (c == null) continue;
+                gone += c.Value;
+                Fx.Ring(c.transform.position, new Color(0.75f, 0.25f, 0.85f), 0.5f);
+                Destroy(c.gameObject);
+            }
             hud.Float($"저주!  -${lost:N0}", (Vector2)can.transform.position + Vector2.up * 0.8f, 10);
             hud.Hurt();
             Sfx.Play(Sfx.Bang(), 0.8f, 0.4f);
             StartCoroutine(HitStop(0.1f));
         }
 
-        /// <summary>터뜨려서 정산: 쌓인 돈 × 정산 배수 × 터짐 배수. 저주통도 터뜨리면 평소대로</summary>
+        /// <summary>터뜨렸다: 쌓인 돈 × 정산 배수 × 터짐 배수가 세트에. 금색 탄피. 저주통도 터뜨리면 평소대로</summary>
         public void CanBurst(Can can)
         {
             long pay = (long)Mathf.Round(can.Earned * PayoutMult * BurstMult);
-            Money += pay;
+            SetPending += pay;
             Bursts++;
-            if (pay > BestPayout) BestPayout = pay;
-            hud.Payout(pay, can.Combo, can.transform.position, burst: true);
-            Fx.Coins(can.transform.position, pay * 3);
+            hud.Float($"터짐!  +${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+            DropCasings(can.transform.position, can.Combo, pay, gold: true);
             StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));
             if (can.Kind.IsBounty) bounty.Busted(can);
         }

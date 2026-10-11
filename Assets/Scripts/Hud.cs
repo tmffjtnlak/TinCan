@@ -16,7 +16,7 @@ namespace TinCan
         RectTransform cylinder;
         Transform canvas;
         Image hurtVeil;
-        float cylSpin, moneyBump, airBump; bool airShown;
+        float cylSpin, moneyBump, airBump; bool airShown; int lastMult;
         Text airBadge;
         Image slowBg, slowFill, slowVeil; Text slowLabel;
         long shown, shownTarget;
@@ -41,8 +41,8 @@ namespace TinCan
             money = Ui.Text("Money", board.transform, new Vector2(10f, 18f), new Vector2(380f, 60f), 52, TextAnchor.MiddleLeft, Ui.Gold);
             stats = Ui.Text("Stats", board.transform, new Vector2(10f, -32f), new Vector2(380f, 34f), 19, TextAnchor.MiddleLeft, Ui.Dim);
 
-            // 위 가운데 아래: 동시 공중 배지
-            airBadge = Ui.Text("AirBadge", canvas, new Vector2(60f, 410f), new Vector2(800f, 90f), 54, TextAnchor.MiddleCenter, Ui.Gold);
+            // 화면 가운데 아래: 지금 한 발 배율 (사용자 10-12: 임시 자리). 세트 중에만 보인다
+            airBadge = Ui.Text("AirBadge", canvas, new Vector2(0f, -440f), new Vector2(600f, 100f), 64, TextAnchor.MiddleCenter, Ui.Gold);
             airBadge.gameObject.SetActive(false);
             // 위 가운데: 안내 띠
             var strip = hintStrip = Ui.Panel("HintStrip", canvas, new Vector2(60f, 490f), new Vector2(1180f, 50f), nails: false);
@@ -63,6 +63,16 @@ namespace TinCan
             slowVeil = Ui.Image("SlowVeil", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
             slowVeil.transform.SetAsFirstSibling();
         }
+
+        /// <summary>돈 판자의 월드 좌표 (탄피가 날아갈 곳)</summary>
+        public Vector2 MoneyWorld()
+        {
+            var a = ((RectTransform)moneyBoard.transform).anchoredPosition * (Screen.height / 1080f);
+            var w = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width * 0.5f + a.x, Screen.height * 0.5f + a.y, 10f));
+            return w;
+        }
+        /// <summary>탄피가 닿았다: 돈 글자가 한 번 튄다</summary>
+        public void BumpMoney() => moneyBump = 1f;
 
         /// <summary>깡통 위에 붙는 작은 돈 글자 (깡통이 위치를 갱신한다)</summary>
         public Text CanLabel()
@@ -127,18 +137,22 @@ namespace TinCan
             money.text = game.DebugMoney ? "$∞  <size=18><color=#ff8888>디버그</color></size>" : $"${shown:N0}";
             money.supportRichText = true;
             int air = game.Airborne;
-            stats.text = $"터뜨림 {game.Bursts}  ·  최고 연속 {game.BestCombo}  ·  최고 정산 ${game.BestPayout:N0}"
+            stats.supportRichText = true;
+            stats.text = $"최고 세트 ${game.BestPayout:N0}  ·  터뜨림 {game.Bursts}  ·  최고 연속 {game.BestCombo}"
+                + (game.SetActive ? $"   <color=#ffd966>이번 세트 ${game.SetPending:N0}</color>" : "")
                 + (gun.ReloadStreak >= 1 ? $"   <color=#88ffaa>저스트 {gun.ReloadStreak}</color>" : "");
-            // 동시 공중 배지: 둘 이상이면 화면 위 가운데에 크게 튀어나온다
+            // 지금 한 발 배율: 세트 중에 화면 가운데 아래. 바뀔 때 튀고, 둘 이상이면 금색
             int mult = Game.AirMult(air);
-            bool show = air >= 2;
-            if (show != airShown) { airShown = show; airBump = 1f; }
+            bool show = game.SetActive;
+            if (air < 1) mult = lastMult;   // 전부 떨어진 직후엔 마지막 값 그대로
+            if (show && mult != lastMult) { lastMult = mult; airBump = 1f; }
+            if (show != airShown) { airShown = show; if (show) airBump = 1f; }
             airBump = Mathf.Max(0f, airBump - Time.unscaledDeltaTime * 4f);
             airBadge.gameObject.SetActive(show || airBump > 0f);
-            airBadge.text = show ? $"공중 {air}개  ×{mult}" : airBadge.text;
+            if (show) airBadge.text = $"×{mult}";
             airBadge.transform.localScale = Vector3.one * (show ? 1f + airBump * 0.6f : Mathf.Max(0.01f, airBump));
-            airBadge.color = Color.Lerp(Ui.Gold, Color.white, Mathf.PingPong(Time.unscaledTime * 2f, 1f) * 0.3f);
-            hint.text = game.MenuOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)})   ·   좌클릭 = 쏜다   ·   우클릭 = 느리게   ·   R = 장전   ·   1/2 = 무기   ·   Tab = 가게   ·   <color=#ffd966>둘 띄우면 ×3</color>";
+            airBadge.color = mult >= 3 ? Color.Lerp(Ui.Gold, Color.white, Mathf.PingPong(Time.unscaledTime * 2f, 1f) * 0.3f) : Ui.Dim;
+            hint.text = game.MenuOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)}, 공중이 비어 있을 때)   ·   좌클릭 = 쏜다   ·   우클릭 = 느리게   ·   R = 장전   ·   1/2 = 무기   ·   Tab = 가게   ·   <color=#ffd966>둘 띄우면 ×3</color>";
             gunName.text = gun.Kind.Name;
             string p = $"{(game.ActiveSlot == 0 ? "<color=#ffd966>" : "<color=#999999>")}1 {game.Primary.Name} {gun.StoredAmmo(game.Primary)}</color>";
             string s = game.Secondary != null ? $"   {(game.ActiveSlot == 1 ? "<color=#ffd966>" : "<color=#999999>")}2 {game.Secondary.Name} {gun.StoredAmmo(game.Secondary)}</color>" : "   <color=#666666>2 —</color>";
