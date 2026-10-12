@@ -31,7 +31,8 @@ namespace TinCan
                 c.sr = go.AddComponent<SpriteRenderer>();
                 c.sr.sprite = art; c.sr.sortingOrder = 1;
                 c.sr.color = gold ? new Color(1f, 1f, 0.8f) : Color.white;
-                go.transform.localScale = Vector3.one * (gold ? 0.55f : 0.45f);
+                // 도트 규칙: 정수 배만. 27×14 원본이 3픽셀 칸이면 깡통보다 커서 2픽셀 칸(2/3)으로. 그림을 반 크기로 다시 그리면 1로
+                go.transform.localScale = Vector3.one * (2f / 3f);
             }
             else c.sr = Look.Quad("Brass", Vector2.zero, new Vector2(gold ? 0.3f : 0.24f, 0.1f), gold ? GoldC : Brass, 1, go.transform);
             go.transform.position = at;

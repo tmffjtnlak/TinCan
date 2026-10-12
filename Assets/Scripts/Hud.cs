@@ -30,7 +30,7 @@ namespace TinCan
         void Awake()
         {
             var cg = new GameObject("Canvas", typeof(Canvas), typeof(CanvasScaler));
-            var c = cg.GetComponent<Canvas>(); c.renderMode = RenderMode.ScreenSpaceOverlay;
+            var c = cg.GetComponent<Canvas>(); c.renderMode = RenderMode.ScreenSpaceOverlay; c.pixelPerfect = true;   // 도트 규칙: UI도 픽셀에 붙인다
             var s = cg.GetComponent<CanvasScaler>(); s.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; s.referenceResolution = new Vector2(1920f, 1080f);
             canvas = cg.transform;
 

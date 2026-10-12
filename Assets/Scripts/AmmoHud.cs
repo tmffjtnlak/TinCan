@@ -11,9 +11,9 @@ namespace TinCan
     /// </summary>
     public class AmmoHud : MonoBehaviour
     {
-        const float Scale = 3.6f;            // 3 × 1.2
-        const float Gap = 7f;
-        const float SpentShift = 16f;
+        const float Scale = Ui.Px;           // 도트 규칙 (사용자 10-12): 그림 1픽셀 = 화면 3픽셀. HUD 탄도 같은 칸
+        const float Gap = Ui.Px * 2f;
+        const float SpentShift = Ui.Px * 5f;
         static readonly Vector2 Anchor = new Vector2(860f, 0f);
         static readonly Color Spent = new Color(200f / 255f, 200f / 255f, 200f / 255f, 1f);   // 알파 1, RGB 200: 살짝 어둡게 (사용자 지시)
 

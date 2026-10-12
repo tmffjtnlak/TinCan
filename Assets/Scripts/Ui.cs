@@ -3,9 +3,14 @@ using UnityEngine.UI;
 
 namespace TinCan
 {
-    /// <summary>UI 공통 부품: 테두리 있는 판자, 그림자 있는 글자. 한 그림체로 통일한다 (어두운 나무판 + 밝은 모서리 + 노란 돈).</summary>
+    /// <summary>
+    /// UI 공통 부품: 테두리 있는 판자, 그림자 있는 글자. 한 그림체로 통일한다 (어두운 나무판 + 밝은 모서리 + 노란 돈).
+    /// 도트 규칙 (사용자 10-12): 그림 1픽셀 = 화면 3픽셀(1080p). UI 두께·간격·그림자도 전부 3의 배수 = "같은 도트 크기".
+    /// </summary>
     public static class Ui
     {
+        /// <summary>마스터 픽셀: 1080p 기준 화면 픽셀 수. 그림(PPU 36)과 UI가 이 한 칸을 같이 쓴다</summary>
+        public const float Px = 3f;
         static Font font;
         public static Font Font => font != null ? font : (font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
 
@@ -39,12 +44,12 @@ namespace TinCan
         public static Image Panel(string name, Transform parent, Vector2 pos, Vector2 size, bool nails = true)
         {
             var edge = Image(name, parent, pos, size, BoardEdge);
-            Image("Fill", edge.transform, Vector2.zero, size - new Vector2(6f, 6f), Board);
+            Image("Fill", edge.transform, Vector2.zero, size - new Vector2(Px * 2f, Px * 2f), Board);   // 테두리 = 한 픽셀
             if (nails)
             {
                 var nail = new Color(0.75f, 0.7f, 0.6f);
-                Image("NailL", edge.transform, new Vector2(-size.x * 0.5f + 14f, size.y * 0.5f - 14f), new Vector2(6f, 6f), nail);
-                Image("NailR", edge.transform, new Vector2(size.x * 0.5f - 14f, size.y * 0.5f - 14f), new Vector2(6f, 6f), nail);
+                Image("NailL", edge.transform, new Vector2(-size.x * 0.5f + Px * 4f, size.y * 0.5f - Px * 4f), new Vector2(Px * 2f, Px * 2f), nail);
+                Image("NailR", edge.transform, new Vector2(size.x * 0.5f - Px * 4f, size.y * 0.5f - Px * 4f), new Vector2(Px * 2f, Px * 2f), nail);
             }
             return edge;
         }
@@ -56,7 +61,7 @@ namespace TinCan
             if (shadow)
             {
                 var sh = rt.gameObject.AddComponent<Shadow>();
-                sh.effectColor = new Color(0f, 0f, 0f, 0.7f); sh.effectDistance = new Vector2(2f, -2f);
+                sh.effectColor = new Color(0f, 0f, 0f, 0.7f); sh.effectDistance = new Vector2(Px, -Px);   // 그림자 = 한 픽셀
             }
             var t = rt.gameObject.AddComponent<Text>();
             t.font = Font; t.fontSize = fontSize; t.alignment = anchor; t.color = color; t.raycastTarget = false; t.supportRichText = true;
