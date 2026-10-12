@@ -37,7 +37,7 @@ namespace TinCan
         float bgDotTimer;
         readonly Dictionary<string, NodeView> views = new Dictionary<string, NodeView>();
         readonly List<LinkView> links = new List<LinkView>();
-        Image tip; Text tipTitle, tipDesc, tipCost; float tipFlash, tipTilt, tipTiltV, tipS = 1f, tipSV; Vector2 tipPos;
+        Image tip; Text tipTitle, tipDesc, tipCost; float tipTilt, tipTiltV, tipS = 1f, tipSV; Vector2 tipPos;
         Text money; float moneyPop, moneyTilt; long moneyShown;
         RectTransform cursor; Image[] corners;
         SkillNode hover;
@@ -310,8 +310,8 @@ namespace TinCan
             if (hover != null && hover != prev)
             {
                 Sfx.Play(Sfx.Click(), 0.2f, 2.6f); StartCoroutine(CursorSnap());
-                // 설명 상자가 바뀔 때: 통째로 흰색 3~4프레임, 작고 기울어진 채 들어와서 용수철로 커지며 풀린다 (Shelldiver 1.13~1.20초, 3.77~3.93초)
-                tipFlash = 1f; tipTilt = Random.Range(-13f, -9f); tipTiltV = 0f;
+                // 설명 상자가 바뀔 때: 작고 기울어진 채 들어와서 용수철로 커지며 풀린다 (흰 번쩍은 뺐다. 사용자 10-12)
+                tipTilt = Random.Range(-13f, -9f); tipTiltV = 0f;
                 tipS = prev == null ? 0.55f : 0.8f; tipSV = 0f;
                 if (prev == null) tipPos = canvasPt + new Vector2(260f, 70f);
             }
@@ -349,11 +349,6 @@ namespace TinCan
                 tip.rectTransform.localRotation = Quaternion.Euler(0f, 0f, tipTilt);
                 Ease.Spring(ref tipS, ref tipSV, 1f, 600f, 17f, dt);   // 살짝 넘쳤다 자리 잡는 크기
                 tip.rectTransform.localScale = Vector3.one * tipS;
-                // 흰 번쩍: 상자가 통째로 흰색, 글자 숨김 → 3~4프레임 뒤 글자가 찬다
-                tipFlash = Mathf.Max(0f, tipFlash - dt / 0.12f);
-                bool white = tipFlash > 0f;
-                tip.color = white ? Color.white : new Color(0.05f, 0.1f, 0.08f, 0.97f);
-                tipTitle.enabled = tipDesc.enabled = tipCost.enabled = !white;
                 tipTitle.text = hover.Name;
                 tipDesc.text = hover.Desc(hover.Level);
                 bool avail = Available(hover);
@@ -450,7 +445,7 @@ namespace TinCan
             v.Flash = 1f;
             v.LvPop = 1f; v.LvTilt = Random.Range(-14f, 14f);
             worldPop = 1f; worldPopV = 0.5f;            // 화면 전체가 살짝 톡
-            tipFlash = 1f; tipTilt = Random.Range(-13f, -9f); tipTiltV = 0f; tipS = 0.85f; tipSV = 0f;   // 설명 상자도 흰색으로 번쩍, 작고 기울어져 들어옴
+            tipSV = -1.5f; tipTiltV = -60f;             // 설명 상자는 그 자리에서 살짝 움찔만 (사라졌다 다시 뜨지 않는다. 사용자 10-12)
             v.Rot = (Random.value < 0.5f ? -1f : 1f) * Random.Range(14f, 20f); v.RotV = 0f;   // 회전 킥
             Fx.Shake(0.08f);
             StartCoroutine(Rebound(v));
