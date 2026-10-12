@@ -15,7 +15,8 @@ namespace TinCan
     ///   bg_tile     32×32  배경 타일 (반복)                tip_panel 24×24  설명 상자 9슬라이스 (테두리 4px)
     ///   fx_spark    5×5    산 순간 튀는 조각(+)            fx_ring   16×16  산 순간 퍼지는 링
     ///   fx_dot      2×2    살 수 있는 노드 주변에 떠오르는 점   cursor_corner 7×7  올린 노드 네 귀퉁이 꺾쇠 (왼쪽 위 기준)
-    ///   icon_{노드id} 12×12  노드 아이콘 (없으면 글자)
+    ///   node_bevel  30×30  테두리 안쪽 한 줄 (입체)        bg_far    64×64  먼 배경 타일 (느리게 흐름)
+    ///   icon_{노드id} 14×14  노드 아이콘. 없으면 계열 아이콘 icon_reload / icon_shelf / icon_money / icon_auto / icon_time / icon_root
     /// </summary>
     public static class TreeArt
     {
@@ -47,15 +48,26 @@ namespace TinCan
         {
             switch (name)
             {
-                case "node_frame": return Make(Diamond(20, 2, false), name);
-                case "node_fill": return Make(Diamond(20, 0, true), name);
-                case "node_glow": return Make(DiamondSoft(28), name);
+                // Shelldiver 비율 (10-12 측정, 1080p 기준): 마름모 폭 ≈ 126px, 테두리 ≈ 7px, 아이콘 ≈ 56px, 노드 간격 ≈ 195px, 도트 ≈ 4~5px
+                // → 트리 도트 4px: 마름모 30칸, 테두리 2칸, 아이콘 14칸
+                case "node_frame": return Make(Diamond(30, 2, false), name);
+                case "node_fill": return Make(Diamond(30, 0, true), name);
+                case "node_bevel": return Make(DiamondInset(30, 4), name);
+                case "node_glow": return Make(DiamondSoft(40), name);
+                case "bg_far": return Make(FarTile(64), name);
+                case "icon_reload": return Make(IconBullet(14), name);
+                case "icon_shelf": return Make(IconShelf(14), name);
+                case "icon_money": return Make(IconCoin(14), name);
+                case "icon_auto": return Make(IconGear(14), name);
+                case "icon_time": return Make(IconClock(14), name);
+                case "icon_root": return Make(IconStar(14), name);
                 case "link": return Make(Solid(6, 2), name);
                 case "link_dim": return Make(Dots(6, 2), name);
                 case "bg_tile": return Make(Tile(32), name);
                 case "tip_panel": return Make(Box(24, 2), name, border: 4);
                 case "fx_spark": return Make(Plus(5), name);
                 case "fx_dot": return Make(Solid(2, 2), name);
+                case "fx_puff": return Make(Puff(12), name);
                 case "fx_ring": return Make(Ring(16), name);
                 case "cursor_corner": return Make(Corner(7), name);
                 default: return null;   // icon_*: 없으면 글자
@@ -87,6 +99,82 @@ namespace TinCan
                 bool on = fill ? d <= r - 2.5f : (d <= r && d > r - thick - 0.5f);
                 if (on) t.SetPixel(x, y, Color.white);
             }
+            return t;
+        }
+
+        /// <summary>안쪽 한 줄 (테두리에서 inset만큼 들어간 마름모 선 1픽셀) — 베벨 느낌</summary>
+        static Texture2D DiamondInset(int n, int inset)
+        {
+            var t = Blank(n, n); float c = (n - 1) * 0.5f, r = c - inset;
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++)
+            {
+                float d = Mathf.Abs(x - c) + Mathf.Abs(y - c);
+                if (d <= r && d > r - 1.5f) t.SetPixel(x, y, Color.white);
+            }
+            return t;
+        }
+
+        /// <summary>먼 배경 타일: 큰 희미한 마름모 윤곽 하나 + 점 둘 (반복되면 돌무늬처럼)</summary>
+        static Texture2D FarTile(int n)
+        {
+            var t = Blank(n, n); float c = (n - 1) * 0.5f, r = n * 0.3f;
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++)
+            {
+                float d = Mathf.Abs(x - c) + Mathf.Abs(y - c);
+                if (d <= r && d > r - 2f) t.SetPixel(x, y, new Color(1f, 1f, 1f, 0.5f));
+                else if (d <= r - 2f) t.SetPixel(x, y, new Color(1f, 1f, 1f, 0.18f));
+            }
+            t.SetPixel(4, n - 6, new Color(1f, 1f, 1f, 0.6f)); t.SetPixel(n - 7, 5, new Color(1f, 1f, 1f, 0.6f));
+            return t;
+        }
+
+        // ---------- 임시 아이콘 (계열별, 14×14, 흰색). 노드별 그림(icon_{id})이 오면 그걸 쓴다 ----------
+        static void Px(Texture2D t, int x, int y, float a = 1f) { if (x >= 0 && y >= 0 && x < t.width && y < t.height) t.SetPixel(x, y, new Color(1f, 1f, 1f, a)); }
+        static void Rect(Texture2D t, int x0, int y0, int w, int h, float a = 1f) { for (int y = y0; y < y0 + h; y++) for (int x = x0; x < x0 + w; x++) Px(t, x, y, a); }
+
+        static Texture2D IconBullet(int n)   // 장전: 기울어진 탄 하나 + 작은 탄
+        {
+            var t = Blank(n, n);
+            Rect(t, 3, 5, 7, 4); Px(t, 10, 6); Px(t, 10, 7); Px(t, 11, 6); Px(t, 11, 7); Px(t, 12, 7);
+            Rect(t, 2, 5, 1, 4, 0.6f);
+            Rect(t, 4, 1, 4, 2, 0.8f); Px(t, 8, 1, 0.8f);
+            return t;
+        }
+        static Texture2D IconShelf(int n)    // 선반: 가로 판 + 깡통 둘
+        {
+            var t = Blank(n, n);
+            Rect(t, 1, 4, 12, 2); Rect(t, 2, 2, 2, 2, 0.7f); Rect(t, 10, 2, 2, 2, 0.7f);
+            Rect(t, 3, 6, 3, 5); Rect(t, 8, 6, 3, 5); Rect(t, 3, 8, 3, 1, 0.5f); Rect(t, 8, 8, 3, 1, 0.5f);
+            return t;
+        }
+        static Texture2D IconCoin(int n)     // 돈: 동전 (원 + $ 느낌의 세로줄)
+        {
+            var t = Blank(n, n); float c = (n - 1) * 0.5f;
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) { float d = Vector2.Distance(new Vector2(x, y), new Vector2(c, c)); if (d <= 6f) Px(t, x, y, d > 4.5f ? 1f : 0.45f); }
+            Rect(t, 6, 3, 2, 8); Rect(t, 4, 4, 5, 1); Rect(t, 5, 9, 5, 1); Rect(t, 4, 6, 1, 1); Rect(t, 9, 7, 1, 1);
+            return t;
+        }
+        static Texture2D IconGear(int n)     // 자동: 톱니
+        {
+            var t = Blank(n, n); float c = (n - 1) * 0.5f;
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) { float d = Vector2.Distance(new Vector2(x, y), new Vector2(c, c)); if (d <= 4.5f && d > 2f) Px(t, x, y); }
+            Rect(t, 6, 0, 2, 3); Rect(t, 6, 11, 2, 3); Rect(t, 0, 6, 3, 2); Rect(t, 11, 6, 3, 2);
+            Rect(t, 2, 2, 2, 2); Rect(t, 10, 2, 2, 2); Rect(t, 2, 10, 2, 2); Rect(t, 10, 10, 2, 2);
+            return t;
+        }
+        static Texture2D IconClock(int n)    // 시간: 시계
+        {
+            var t = Blank(n, n); float c = (n - 1) * 0.5f;
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++) { float d = Vector2.Distance(new Vector2(x, y), new Vector2(c, c)); if (d <= 6f && d > 4.8f) Px(t, x, y); }
+            Rect(t, 6, 6, 2, 2); Rect(t, 6, 7, 1, 4); Rect(t, 7, 7, 3, 1);
+            return t;
+        }
+        static Texture2D IconStar(int n)     // 뿌리: 별
+        {
+            var t = Blank(n, n); int c = n / 2;
+            for (int i = 0; i < n; i++) { Px(t, i, c, 0.8f); Px(t, c, i, 0.8f); }
+            for (int i = -3; i <= 3; i++) { Px(t, c + i, c + i); Px(t, c + i, c - i); }
+            Rect(t, c - 1, c - 1, 3, 3);
             return t;
         }
 
@@ -132,6 +220,20 @@ namespace TinCan
         {
             var t = Blank(n, n);
             for (int i = 0; i < n; i++) for (int k = 0; k < 2; k++) { t.SetPixel(i, n - 1 - k, Color.white); t.SetPixel(k, n - 1 - i, Color.white); }
+            return t;
+        }
+
+        /// <summary>흰 뭉게구름 조각: 울퉁불퉁한 둥근 덩어리 (Shelldiver 구매 순간의 흰 구름). 여러 개 겹쳐 쓴다</summary>
+        static Texture2D Puff(int n)
+        {
+            var t = Blank(n, n); float c = (n - 1) * 0.5f;
+            var rng = new System.Random(7);
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x, y), new Vector2(c, c));
+                float r = c - 0.5f + (float)(rng.NextDouble() * 1.6 - 0.8);
+                if (d <= r) t.SetPixel(x, y, Color.white);
+            }
             return t;
         }
 
