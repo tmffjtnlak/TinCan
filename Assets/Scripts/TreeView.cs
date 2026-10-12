@@ -37,7 +37,8 @@ namespace TinCan
         float bgDotTimer;
         readonly Dictionary<string, NodeView> views = new Dictionary<string, NodeView>();
         readonly List<LinkView> links = new List<LinkView>();
-        Image tip; Text tipTitle, tipDesc, tipCost; float tipTilt, tipTiltV, tipS = 1f, tipSV; Vector2 tipPos;
+        Image tip, tipRule; Text tipTitle, tipDesc, tipCost; float tipTilt, tipTiltV, tipS = 1f, tipSV, TipScale = 2f; Vector2 tipPos;
+        static readonly System.Text.RegularExpressions.Regex NumToken = new System.Text.RegularExpressions.Regex(@"[+\-×x]?\d+(?:[.,]\d+)?(?:%|배|번|초|개|발)?");
         Text money; float moneyPop, moneyTilt; long moneyShown;
         RectTransform cursor; Image[] corners;
         SkillNode hover;
@@ -95,11 +96,19 @@ namespace TinCan
             }
             cursor.gameObject.SetActive(false);
 
-            tip = Img("Tip", veil.transform, Vector2.zero, new Vector2(420f, 141f), "tip_panel", new Color(0.05f, 0.1f, 0.08f, 0.97f));
-            tip.type = Image.Type.Sliced; tip.pixelsPerUnitMultiplier = Mult;
-            tipTitle = Txt("TipTitle", tip.transform, new Vector2(0f, 42f), new Vector2(390f, 36f), 24, TextAnchor.MiddleCenter, Color.white);
-            tipDesc = Txt("TipDesc", tip.transform, new Vector2(0f, 3f), new Vector2(390f, 50f), 19, TextAnchor.MiddleCenter, new Color(0.85f, 0.95f, 0.9f));
-            tipCost = Txt("TipCost", tip.transform, new Vector2(0f, -45f), new Vector2(390f, 34f), 22, TextAnchor.MiddleCenter, SkillTree.Yellow);
+            // 설명 상자 (사용자 10-12 그림 tip_panel.png 262×117, 양옆 소용돌이 장식): 그림 픽셀 ×2 그대로, 늘리지 않는다.
+            // 구성: 이름(볼드) / ──── 구분선 / 내용(수치만 볼드+반짝) / 값. 글자는 흰색
+            var tipSprite = TreeArt.Get("tip_panel");
+            TipScale = tipSprite != null && tipSprite.rect.width > 100f ? 2f : Px;   // 사용자 그림이면 ×2, 임시 그림이면 도트 칸
+            var tipSize = tipSprite != null ? new Vector2(tipSprite.rect.width, tipSprite.rect.height) * TipScale : new Vector2(524f, 234f);
+            tip = Img("Tip", veil.transform, Vector2.zero, tipSize, "tip_panel", Color.white);
+            if (tipSprite != null && tipSprite.rect.width <= 100f) { tip.type = Image.Type.Sliced; tip.pixelsPerUnitMultiplier = Mult; tip.color = new Color(0.13f, 0.125f, 0.2f, 0.97f); }
+            float inner = tipSize.x - 60f * TipScale;          // 장식 안쪽
+            tipTitle = Txt("TipTitle", tip.transform, new Vector2(0f, tipSize.y * 0.5f - 38f), new Vector2(inner, 40f), 26, TextAnchor.MiddleCenter, Color.white);
+            tipRule = Img("TipRule", tip.transform, new Vector2(0f, tipSize.y * 0.5f - 62f), new Vector2(inner * 0.8f, 3f), "link_dim", new Color(1f, 1f, 1f, 0.5f));
+            tipRule.type = Image.Type.Tiled; tipRule.pixelsPerUnitMultiplier = 100f / (TreeArt.Ppu * 3f);
+            tipDesc = Txt("TipDesc", tip.transform, new Vector2(0f, -4f), new Vector2(inner, 70f), 21, TextAnchor.MiddleCenter, Color.white);
+            tipCost = Txt("TipCost", tip.transform, new Vector2(0f, -tipSize.y * 0.5f + 34f), new Vector2(inner, 34f), 24, TextAnchor.MiddleCenter, SkillTree.Yellow);
             tip.gameObject.SetActive(false);
 
             money = Txt("Money", veil.transform, new Vector2(760f, 455f), new Vector2(360f, 60f), 36, TextAnchor.MiddleRight, SkillTree.Yellow);
@@ -349,8 +358,13 @@ namespace TinCan
                 tip.rectTransform.localRotation = Quaternion.Euler(0f, 0f, tipTilt);
                 Ease.Spring(ref tipS, ref tipSV, 1f, 600f, 17f, dt);   // 살짝 넘쳤다 자리 잡는 크기
                 tip.rectTransform.localScale = Vector3.one * tipS;
-                tipTitle.text = hover.Name;
-                tipDesc.text = hover.Desc(hover.Level);
+                tipTitle.text = $"<b>{hover.Name}</b>";
+                // 수치만 볼드 + 반짝 (흰 → 금빛 → 흰, 가끔 더 환하게)
+                float sh = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 5f);
+                float spark = Mathf.PerlinNoise(Time.unscaledTime * 3f, 0.5f) > 0.8f ? 1f : 0f;
+                var shine = Color.Lerp(Color.Lerp(Color.white, SkillTree.Yellow, sh), Color.white, spark);
+                string hex = ColorUtility.ToHtmlStringRGB(shine);
+                tipDesc.text = NumToken.Replace(hover.Desc(hover.Level), m => $"<b><color=#{hex}>{m.Value}</color></b>");
                 bool avail = Available(hover);
                 tipCost.text = hover.Root ? "" : hover.Maxed ? "" : !avail ? "<color=#888888>옆 노드를 먼저</color>" : (game.Money >= hover.NextCost ? $"<color=#8cff9a>${hover.NextCost:N0}</color>" : $"<color=#ff6666>${hover.NextCost:N0}</color>");
                 tipCost.supportRichText = true;
