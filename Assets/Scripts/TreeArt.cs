@@ -70,6 +70,7 @@ namespace TinCan
                 case "fx_puff": return Make(Puff(12), name);
                 case "fx_ring": return Make(Ring(16), name);
                 case "cursor_corner": return Make(Corner(7), name);
+                case "tumbleweed": return Make(Tumbleweed(16), name);
                 default: return null;   // icon_*: 없으면 글자
             }
         }
@@ -233,6 +234,22 @@ namespace TinCan
                 float d = Vector2.Distance(new Vector2(x, y), new Vector2(c, c));
                 float r = c - 0.5f + (float)(rng.NextDouble() * 1.6 - 0.8);
                 if (d <= r) t.SetPixel(x, y, Color.white);
+            }
+            return t;
+        }
+
+        /// <summary>회전초: 성긴 둥근 덤불 (게이지 대신 굴러간다). 흰색, 코드가 마른 풀색을 입힌다</summary>
+        static Texture2D Tumbleweed(int n)
+        {
+            var t = Blank(n, n); float c = (n - 1) * 0.5f;
+            var rng = new System.Random(11);
+            for (int y = 0; y < n; y++) for (int x = 0; x < n; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x, y), new Vector2(c, c));
+                if (d > c) continue;
+                bool ring = d > c - 1.6f;
+                bool inner = rng.NextDouble() < 0.38;
+                if (ring || inner) t.SetPixel(x, y, new Color(1f, 1f, 1f, ring ? 1f : 0.75f));
             }
             return t;
         }

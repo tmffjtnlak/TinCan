@@ -50,6 +50,12 @@ namespace TinCan
         const float ChargeSeconds = 1.3f;
         SkillNode charging; float charge, tickTimer;
         Vector2 panBefore; float zoomBefore = 1f; bool panSaved; Vector2? panTarget;
+        // 해방 연출 강화 (사용자 10-12, 캐서디 궁 느낌): 꾹 누르면 아래에서 총이 올라오고, 회전초가 게이지처럼 굴러가고,
+        // 찰수록 화면이 떨리고, 다 차면 총이 이웃을 따다다당 쏜 뒤 한 바퀴 돌고 먼지만 남기고 사라진다
+        Image gunImg, tumble; RectTransform gunRt;
+        float gunY = -700f, gunYV, gunRot, gunRotV, gunKick, gunKickV, gunTarget = -700f, gunSpin, gunSpinV, gunAlpha = 1f, gunScale = 1f, gunScaleV;
+        float camRot, camRotV, tumbleX = -760f;
+        bool gunUp;
 
         class NodeView
         {
@@ -119,6 +125,15 @@ namespace TinCan
             money = Txt("Money", veil.transform, new Vector2(760f, 455f), new Vector2(360f, 60f), 36, TextAnchor.MiddleRight, SkillTree.Yellow);
             var hint = Txt("Hint", veil.transform, new Vector2(0f, -500f), new Vector2(1400f, 40f), 20, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.55f));
             hint.text = "누르면 산다 (누르고 있으면 연달아)   ·   핵심 노드는 꾹 눌러 해방   ·   휠 = 확대   ·   드래그·방향키 = 이동   ·   Tab = 닫는다";
+
+            // 해방용 총 (사용자 리볼버 그림, 피벗 = 방아쇠울) — 평소엔 화면 아래에 숨어 있다
+            var gunSprite = GunView.LoadArt("gun_revolver_side");
+            gunImg = Img("UnlockGun", veil.transform, new Vector2(0f, gunY), gunSprite != null ? new Vector2(gunSprite.rect.width, gunSprite.rect.height) * 3f : new Vector2(300f, 190f), null, Color.white);
+            if (gunSprite != null) { gunImg.sprite = gunSprite; gunImg.rectTransform.pivot = new Vector2(40f / 101f, 1f - 38f / 64f); }
+            gunRt = gunImg.rectTransform;
+            gunImg.gameObject.SetActive(false);
+            tumble = Img("Tumbleweed", veil.transform, new Vector2(tumbleX, -470f), Vector2.one * 16f * Px, "tumbleweed", new Color(0.75f, 0.62f, 0.35f));
+            tumble.gameObject.SetActive(false);
             veil.gameObject.SetActive(false);
         }
 
@@ -258,14 +273,7 @@ namespace TinCan
                 var ink = white ? Color.white : (owned || avail ? Color.white : new Color(1f, 1f, 1f, 0.3f));   // 흰 네모일 땐 아이콘도 묻힌다
                 if (v.Glyph != null) v.Glyph.color = ink; if (v.Icon != null) v.Icon.color = ink;
                 v.Lv.text = n.Key ? (n.Level >= 1 ? "" : "꾹") : (n.Maxed ? "완료" : $"${n.NextCost:N0}");
-                if (v.Gauge != null)
-                {
-                    bool chg = charging == n;
-                    v.Gauge.enabled = chg;
-                    v.Gauge.fillAmount = chg ? charge : 0f;
-                    v.Gauge.color = Color.Lerp(Color.white, SkillTree.Yellow, charge);
-                    v.Gauge.rectTransform.localScale = Vector3.one * (1f + charge * 0.15f);
-                }
+                if (v.Gauge != null) v.Gauge.enabled = false;   // 게이지는 링 대신 회전초가 굴러가는 걸로 (사용자 10-12)
                 v.Lv.color = n.Maxed ? SkillTree.Green : avail ? (game.Money >= n.NextCost ? SkillTree.Green : new Color(1f, 0.45f, 0.4f)) : new Color(1f, 1f, 1f, 0.45f);
                 // 값 글자: 바뀔 때 기울며 커졌다 돌아온다 (Click the Button 숫자)
                 float lp = Ease.Punch(v.LvPop);
@@ -305,9 +313,29 @@ namespace TinCan
             float mp = Ease.Punch(moneyPop);
             money.transform.localScale = Vector3.one * (1f + mp * 0.25f);
             money.transform.localRotation = Quaternion.Euler(0f, 0f, moneyTilt * mp);
-            // 전체 톡 (열 때·살 때)
+            // 전체 톡 (열 때·살 때) + 화면 회전 떨림 (충전·사격)
             Ease.Spring(ref worldPop, ref worldPopV, 1f, 500f, 14f, dt);
             world.localScale = Vector3.one * zoom * worldPop;
+            float jitter = charging != null ? charge * charge * Random.Range(-2.5f, 2.5f) : 0f;
+            Ease.Spring(ref camRot, ref camRotV, 0f, 300f, 9f, dt);
+            world.localRotation = Quaternion.Euler(0f, 0f, camRot + jitter);
+            // 총: 올라옴/내려감, 반동, 한 바퀴, 사라짐
+            Ease.Spring(ref gunY, ref gunYV, gunTarget, 260f, 14f, dt);
+            Ease.Spring(ref gunKick, ref gunKickV, 0f, 500f, 16f, dt);
+            Ease.Spring(ref gunSpin, ref gunSpinV, 0f, 220f, 11f, dt);
+            Ease.Spring(ref gunScale, ref gunScaleV, 1f, 400f, 14f, dt);
+            bool gunShow = gunY > -650f || gunUp;
+            gunImg.gameObject.SetActive(gunShow);
+            if (gunShow)
+            {
+                float aimDeg = gunRot + gunSpin;
+                var dir = new Vector2(Mathf.Cos(gunRot * Mathf.Deg2Rad), Mathf.Sin(gunRot * Mathf.Deg2Rad));
+                gunRt.anchoredPosition = new Vector2(0f, gunY) - dir * gunKick * 40f;
+                bool left = Mathf.Cos(gunRot * Mathf.Deg2Rad) < 0f;
+                gunRt.localRotation = Quaternion.Euler(0f, 0f, aimDeg + (charging != null ? charge * charge * Random.Range(-3f, 3f) : 0f));
+                gunRt.localScale = new Vector3(gunScale, left ? -gunScale : gunScale, 1f);
+                gunImg.color = new Color(1f, 1f, 1f, gunAlpha);
+            }
         }
 
         void Update()
@@ -478,14 +506,20 @@ namespace TinCan
         }
 
         // ---------- 핵심 노드: 꾹 눌러 해방 ----------
+        /// <summary>노드의 캔버스 좌표 (총이 겨눌 곳)</summary>
+        Vector2 NodeCanvas(SkillNode n) => n.Pos * Spacing * zoom * worldPop + world.anchoredPosition;
+
         void BeginCharge(SkillNode n)
         {
             charging = n; charge = 0f; tickTimer = 0f;
             if (!panSaved) { panBefore = world.anchoredPosition; zoomBefore = zoomTarget; panSaved = true; }
             zoomTarget = Mathf.Max(zoomTarget, 1.6f);
-            panTarget = -n.Pos * Spacing * zoomTarget;      // 노드가 화면 가운데로
-            views[n.Id].Sx = 1.1f; views[n.Id].Sy = 0.9f;  // 누른 느낌
-            Sfx.Play(Sfx.Click(), 0.4f, 0.9f);
+            panTarget = -n.Pos * Spacing * zoomTarget + new Vector2(0f, 60f);   // 노드가 가운데 조금 위로 (아래는 총 자리)
+            views[n.Id].Sx = 1.1f; views[n.Id].Sy = 0.9f;
+            // 총이 아래에서 올라온다 (캐서디 궁), 회전초가 왼쪽 끝에서 출발
+            gunUp = true; gunTarget = -330f; gunYV = 900f; gunAlpha = 1f; gunScale = 1f; gunSpin = 0f;
+            tumble.gameObject.SetActive(true); tumbleX = -760f;
+            Sfx.Play(Sfx.Reload(), 0.7f, 0.8f);
         }
 
         void ChargeTick(float dt)
@@ -495,6 +529,13 @@ namespace TinCan
             // 찰수록 떨리고, 커지고, 점이 빨려 들어온다
             v.Root.anchoredPosition = charging.Pos * Spacing + Random.insideUnitCircle * charge * charge * 3f * Px;
             v.Sx = v.Sy = 1f + charge * 0.25f; v.Vx = v.Vy = 0f;
+            // 총이 노드를 겨눈다. 회전초가 게이지만큼 굴러간다 (먼지 남기며)
+            var aim = NodeCanvas(charging) - new Vector2(0f, gunY);
+            gunRot = Mathf.LerpAngle(gunRot, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, 1f - Mathf.Exp(-dt * 10f));
+            float tx = Mathf.Lerp(-760f, 760f, charge);
+            tumble.rectTransform.anchoredPosition = new Vector2(tx, -470f + Mathf.Abs(Mathf.Sin(charge * 40f)) * 10f);
+            tumble.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -charge * 1400f);
+            if (tx - tumbleX > 24f) { tumbleX = tx; StartCoroutine(DustCo(new Vector2(tx - 20f, -485f), new Color(0.8f, 0.7f, 0.5f, 0.6f))); }
             tickTimer -= dt;
             if (tickTimer <= 0f)
             {
@@ -528,60 +569,100 @@ namespace TinCan
                 charge = 0f;
                 Sfx.Play(Sfx.Whoosh(), 0.3f, 1.6f);
                 zoomTarget = zoomBefore; panTarget = panBefore; panSaved = false;
+                gunUp = false; gunTarget = -700f; tumble.gameObject.SetActive(false);   // 총이 내려간다
                 return;
             }
             charge = 0f;
             StartCoroutine(Unlock(n));
         }
 
-        /// <summary>해방: 노드가 터지듯 흰색, 큰 흔들림 → 이웃을 하나씩 총으로 쏴서 연다 (총구 섬광 → 궤적 → 명중 불꽃 → 드러남)</summary>
+        /// <summary>먼지 한 점: 회색 뭉게가 커지며 옅어진다</summary>
+        IEnumerator DustCo(Vector2 at, Color c)
+        {
+            var d = Img("Dust", veil.transform, at, Vector2.one * Random.Range(6f, 10f) * Px, "fx_puff", c);
+            d.transform.SetSiblingIndex(3);
+            var from = d.rectTransform.anchoredPosition; float drift = Random.Range(-20f, 20f);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / Random.Range(0.5f, 0.9f))
+            {
+                d.rectTransform.anchoredPosition = from + new Vector2(drift * t, 30f * t);
+                d.rectTransform.localScale = Vector3.one * (0.6f + t * 0.9f);
+                d.color = new Color(c.r, c.g, c.b, c.a * (1f - t));
+                yield return null;
+            }
+            Destroy(d.gameObject);
+        }
+
+        /// <summary>
+        /// 해방 (캐서디 궁): 노드가 흰색으로 터지고 → 아래 총이 이웃을 **따다다다당** 쏜다 (쏠 때마다 줌이 살짝 풀리고 화면이 돈다)
+        /// → 총이 한 바퀴 돌고 → 트윈으로 사라지며 먼지 잔상만 → 회전초 퇴장 → 카메라 복귀
+        /// </summary>
         IEnumerator Unlock(SkillNode n)
         {
             var v = views[n.Id];
             game.BuyNode(n);
             v.Flash = 1.6f; v.Sx = 1.5f; v.Sy = 1.5f; v.Vx = v.Vy = 0f; v.Rot = Random.Range(-20f, 20f);
-            worldPop = 1.04f; worldPopV = 0f;
+            worldPop = 1.04f; worldPopV = 0f; camRotV = 40f;
             Fx.Shake(0.5f);
             Sfx.Play(Sfx.Bang(), 0.9f, 0.7f);
             Sfx.Play(Sfx.Tang(), 0.7f, 0.5f);
             StartCoroutine(Puff(v));
             StartCoroutine(RingCo(Img("Ring", v.Root.parent, v.Root.anchoredPosition, Vector2.one * 16f * Px, "fx_ring", Color.white), 0.7f));
-            yield return new WaitForSecondsRealtime(0.25f);
-            // 이웃을 순서대로 쏜다
+            tumble.gameObject.SetActive(false);
+            yield return new WaitForSecondsRealtime(0.22f);
+            // 이웃을 순서대로 쏜다 (팬 해머: 0.09초 간격)
             var targets = new List<string>(nb[n.Id]);
             targets.Sort((a, b) => Mathf.Atan2(byId[a].Pos.y - n.Pos.y, byId[a].Pos.x - n.Pos.x).CompareTo(Mathf.Atan2(byId[b].Pos.y - n.Pos.y, byId[b].Pos.x - n.Pos.x)));
+            int shot = 0;
             foreach (var id in targets)
             {
                 var o = byId[id]; var ov = views[id];
                 if (ov.Visible && o.Level >= 1) continue;
-                StartCoroutine(ShootReveal(n, o));
-                yield return new WaitForSecondsRealtime(0.11f);
+                // 총이 그 노드를 겨눈다 (즉시), 반동, 줌이 살짝 풀리며 화면이 돈다
+                var aim = NodeCanvas(o) - new Vector2(0f, gunY);
+                gunRot = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
+                gunKick = 1f; gunKickV = 0f;
+                zoomTarget = Mathf.Max(zoomBefore, zoomTarget - 0.08f);
+                camRotV += (shot % 2 == 0 ? 1f : -1f) * 90f;
+                StartCoroutine(ShootReveal(o));
+                shot++;
+                yield return new WaitForSecondsRealtime(0.09f);
             }
-            yield return new WaitForSecondsRealtime(0.4f);
+            yield return new WaitForSecondsRealtime(0.25f);
+            // 한 바퀴 돌리고 (총 돌리기)
+            Sfx.Play(Sfx.Twirl(), 0.6f, 1.2f);
+            gunSpin = 360f; gunSpinV = 0f;
+            yield return new WaitForSecondsRealtime(0.45f);
+            // 트윈으로 사라진다: 살짝 커졌다 작아지며 투명, 그 자리에 먼지
+            gunScale = 1.25f; gunScaleV = 0f;
+            var gunPos = gunRt.anchoredPosition;
+            for (int i = 0; i < 7; i++) StartCoroutine(DustCo(gunPos + Random.insideUnitCircle * 60f, new Color(0.85f, 0.8f, 0.7f, 0.7f)));
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.22f) { gunAlpha = 1f - t; gunScale = Mathf.Lerp(1.25f, 0.4f, Ease.InQuad(t)); yield return null; }
+            gunUp = false; gunTarget = -700f; gunY = -700f; gunAlpha = 1f; gunScale = 1f;
             zoomTarget = zoomBefore; panTarget = panBefore; panSaved = false;   // 카메라 돌아온다
         }
 
-        IEnumerator ShootReveal(SkillNode from, SkillNode to)
+        /// <summary>아래 총에서 노드로: 총구 섬광 → 궤적 0.06초 → 명중 (깡통 맞은 것처럼 튀며 돈다)</summary>
+        IEnumerator ShootReveal(SkillNode to)
         {
-            Vector2 a = from.Pos * Spacing, b = to.Pos * Spacing; var d = b - a;
-            float deg = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
-            // 총구 섬광 + 반동
-            var fv = views[from.Id];
-            fv.Rot = -Mathf.Sign(d.x == 0 ? 1f : d.x) * 10f; fv.Sx = 1.2f; fv.Sy = 0.9f;
-            var flash = Img("Muzzle", world, a + d.normalized * NodePx * Px * 0.6f, Vector2.one * 10f * Px, "fx_puff", Color.white);
-            Sfx.Play(Sfx.Bang(), 0.6f, 1.3f + Random.Range(-0.1f, 0.1f));
-            Fx.Shake(0.15f);
-            // 궤적: 흰 선이 0.06초에 날아간다
-            var tracer = Img("Tracer", world, a, new Vector2(d.magnitude * 0.35f, 2f * Px), "link", Color.white);
+            // 총구 (캔버스 좌표): 피벗에서 총열 끝까지
+            var dir = new Vector2(Mathf.Cos(gunRot * Mathf.Deg2Rad), Mathf.Sin(gunRot * Mathf.Deg2Rad));
+            Vector2 muzzle = gunRt.anchoredPosition + dir * 190f;
+            Vector2 target = NodeCanvas(to);
+            var d = target - muzzle; float deg = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+            var flash = Img("Muzzle", veil.transform, muzzle, Vector2.one * 7f * Px, "fx_puff", Color.white);
+            Sfx.Play(Sfx.Bang(), 0.7f, 1.2f + Random.Range(-0.1f, 0.15f));
+            Fx.Shake(0.18f);
+            var tracer = Img("Tracer", veil.transform, muzzle, new Vector2(d.magnitude * 0.3f, 2f * Px), "link", Color.white);
             tracer.rectTransform.pivot = new Vector2(0f, 0.5f);
             tracer.rectTransform.localRotation = Quaternion.Euler(0f, 0f, deg);
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.06f)
             {
-                tracer.rectTransform.anchoredPosition = a + d * t * 0.7f;
+                tracer.rectTransform.anchoredPosition = muzzle + d * t * 0.7f;
                 flash.rectTransform.localScale = Vector3.one * (1.3f - t);
                 yield return null;
             }
             Destroy(tracer.gameObject); Destroy(flash.gameObject);
+            // 명중
             // 명중: 불꽃 + 드러남 (깡통 맞은 것처럼 튀며 돈다)
             var ov = views[to.Id];
             ov.Visible = true; ov.Root.gameObject.SetActive(true);
@@ -594,7 +675,7 @@ namespace TinCan
             Confetti(ov, 16);
             StartCoroutine(CornerDots(ov));
             StartCoroutine(Twinkle(ov));
-            foreach (var l in links) if ((l.A == from.Id && l.B == to.Id) || (l.B == from.Id && l.A == to.Id)) l.Flash = 1f;
+            foreach (var l in links) if (l.A == to.Id || l.B == to.Id) l.Flash = 1f;
         }
 
         /// <summary>누름: 1프레임에 납작 (Pressed). 살 수 있으면 바로 산다 → 흰 네모 + 길게 튕김</summary>
