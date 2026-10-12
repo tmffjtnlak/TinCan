@@ -75,6 +75,9 @@ namespace TinCan
                 case "book_cover": return Make(BookCover(44, 30), name);
                 case "book_open": return Make(BookOpen(160, 100), name, border: 8);
                 case "paper_tag": return Make(PaperTag(36, 16), name, border: 5);
+                case "paper_sheet": return Make(Box(24, 1), name, border: 3);     // 설명서 종이 (흰 네모, 1칸 테두리)
+                case "stat_pill": return Make(Pill(24, 12), name, border: 6);      // 수치 알약
+                case "card_small": return Make(BookCover(30, 22), name);          // 왼쪽 작은 카드
                 default: return null;   // icon_*: 없으면 글자
             }
         }
@@ -304,6 +307,20 @@ namespace TinCan
                 t.SetPixel(x, y, new Color(1f, 1f, 1f, edge ? 0.6f : 1f));
             }
             t.SetPixel(c + 2, c, new Color(1f, 1f, 1f, 0f)); t.SetPixel(c + 3, c, new Color(1f, 1f, 1f, 0f));   // 구멍
+            return t;
+        }
+
+        /// <summary>알약: 양끝이 둥근 가로 막대, 테두리 1칸</summary>
+        static Texture2D Pill(int w, int h)
+        {
+            var t = Blank(w, h); float r = (h - 1) * 0.5f;
+            for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
+            {
+                float cx = Mathf.Clamp(x, r, w - 1 - r);
+                float d = Vector2.Distance(new Vector2(x, y), new Vector2(cx, r));
+                if (d > r + 0.3f) continue;
+                t.SetPixel(x, y, new Color(1f, 1f, 1f, d > r - 1f ? 0.55f : 1f));
+            }
             return t;
         }
 
