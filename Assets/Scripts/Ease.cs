@@ -20,5 +20,16 @@ namespace TinCan
         public static float InQuad(float t) => t * t;
         /// <summary>갔다 돌아오는 산 모양 (펀치)</summary>
         public static float Punch(float t) => Mathf.Sin(t * Mathf.PI);
+        /// <summary>
+        /// 용수철: 값이 목표로 튕기며 간다 (Click the Button 식 말랑한 움직임). 매 프레임 부른다.
+        /// stiffness 크면 빠르고, damping 작으면 더 출렁인다. (300, 18)이면 0.15초쯤에 살짝 넘쳤다 자리 잡는다
+        /// </summary>
+        public static void Spring(ref float x, ref float v, float target, float stiffness, float damping, float dt)
+        {
+            dt = Mathf.Min(dt, 0.05f);
+            v += (target - x) * stiffness * dt;
+            v *= Mathf.Max(0f, 1f - damping * dt);
+            x += v * dt;
+        }
     }
 }
