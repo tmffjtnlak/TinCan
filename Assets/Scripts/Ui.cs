@@ -12,7 +12,11 @@ namespace TinCan
         /// <summary>마스터 픽셀: 1080p 기준 화면 픽셀 수. 그림(PPU 36)과 UI가 이 한 칸을 같이 쓴다</summary>
         public const float Px = 3f;
         static Font font;
-        public static Font Font => font != null ? font : (font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+        /// <summary>도트 폰트 (사용자 10-12: x10y12pxDenkiChipHangul, 12px 격자). 없으면 기본 벡터 폰트</summary>
+        public static Font Font => font != null ? font : (font = Resources.Load<Font>("Fonts/DenkiChip") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+        public static bool PixelFont => Font != null && Font.name != "LegacyRuntime";
+        /// <summary>도트 폰트는 12의 배수 크기에서만 또렷하다: 가장 가까운 배수로 (최소 12)</summary>
+        public static int Snap(int size) => PixelFont ? Mathf.Max(12, Mathf.RoundToInt(size / 12f) * 12) : size;
 
         public static readonly Color Board = new Color(0.2f, 0.13f, 0.09f, 0.96f);
         public static readonly Color BoardEdge = new Color(0.55f, 0.38f, 0.22f, 1f);
@@ -64,7 +68,7 @@ namespace TinCan
                 sh.effectColor = new Color(0f, 0f, 0f, 0.7f); sh.effectDistance = new Vector2(Px, -Px);   // 그림자 = 한 픽셀
             }
             var t = rt.gameObject.AddComponent<Text>();
-            t.font = Font; t.fontSize = fontSize; t.alignment = anchor; t.color = color; t.raycastTarget = false; t.supportRichText = true;
+            t.font = Font; t.fontSize = Snap(fontSize); t.alignment = anchor; t.color = color; t.raycastTarget = false; t.supportRichText = true;
             t.horizontalOverflow = HorizontalWrapMode.Overflow; t.verticalOverflow = VerticalWrapMode.Overflow;
             return t;
         }

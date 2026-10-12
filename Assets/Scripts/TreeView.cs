@@ -130,7 +130,7 @@ namespace TinCan
             string iconName = TreeArt.Has("icon_" + n.Id) ? "icon_" + n.Id : "icon_" + Family(n);
             if (TreeArt.Has(iconName)) v.Icon = Img("Icon", root.transform, Vector2.zero, Vector2.one * IconPx * Px, iconName, Color.white);
             else { v.Glyph = Txt("Glyph", root.transform, Vector2.zero, Vector2.one * size, 28, TextAnchor.MiddleCenter, Color.white); v.Glyph.text = n.Glyph; }
-            v.Lv = Txt("Lv", root.transform, new Vector2(0f, -size * 0.72f), new Vector2(140f, 26f), 17, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.8f));
+            v.Lv = Txt("Lv", root.transform, new Vector2(0f, -size * 0.74f), new Vector2(160f, 30f), 24, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.8f));
             return v;
         }
 
