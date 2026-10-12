@@ -27,6 +27,7 @@ namespace TinCan
         GunKind selected;
         float scroll, scrollV, openSx, openSxV, gunS, gunSV, gunRot, gunRotV, gunWhiteA, tagY, tagYV, tagRot, tagRotV, tagS = 1f, tagSV;
         Sprite gunSprite, gunWhiteSprite;
+        RenderTexture blurRt; Camera blurCam;
         static readonly Dictionary<Sprite, Sprite> whites = new Dictionary<Sprite, Sprite>();
 
         public bool Visible => veil.gameObject.activeSelf;
@@ -34,7 +35,15 @@ namespace TinCan
         public void Build(Game g, Transform canvas)
         {
             game = g;
-            veil = Ui.Image("Booklet", canvas, Vector2.zero, new Vector2(4000f, 3000f), new Color(0.16f, 0.11f, 0.08f, 1f));
+            // 배경 = 게임 화면을 흐리게 (사용자 10-12: 반투명 블러 느낌). 작은 렌더텍스처(192×108)에 그려서 크게 늘리면 흐려진다. 그 위에 어두운 반투명
+            veil = Ui.Image("Booklet", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
+            blurRt = new RenderTexture(192, 108, 0) { filterMode = FilterMode.Bilinear };
+            var camGo = new GameObject("BlurCam"); camGo.transform.SetParent(Camera.main.transform, false);
+            blurCam = camGo.AddComponent<Camera>(); blurCam.CopyFrom(Camera.main); blurCam.targetTexture = blurRt; blurCam.depth = Camera.main.depth - 1; blurCam.enabled = false;
+            var blur = new GameObject("Blur", typeof(RectTransform)); blur.transform.SetParent(veil.transform, false);
+            var brt = (RectTransform)blur.transform; brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f); brt.sizeDelta = new Vector2(1920f, 1080f);
+            var raw = blur.AddComponent<RawImage>(); raw.texture = blurRt; raw.raycastTarget = false; raw.color = new Color(0.8f, 0.75f, 0.7f);
+            Ui.Image("Tint", veil.transform, Vector2.zero, new Vector2(4000f, 3000f), new Color(0.12f, 0.08f, 0.06f, 0.62f));
             // 왼쪽: 책자 목록
             for (int i = 0; i < GunKind.ForSale.Count; i++)
             {
@@ -66,9 +75,10 @@ namespace TinCan
         {
             veil.gameObject.SetActive(true);
             veil.transform.SetAsLastSibling();
+            if (blurCam != null) { blurCam.CopyFrom(Camera.main); blurCam.targetTexture = blurRt; blurCam.enabled = true; }
             if (selected == null) Select(game.Primary, instant: true);
         }
-        public void Hide() => veil.gameObject.SetActive(false);
+        public void Hide() { veil.gameObject.SetActive(false); if (blurCam != null) blurCam.enabled = false; }
 
         /// <summary>책자를 고른다: 펼쳐지는 용수철 + 총이 종이 위에 생겨난다</summary>
         void Select(GunKind k, bool instant = false)
