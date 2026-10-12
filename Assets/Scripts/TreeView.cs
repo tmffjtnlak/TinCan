@@ -47,13 +47,13 @@ namespace TinCan
         int buyStreak; float lastBuy, holdTimer;
         float dotTimer;
         // 핵심 노드 충전 (사용자 10-12): 꾹 누르면 게이지가 차고 화면이 그 노드로 부드럽게 줌인, 쭈욱 차오르는 소리. 다 차면 해방
-        const float ChargeSeconds = 1.3f;
+        const float ChargeSeconds = 2.4f;   // 석양이 지는 템포 (사용자 10-12: 더 길게, 더 느리게)
         SkillNode charging; float charge, tickTimer;
         Vector2 panBefore; float zoomBefore = 1f; bool panSaved; Vector2? panTarget;
         // 해방 연출 강화 (사용자 10-12, 캐서디 궁 느낌): 꾹 누르면 아래에서 총이 올라오고, 회전초가 게이지처럼 굴러가고,
         // 찰수록 화면이 떨리고, 다 차면 총이 이웃을 따다다당 쏜 뒤 한 바퀴 돌고 먼지만 남기고 사라진다
         Image gunImg, tumble; RectTransform gunRt;
-        float gunY = -700f, gunYV, gunRot, gunRotV, gunKick, gunKickV, gunTarget = -700f, gunSpin, gunSpinV, gunAlpha = 1f, gunScale = 1f, gunScaleV;
+        float gunY = -700f, gunYV, gunRot, gunRotV, gunKick, gunKickV, gunTarget = -700f, gunSpin, gunSpinV, gunAlpha = 1f, gunScale = 1f, gunScaleV, gunX;
         float camRot, camRotV, tumbleX = -760f;
         bool gunUp;
 
@@ -330,7 +330,7 @@ namespace TinCan
             {
                 float aimDeg = gunRot + gunSpin;
                 var dir = new Vector2(Mathf.Cos(gunRot * Mathf.Deg2Rad), Mathf.Sin(gunRot * Mathf.Deg2Rad));
-                gunRt.anchoredPosition = new Vector2(0f, gunY) - dir * gunKick * 40f;
+                gunRt.anchoredPosition = new Vector2(gunX, gunY) - dir * gunKick * 40f;
                 bool left = Mathf.Cos(gunRot * Mathf.Deg2Rad) < 0f;
                 gunRt.localRotation = Quaternion.Euler(0f, 0f, aimDeg + (charging != null ? charge * charge * Random.Range(-3f, 3f) : 0f));
                 gunRt.localScale = new Vector3(gunScale, left ? -gunScale : gunScale, 1f);
@@ -348,10 +348,10 @@ namespace TinCan
                 float wheel = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(wheel) > 0.01f) zoomTarget = Mathf.Clamp(zoomTarget * (wheel > 0 ? 1.15f : 0.87f), 0.5f, 1.8f);
             }
-            zoom = Mathf.Lerp(zoom, zoomTarget, 1f - Mathf.Exp(-dt * (charging != null || panTarget.HasValue ? 6f : 20f)));
+            zoom = Mathf.Lerp(zoom, zoomTarget, 1f - Mathf.Exp(-dt * (charging != null || panTarget.HasValue ? 3.5f : 20f)));
             if (panTarget.HasValue)
             {
-                world.anchoredPosition = Vector2.Lerp(world.anchoredPosition, panTarget.Value, 1f - Mathf.Exp(-dt * 6f));
+                world.anchoredPosition = Vector2.Lerp(world.anchoredPosition, panTarget.Value, 1f - Mathf.Exp(-dt * 3.5f));
                 if (charging == null && Vector2.Distance(world.anchoredPosition, panTarget.Value) < 1f) panTarget = null;
             }
             if (kb != null)
@@ -407,7 +407,8 @@ namespace TinCan
                 if (mouse.leftButton.wasReleasedThisFrame) dragging = false;
             }
             cursor.gameObject.SetActive(hover != null);
-            if (hover != null)
+            bool secret = hover != null && hover.Key && hover.Level < 1;   // 해방 전 핵심 노드는 정보를 안 보여 준다 (사용자 10-12)
+            if (hover != null && !secret)
             {
                 cursor.anchoredPosition = hover.Pos * Spacing;
                 cursor.localRotation = Quaternion.Euler(0f, 0f, views[hover.Id].Rot);   // 꺾쇠는 노드와 같이 돈다
@@ -517,7 +518,9 @@ namespace TinCan
             panTarget = -n.Pos * Spacing * zoomTarget + new Vector2(0f, 60f);   // 노드가 가운데 조금 위로 (아래는 총 자리)
             views[n.Id].Sx = 1.1f; views[n.Id].Sy = 0.9f;
             // 총이 아래에서 올라온다 (캐서디 궁), 회전초가 왼쪽 끝에서 출발
-            gunUp = true; gunTarget = -330f; gunYV = 900f; gunAlpha = 1f; gunScale = 1f; gunSpin = 0f;
+            // 총은 아래쪽 어딘가에서 (정중앙은 피한다. 사용자 10-12)
+            gunX = Random.Range(-420f, 420f); gunTarget = Random.Range(-380f, -300f);
+            gunUp = true; gunYV = 600f; gunAlpha = 1f; gunScale = 1f; gunSpin = 0f;
             tumble.gameObject.SetActive(true); tumbleX = -760f;
             Sfx.Play(Sfx.Reload(), 0.7f, 0.8f);
         }
@@ -530,8 +533,8 @@ namespace TinCan
             v.Root.anchoredPosition = charging.Pos * Spacing + Random.insideUnitCircle * charge * charge * 3f * Px;
             v.Sx = v.Sy = 1f + charge * 0.25f; v.Vx = v.Vy = 0f;
             // 총이 노드를 겨눈다. 회전초가 게이지만큼 굴러간다 (먼지 남기며)
-            var aim = NodeCanvas(charging) - new Vector2(0f, gunY);
-            gunRot = Mathf.LerpAngle(gunRot, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, 1f - Mathf.Exp(-dt * 10f));
+            var aim = NodeCanvas(charging) - new Vector2(gunX, gunY);
+            gunRot = Mathf.LerpAngle(gunRot, Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg, 1f - Mathf.Exp(-dt * 6f));
             float tx = Mathf.Lerp(-760f, 760f, charge);
             tumble.rectTransform.anchoredPosition = new Vector2(tx, -470f + Mathf.Abs(Mathf.Sin(charge * 40f)) * 10f);
             tumble.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -charge * 1400f);
@@ -539,8 +542,8 @@ namespace TinCan
             tickTimer -= dt;
             if (tickTimer <= 0f)
             {
-                tickTimer = Mathf.Lerp(0.09f, 0.035f, charge);                  // 점점 촘촘하게
-                Sfx.Play(Sfx.Click(), 0.3f + charge * 0.4f, 0.8f + charge * 2.2f); // 점점 높게 = 쭈우욱
+                tickTimer = Mathf.Lerp(0.16f, 0.05f, charge);                   // 점점 촘촘하게 (느린 템포)
+                Sfx.Play(Sfx.Click(), 0.3f + charge * 0.4f, 0.7f + charge * 2.0f); // 점점 높게 = 쭈우욱
                 var dir = Random.insideUnitCircle.normalized;
                 var d = Img("Suck", world, v.Root.anchoredPosition + dir * NodePx * Px * Random.Range(1.2f, 2.2f), Vector2.one * 2f * Px, "fx_dot", Color.Lerp(Color.white, SkillTree.Yellow, charge));
                 StartCoroutine(SuckCo(d, v));
@@ -608,8 +611,8 @@ namespace TinCan
             StartCoroutine(Puff(v));
             StartCoroutine(RingCo(Img("Ring", v.Root.parent, v.Root.anchoredPosition, Vector2.one * 16f * Px, "fx_ring", Color.white), 0.7f));
             tumble.gameObject.SetActive(false);
-            yield return new WaitForSecondsRealtime(0.22f);
-            // 이웃을 순서대로 쏜다 (팬 해머: 0.09초 간격)
+            yield return new WaitForSecondsRealtime(0.7f);   // 정오의 정적 — 한 박자 쉰다
+            // 이웃을 순서대로 쏜다 (0.22초 간격, 한 발 한 발 무겁게)
             var targets = new List<string>(nb[n.Id]);
             targets.Sort((a, b) => Mathf.Atan2(byId[a].Pos.y - n.Pos.y, byId[a].Pos.x - n.Pos.x).CompareTo(Mathf.Atan2(byId[b].Pos.y - n.Pos.y, byId[b].Pos.x - n.Pos.x)));
             int shot = 0;
@@ -618,25 +621,26 @@ namespace TinCan
                 var o = byId[id]; var ov = views[id];
                 if (ov.Visible && o.Level >= 1) continue;
                 // 총이 그 노드를 겨눈다 (즉시), 반동, 줌이 살짝 풀리며 화면이 돈다
-                var aim = NodeCanvas(o) - new Vector2(0f, gunY);
+                var aim = NodeCanvas(o) - new Vector2(gunX, gunY);
                 gunRot = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
                 gunKick = 1f; gunKickV = 0f;
-                zoomTarget = Mathf.Max(zoomBefore, zoomTarget - 0.08f);
+                zoomTarget = Mathf.Max(zoomBefore, zoomTarget - 0.1f);
                 camRotV += (shot % 2 == 0 ? 1f : -1f) * 90f;
                 StartCoroutine(ShootReveal(o));
                 shot++;
-                yield return new WaitForSecondsRealtime(0.09f);
+                yield return new WaitForSecondsRealtime(0.22f);
             }
-            yield return new WaitForSecondsRealtime(0.25f);
-            // 한 바퀴 돌리고 (총 돌리기)
-            Sfx.Play(Sfx.Twirl(), 0.6f, 1.2f);
+            yield return new WaitForSecondsRealtime(0.5f);
+            // 한 바퀴 천천히 돌리고 (총 돌리기)
+            Sfx.Play(Sfx.Twirl(), 0.6f, 0.9f);
             gunSpin = 360f; gunSpinV = 0f;
-            yield return new WaitForSecondsRealtime(0.45f);
-            // 트윈으로 사라진다: 살짝 커졌다 작아지며 투명, 그 자리에 먼지
-            gunScale = 1.25f; gunScaleV = 0f;
+            yield return new WaitForSecondsRealtime(0.8f);
+            // 트윈으로 사라진다: 살짝 커졌다 작아지며 투명, 그 자리에 먼지가 천천히
+            gunScale = 1.2f; gunScaleV = 0f;
             var gunPos = gunRt.anchoredPosition;
-            for (int i = 0; i < 7; i++) StartCoroutine(DustCo(gunPos + Random.insideUnitCircle * 60f, new Color(0.85f, 0.8f, 0.7f, 0.7f)));
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.22f) { gunAlpha = 1f - t; gunScale = Mathf.Lerp(1.25f, 0.4f, Ease.InQuad(t)); yield return null; }
+            for (int i = 0; i < 9; i++) StartCoroutine(DustCo(gunPos + Random.insideUnitCircle * 70f, new Color(0.85f, 0.8f, 0.7f, 0.7f)));
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.5f) { gunAlpha = 1f - t; gunScale = Mathf.Lerp(1.2f, 0.5f, Ease.InQuad(t)); yield return null; }
+            yield return new WaitForSecondsRealtime(0.3f);
             gunUp = false; gunTarget = -700f; gunY = -700f; gunAlpha = 1f; gunScale = 1f;
             zoomTarget = zoomBefore; panTarget = panBefore; panSaved = false;   // 카메라 돌아온다
         }
@@ -646,7 +650,7 @@ namespace TinCan
         {
             // 총구 (캔버스 좌표): 피벗에서 총열 끝까지
             var dir = new Vector2(Mathf.Cos(gunRot * Mathf.Deg2Rad), Mathf.Sin(gunRot * Mathf.Deg2Rad));
-            Vector2 muzzle = gunRt.anchoredPosition + dir * 190f;
+            Vector2 muzzle = new Vector2(gunX, gunY) + dir * 190f;
             Vector2 target = NodeCanvas(to);
             var d = target - muzzle; float deg = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
             var flash = Img("Muzzle", veil.transform, muzzle, Vector2.one * 7f * Px, "fx_puff", Color.white);
