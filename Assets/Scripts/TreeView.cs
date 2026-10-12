@@ -134,6 +134,9 @@ namespace TinCan
             gunImg.gameObject.SetActive(false);
             tumble = Img("Tumbleweed", veil.transform, new Vector2(tumbleX, -470f), Vector2.one * 16f * Px, "tumbleweed", new Color(0.75f, 0.62f, 0.35f));
             tumble.gameObject.SetActive(false);
+            // 리볼버 실루엣이 화면에 다 들어오게: 조금 축소하고 총열 쪽으로 중심을 옮긴다
+            zoom = zoomTarget = 0.72f;
+            world.anchoredPosition = new Vector2(-1.8f * Spacing * zoom, 1.0f * Spacing * zoom);
             veil.gameObject.SetActive(false);
         }
 
@@ -165,7 +168,7 @@ namespace TinCan
         /// <summary>계열 이름 (색으로 판단): reload / shelf / money / auto / time / root</summary>
         static string Family(SkillNode n)
         {
-            if (n.Root) return "root";
+            if (n.Root || n.Key) return "root";   // 핵심 노드는 별
             if (n.Color == SkillTree.Red) return "reload";
             if (n.Color == SkillTree.Cyan) return "shelf";
             if (n.Color == SkillTree.Yellow) return "money";

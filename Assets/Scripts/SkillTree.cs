@@ -39,7 +39,70 @@ namespace TinCan
         static SkillNode N(string id, string name, string glyph, Vector2 pos, Color color, long cost, string desc, Action<Game> apply, params string[] links)
             => new SkillNode { Id = id, Name = name, Glyph = glyph, Pos = pos, Color = color, Cost = l => cost, Desc = l => desc, Apply = (g, l) => apply(g), Links = links };
 
-        public static List<SkillNode> Make() => new List<SkillNode>
+        public static List<SkillNode> Make() => Revolver(Raw());
+
+        /// <summary>
+        /// 리볼버 모양으로 배치 (사용자 10-12: "완성되면 트리가 하나의 심볼이 된다. 우리는 리볼버").
+        /// 뿌리 = 실린더 중심. 부위마다 기존 노드를 순서대로 앉히고 모자라면 빈 노드(시험용)로 채운다. 부위 끝은 핵심 노드.
+        /// 단위 1 = 노드 간격. 오른쪽을 향한 옆모습.
+        /// </summary>
+        static List<SkillNode> Revolver(List<SkillNode> raw)
+        {
+            var byId = new Dictionary<string, SkillNode>();
+            foreach (var n in raw) { byId[n.Id] = n; n.Links = new string[0]; }
+            var list = new List<SkillNode> { byId["root"] };
+            int blanks = 0;
+            SkillNode Blank(Vector2 pos, Color c)
+            {
+                blanks++;
+                return new SkillNode { Id = $"blank{blanks}", Name = "빈 노드", Glyph = "·", Pos = pos, Color = c, Cost = l => 10, Desc = l => "시험용 빈 노드.", Apply = (g, l) => { } };
+            }
+            void Link(SkillNode a, SkillNode b) { var l = new List<string>(a.Links); if (!l.Contains(b.Id)) l.Add(b.Id); a.Links = l.ToArray(); }
+            // 부위: 이전 노드에서 출발해 자리마다 기존 노드(순서대로) 또는 빈 노드, 끝에 핵심 노드
+            SkillNode Part(SkillNode from, Color color, string[] members, Vector2[] spots, string keyId, string keyName, Vector2? keyPos)
+            {
+                var prev = from; int m = 0;
+                foreach (var p in spots)
+                {
+                    SkillNode n;
+                    if (m < members.Length) { n = byId[members[m++]]; n.Pos = p; }
+                    else n = Blank(p, color);
+                    list.Add(n); Link(prev, n); prev = n;
+                }
+                if (keyPos.HasValue)
+                {
+                    var k = new SkillNode { Id = keyId, Name = keyName, Glyph = "★", Key = true, Pos = keyPos.Value, Color = color, Cost = l => 0, Desc = l => "핵심 노드. 꾹 눌러 해방한다.", Apply = (g, l) => { } };
+                    list.Add(k); Link(prev, k); prev = k;
+                }
+                return prev;
+            }
+            var root = byId["root"]; root.Pos = Vector2.zero;
+            // 실린더: 뿌리 둘레 여섯 (장전 빨강). 고리로 잇고 뿌리는 앞뒤 둘에 닿는다
+            var ring = new[] { new Vector2(1f, 0f), new Vector2(0.5f, 0.87f), new Vector2(-0.5f, 0.87f), new Vector2(-1f, 0f), new Vector2(-0.5f, -0.87f), new Vector2(0.5f, -0.87f) };
+            var ringIds = new[] { "reload1", "reload2", "reload3", "firstshot", "lastshot", "comboreload" };
+            var ringNodes = new List<SkillNode>();
+            for (int i = 0; i < 6; i++) { var n = byId[ringIds[i]]; n.Pos = ring[i]; list.Add(n); ringNodes.Add(n); }
+            for (int i = 0; i < 6; i++) Link(ringNodes[i], ringNodes[(i + 1) % 6]);
+            Link(root, ringNodes[0]); Link(root, ringNodes[3]);
+            // 윗덮개: 실린더 위 (홀스터)
+            var strap = byId["holster"]; strap.Pos = new Vector2(0f, 1.7f); list.Add(strap); Link(ringNodes[1], strap); Link(strap, ringNodes[2]);
+            // 총열 (선반 하늘): 윗줄·아랫줄, 끝에 총구(핵심)
+            var top = Part(ringNodes[0], Cyan, new[] { "shelf1", "shelf2", "cheap", "bounce" }, new[] { new Vector2(2f, 0.35f), new Vector2(3f, 0.35f), new Vector2(4f, 0.35f), new Vector2(5f, 0.35f), new Vector2(6f, 0.35f) }, "muzzle", "총구", new Vector2(7f, 0f));
+            var bot = Part(ringNodes[0], Cyan, new[] { "rebound", "cluster", "pair" }, new[] { new Vector2(2f, -0.35f), new Vector2(3f, -0.35f), new Vector2(4f, -0.35f), new Vector2(5f, -0.35f), new Vector2(6f, -0.35f) }, null, null, null);
+            Link(bot, top);
+            // 손잡이 (돈 노랑): 두 줄이 아래로, 끝에 개머리(핵심)
+            var gripA = Part(ringNodes[4], Yellow, new[] { "value1", "value2" }, new[] { new Vector2(-0.9f, -1.75f), new Vector2(-1.3f, -2.6f), new Vector2(-1.7f, -3.45f), new Vector2(-2.1f, -4.3f) }, "butt", "개머리", new Vector2(-1.7f, -5.1f));
+            var gripB = Part(ringNodes[5], Yellow, new[] { "combo1", "payout1" }, new[] { new Vector2(-0.1f, -1.95f), new Vector2(-0.5f, -2.8f), new Vector2(-0.9f, -3.65f), new Vector2(-1.3f, -4.5f) }, null, null, null);
+            Link(gripB, gripA);
+            // 방아쇠울 (자동 초록): 실린더 아래에서 고리, 끝에 방아쇠(핵심)
+            var guard = Part(ringNodes[5], Green, new[] { "auto1", "auto2" }, new[] { new Vector2(1.3f, -1.5f), new Vector2(2.2f, -1.8f), new Vector2(2.9f, -1.2f) }, "trigger", "방아쇠", new Vector2(1.9f, -2.6f));
+            Link(byId["auto2"], list.Find(n => n.Pos == new Vector2(2f, -0.35f)));   // 울이 총열 아래로 닿는다
+            // 공이 (시간 보라): 뒤쪽 위로, 끝에 공이(핵심)
+            var hammer = Part(ringNodes[3], Purple, new[] { "slow1", "slow2", "slow3", "floor" }, new[] { new Vector2(-1.9f, 0.5f), new Vector2(-2.6f, 1.1f), new Vector2(-3.1f, 1.8f), new Vector2(-2.3f, 1.9f) }, "hammer", "공이", new Vector2(-3.4f, 2.6f));
+            return list;
+        }
+
+        static List<SkillNode> Raw() => new List<SkillNode>
         {
             // 시작 노드 = 핵심 노드. 처음엔 잠겨 있고, 꾹 눌러 해방하면 주변이 총에 맞아 열린다 (사용자 10-12)
             new SkillNode { Id = "root", Name = "사수", Glyph = "총", Root = true, Key = true, Level = 0, Pos = Vector2.zero, Color = White,
