@@ -41,6 +41,7 @@ namespace TinCan
         static readonly System.Text.RegularExpressions.Regex NumToken = new System.Text.RegularExpressions.Regex(@"[+\-×x]?\d+(?:[.,]\d+)?(?:%|배|번|초|개|발)?");
         Text money; float moneyPop, moneyTilt; long moneyShown;
         RectTransform cursor; Image[] corners;
+        Vector2 curPos, curVel; float curScale = 1f, curScaleV, curAlpha; bool curShown;   // 꺾쇠: 노드 사이를 용수철로 미끄러진다
         SkillNode hover;
         float zoom = 1f, zoomTarget = 1f, worldPop = 1f, worldPopV;
         Vector2 dragLast; bool dragging;
@@ -99,11 +100,12 @@ namespace TinCan
             cursor = Img("Cursor", world, Vector2.zero, Vector2.zero, null, Color.clear).rectTransform;
             corners = new Image[4];
             float off = NodePx * Px * 0.5f + Px * 3f;
+            // 꺾쇠 그림은 왼쪽 위 ㄱ자. 왼쪽은 그대로, 오른쪽은 가로 뒤집기, 아래는 세로 뒤집기 → [ ] 모양. 마름모라 45° 돌려 꼭짓점을 감싼다
             for (int i = 0; i < 4; i++)
             {
-                float sx = i % 2 == 0 ? -1f : 1f, sy = i < 2 ? 1f : -1f;
-                corners[i] = Img("Corner", cursor, new Vector2(sx * off, sy * off), Vector2.one * 7f * Px, "cursor_corner", Color.white);
-                corners[i].rectTransform.localScale = new Vector3(sx, sy, 1f);
+                bool left = i % 2 == 0, top = i < 2;
+                corners[i] = Img("Corner", cursor, new Vector2((left ? -1f : 1f) * off, (top ? 1f : -1f) * off), Vector2.one * 7f * Px, "cursor_corner", Color.white);
+                corners[i].rectTransform.localScale = new Vector3(left ? 1f : -1f, top ? 1f : -1f, 1f);
             }
             cursor.gameObject.SetActive(false);
 
@@ -379,7 +381,9 @@ namespace TinCan
             }
             if (hover != null && hover != prev)
             {
-                Sfx.Play(Sfx.Click(), 0.2f, 2.6f); StartCoroutine(CursorSnap());
+                Sfx.Play(Sfx.Click(), 0.2f, 2.6f);
+                if (!curShown) { curPos = hover.Pos * Spacing; curScale = 1.6f; }   // 처음엔 그 자리에서 조여들고, 그다음부턴 미끄러져 간다
+                curScaleV = -6f; curShown = true;
                 // 설명 상자가 바뀔 때: 작고 기울어진 채 들어와서 용수철로 커지며 풀린다 (흰 번쩍은 뺐다. 사용자 10-12)
                 tipTilt = Random.Range(-13f, -9f); tipTiltV = 0f;
                 tipS = prev == null ? 0.55f : 0.8f; tipSV = 0f;
@@ -412,12 +416,19 @@ namespace TinCan
                 if (dragging && down) { world.anchoredPosition += canvasPt - dragLast; dragLast = canvasPt; }
                 if (mouse.leftButton.wasReleasedThisFrame) dragging = false;
             }
-            cursor.gameObject.SetActive(hover != null);
+            // 꺾쇠: 노드를 따라 용수철로 이동, 노드 회전 + 45°(마름모 꼭짓점), 없으면 서서히 사라진다
+            if (hover != null) curPos = Vector2.Lerp(curPos, hover.Pos * Spacing, 1f - Mathf.Exp(-dt * 22f));
+            Ease.Spring(ref curScale, ref curScaleV, 1f, 600f, 18f, dt);
+            curAlpha = Mathf.MoveTowards(curAlpha, hover != null ? 1f : 0f, dt / (hover != null ? 0.05f : 0.15f));
+            if (hover == null && curAlpha <= 0f) curShown = false;
+            cursor.gameObject.SetActive(curAlpha > 0f);
+            cursor.anchoredPosition = curPos;
+            cursor.localScale = Vector3.one * curScale;
+            cursor.localRotation = Quaternion.Euler(0f, 0f, 45f + (hover != null ? views[hover.Id].Rot : 0f));
+            foreach (var c in corners) c.color = new Color(1f, 1f, 1f, curAlpha);
             bool secret = hover != null && hover.Key && hover.Level < 1;   // 해방 전 핵심 노드는 정보를 안 보여 준다 (사용자 10-12)
             if (hover != null && !secret)
             {
-                cursor.anchoredPosition = hover.Pos * Spacing;
-                cursor.localRotation = Quaternion.Euler(0f, 0f, views[hover.Id].Rot);   // 꺾쇠는 노드와 같이 돈다
                 tip.gameObject.SetActive(true);
                 // 마우스를 조금 늦게 따라오고, 움직이는 속도만큼 기운다
                 var want = canvasPt + new Vector2(260f, 70f);
