@@ -13,7 +13,8 @@ namespace TinCan
     ///   node_glow   28×28  마름모 번짐 (살 수 있을 때 숨쉼)  node_lock 20×20  잠김 표시(선택)
     ///   link        6×2    선 한 조각 (가로로 반복)         link_dim  6×2    점선
     ///   bg_tile     32×32  배경 타일 (반복)                tip_panel 24×24  설명 상자 9슬라이스 (테두리 4px)
-    ///   fx_spark    5×5    산 순간 튀는 조각               fx_ring   16×16  산 순간 퍼지는 링
+    ///   fx_spark    5×5    산 순간 튀는 조각(+)            fx_ring   16×16  산 순간 퍼지는 링
+    ///   fx_dot      2×2    살 수 있는 노드 주변에 떠오르는 점   cursor_corner 7×7  올린 노드 네 귀퉁이 꺾쇠 (왼쪽 위 기준)
     ///   icon_{노드id} 12×12  노드 아이콘 (없으면 글자)
     /// </summary>
     public static class TreeArt
@@ -54,7 +55,9 @@ namespace TinCan
                 case "bg_tile": return Make(Tile(32), name);
                 case "tip_panel": return Make(Box(24, 2), name, border: 4);
                 case "fx_spark": return Make(Plus(5), name);
+                case "fx_dot": return Make(Solid(2, 2), name);
                 case "fx_ring": return Make(Ring(16), name);
+                case "cursor_corner": return Make(Corner(7), name);
                 default: return null;   // icon_*: 없으면 글자
             }
         }
@@ -121,6 +124,14 @@ namespace TinCan
                 if (corner && (x == 0 || y == 0 || x == n - 1 || y == n - 1)) continue;   // 모서리 한 픽셀 깎기
                 t.SetPixel(x, y, border ? Color.white : new Color(1f, 1f, 1f, 0.92f));
             }
+            return t;
+        }
+
+        /// <summary>선택 꺾쇠 (왼쪽 위 모서리 ㄱ자, 2픽셀 두께). 네 귀퉁이는 코드가 돌려 쓴다</summary>
+        static Texture2D Corner(int n)
+        {
+            var t = Blank(n, n);
+            for (int i = 0; i < n; i++) for (int k = 0; k < 2; k++) { t.SetPixel(i, n - 1 - k, Color.white); t.SetPixel(k, n - 1 - i, Color.white); }
             return t;
         }
 
