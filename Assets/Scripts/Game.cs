@@ -74,7 +74,6 @@ namespace TinCan
         TreeView tree;
         Armory armory;
         Booklet booklet;
-        MenuTabs tabs;
         float saveTimer;
         float lastSpawnX = float.NaN;
         int lastPage = 2;
@@ -97,8 +96,6 @@ namespace TinCan
             armory.Build(this, hud.Canvas);
             booklet = new GameObject("Booklet").AddComponent<Booklet>();
             booklet.Build(this, hud.Canvas);
-            tabs = new GameObject("MenuTabs").AddComponent<MenuTabs>();
-            tabs.Build(hud.Canvas);
             new GameObject("Markers").AddComponent<OffscreenMarkers>();
             bounty = Bounty.Make(hud.Canvas);
             viewer = GunViewer.Make(hud.Canvas);
@@ -241,20 +238,15 @@ namespace TinCan
                 if (State == GameState.Settings && settingButtons.Count > 0 && kb.escapeKey.wasPressedThisFrame) CloseSettings();
                 return;
             }
-            if (kb.tabKey.wasPressedThisFrame)
-            {
-                MenuOpen = !MenuOpen;
-                Gun.Enabled = !MenuOpen;
-                if (MenuOpen) OpenPage(lastPage); else { tree.SetOpen(false); armory.Hide(); booklet.Hide(); tabs.Hide(); Save.Write(this); }
-            }
+            // 가게는 오른쪽 아래 버튼 둘(스킬트리·총 상점)로 연다 (사용자 10-12). Tab/Esc = 닫기 (Tab은 마지막 페이지 다시 열기도)
+            if (kb.tabKey.wasPressedThisFrame) { if (MenuOpen) CloseMenu(); else OpenMenu(lastPage); }
             if (MenuOpen)
             {
                 if (DebugMoney) Money = 999_999_999;
-                if (kb.qKey.wasPressedThisFrame) OpenPage(0);
-                if (kb.wKey.wasPressedThisFrame) OpenPage(1);
-                if (kb.eKey.wasPressedThisFrame) OpenPage(2);
+                if (kb.escapeKey.wasPressedThisFrame) CloseMenu();
                 return;
             }
+            hud.Buttons(dtUnscaled: Time.unscaledDeltaTime, onTree: () => OpenMenu(2), onShop: () => OpenMenu(0));
             if (kb.spaceKey.wasPressedThisFrame) TrySpawn();
             if (SetActive && !ending && Airborne == 0) StartCoroutine(EndSet());
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
@@ -274,14 +266,16 @@ namespace TinCan
 
         void OnApplicationQuit() { if (State == GameState.Play) Save.Write(this); }
 
+        public void OpenMenu(int page) { MenuOpen = true; Gun.Enabled = false; hud.SetButtonsVisible(false); OpenPage(page); }
+        public void CloseMenu() { MenuOpen = false; Gun.Enabled = true; tree.SetOpen(false); armory.Hide(); booklet.Hide(); hud.SetButtonsVisible(true); Save.Write(this); }
+
         void OpenPage(int p)
         {
             lastPage = p;
             tree.SetOpen(p == 2);
-            // 0 = 총기 책자 (사용자 10-12 종이 책자 가게), 1 = 깡통류(옛 카드, 소환비 손보기 전까지), 2 = 트리
+            // 0 = 총기 책자 (사용자 10-12 종이 책자 가게), 1 = 깡통류(옛 카드, 소환비 손보기 전까지), 2 = 트리. QWE 탭은 뺐다
             if (p == 0) { armory.Hide(); booklet.Show(); }
             else { booklet.Hide(); if (p == 2) armory.Hide(); else armory.Show(Armory.Page.Cans); }
-            tabs.Show(p);
         }
 
         // ---------- 총기류: 주무기·보조무기 (사용자 10-11) ----------

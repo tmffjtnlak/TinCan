@@ -25,7 +25,7 @@ namespace TinCan
         public Transform Canvas => canvas;
         Image moneyBoard, hintStrip, cylBoard;
         /// <summary>타이틀에선 돈·안내·실린더 판자를 숨긴다</summary>
-        public void SetPlayVisible(bool v) { moneyBoard.gameObject.SetActive(v); hintStrip.gameObject.SetActive(false); cylBoard.gameObject.SetActive(false); slowBg.gameObject.SetActive(v); slowLabel.gameObject.SetActive(v); if (!v) airBadge.gameObject.SetActive(false); }   // 위 안내 띠는 뺐다 (사용자 10-12 UI 정리)
+        public void SetPlayVisible(bool v) { moneyBoard.gameObject.SetActive(v); hintStrip.gameObject.SetActive(false); cylBoard.gameObject.SetActive(false); slowBg.gameObject.SetActive(v); slowLabel.gameObject.SetActive(v); SetButtonsVisible(v); if (!v) airBadge.gameObject.SetActive(false); }   // 위 안내 띠는 뺐다 (사용자 10-12 UI 정리)
 
         void Awake()
         {
@@ -64,6 +64,49 @@ namespace TinCan
             slowLabel.text = "우클릭";
             slowVeil = Ui.Image("SlowVeil", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
             slowVeil.transform.SetAsFirstSibling();
+            BuildButtons();
+            SetButtonsVisible(false);
+        }
+
+        // ---------- 오른쪽 아래 버튼 둘: 스킬트리 / 총 상점 (사용자 10-12) ----------
+        Image[] btn = new Image[2]; Text[] btnLabel = new Text[2];
+        readonly float[] btnS = { 1f, 1f }, btnSV = { 0f, 0f }, btnRot = { 0f, 0f }, btnRotV = { 0f, 0f };
+        static readonly string[] btnNames = { "스킬트리", "총 상점" };
+        void BuildButtons()
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                btn[i] = Ui.Panel($"Btn{i}", canvas, new Vector2(760f, -470f + i * 84f), new Vector2(300f, 72f), nails: false);
+                btnLabel[i] = Ui.Text("Label", btn[i].transform, Vector2.zero, new Vector2(280f, 50f), 24, TextAnchor.MiddleCenter, Ui.Gold);
+                btnLabel[i].text = btnNames[i];
+            }
+        }
+        public void SetButtonsVisible(bool v) { foreach (var b in btn) if (b != null) b.gameObject.SetActive(v); }
+
+        /// <summary>버튼: 올리면 살짝 커지고 기울고, 누르면 납작했다 튕기며 연다. 매 프레임(플레이 중, 가게 닫힘) 부른다</summary>
+        public void Buttons(float dtUnscaled, System.Action onTree, System.Action onShop)
+        {
+            var mouse = UnityEngine.InputSystem.Mouse.current; if (mouse == null) return;
+            var mp = mouse.position.ReadValue();
+            var pt = new Vector2(mp.x - Screen.width * 0.5f, mp.y - Screen.height * 0.5f) * (1080f / Screen.height);
+            for (int i = 0; i < 2; i++)
+            {
+                if (btn[i] == null || !btn[i].gameObject.activeSelf) continue;
+                var rt = btn[i].rectTransform;
+                bool over = Mathf.Abs(pt.x - rt.anchoredPosition.x) < rt.sizeDelta.x * 0.5f && Mathf.Abs(pt.y - rt.anchoredPosition.y) < rt.sizeDelta.y * 0.5f;
+                float target = over ? 1.08f : 1f;
+                if (over && mouse.leftButton.wasPressedThisFrame)
+                {
+                    btnS[i] = 0.9f; btnSV[i] = 6f; btnRot[i] = Random.Range(-4f, 4f);
+                    Sfx.Play(Sfx.Click(), 0.5f, 1.4f);
+                    if (i == 0) onTree?.Invoke(); else onShop?.Invoke();
+                }
+                Ease.Spring(ref btnS[i], ref btnSV[i], target, 500f, 16f, dtUnscaled);
+                Ease.Spring(ref btnRot[i], ref btnRotV[i], over ? -2f : 0f, 300f, 12f, dtUnscaled);
+                rt.localScale = Vector3.one * btnS[i];
+                rt.localRotation = Quaternion.Euler(0f, 0f, btnRot[i]);
+                btn[i].color = over ? Ui.Gold : Ui.BoardEdge;
+            }
         }
 
         /// <summary>돈 판자의 월드 좌표 (탄피가 날아갈 곳)</summary>
