@@ -349,8 +349,9 @@ namespace TinCan
             if (mouse != null)
             {
                 float wheel = mouse.scroll.ReadValue().y;
-                if (Mathf.Abs(wheel) > 0.01f) zoomTarget = Mathf.Clamp(zoomTarget * (wheel > 0 ? 1.15f : 0.87f), 0.5f, 1.8f);
+                if (Mathf.Abs(wheel) > 0.01f && charging == null) { zoomTarget = Mathf.Clamp(zoomTarget * (wheel > 0 ? 1.15f : 0.87f), 0.5f, 1.8f); panTarget = null; }
             }
+            if (kb != null && charging == null && (kb.upArrowKey.isPressed || kb.downArrowKey.isPressed || kb.leftArrowKey.isPressed || kb.rightArrowKey.isPressed)) panTarget = null;
             zoom = Mathf.Lerp(zoom, zoomTarget, 1f - Mathf.Exp(-dt * (charging != null || panTarget.HasValue ? 3.5f : 20f)));
             if (panTarget.HasValue)
             {
@@ -391,12 +392,14 @@ namespace TinCan
                 {
                     if (hover != null && hover.Key) { if (CanCharge(hover)) BeginCharge(hover); else { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); StartCoroutine(Shake(views[hover.Id].Root)); } }
                     else if (hover != null) { Press(hover); holdTimer = 0.28f; }
-                    else { dragging = true; dragLast = canvasPt; }
+                    else { dragging = true; dragLast = canvasPt; panTarget = null; }   // 드래그하면 카메라 자동 이동은 손을 뗀다
                 }
                 // 핵심 노드 충전 중
                 if (charging != null)
                 {
-                    if (down && hover == charging) ChargeTick(dt);
+                    // 누르고만 있으면 계속 찬다 (줌인으로 노드가 커서 밑에서 벗어나도 안 끊긴다. 사용자 10-12)
+                    hover = charging;
+                    if (down) ChargeTick(dt);
                     else EndCharge(false);
                 }
                 // 누르고 있으면 연달아 산다 (Shelldiver: 초당 4번쯤). 핵심 노드는 제외
