@@ -16,6 +16,8 @@ namespace TinCan
         public Action<Game, int> Apply;
         public Color Color;                     // 계열 색
         public bool Root;
+        /// <summary>핵심 노드 (사용자 10-12): 클릭이 아니라 꾹 눌러 게이지를 채워 해방한다. 해방되면 이웃을 총으로 쏴서 연다</summary>
+        public bool Key;
         public bool Maxed => Level >= MaxLevel;
         public long NextCost => Cost(Level);
     }
@@ -39,8 +41,9 @@ namespace TinCan
 
         public static List<SkillNode> Make() => new List<SkillNode>
         {
-            new SkillNode { Id = "root", Name = "사수", Glyph = "총", Root = true, Level = 1, Pos = Vector2.zero, Color = White,
-                Cost = l => 0, Desc = l => "모든 것의 시작.", Apply = (g, l) => { },
+            // 시작 노드 = 핵심 노드. 처음엔 잠겨 있고, 꾹 눌러 해방하면 주변이 총에 맞아 열린다 (사용자 10-12)
+            new SkillNode { Id = "root", Name = "사수", Glyph = "총", Root = true, Key = true, Level = 0, Pos = Vector2.zero, Color = White,
+                Cost = l => 0, Desc = l => "모든 것의 시작. 꾹 눌러 해방한다.", Apply = (g, l) => { },
                 Links = new[] { "reload1", "shelf1", "value1", "auto1", "slow1" } },
 
             // 장전 (빨강) — 왼쪽 위

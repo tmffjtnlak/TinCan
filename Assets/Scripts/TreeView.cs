@@ -46,6 +46,10 @@ namespace TinCan
         Vector2 dragLast; bool dragging;
         int buyStreak; float lastBuy, holdTimer;
         float dotTimer;
+        // 핵심 노드 충전 (사용자 10-12): 꾹 누르면 게이지가 차고 화면이 그 노드로 부드럽게 줌인, 쭈욱 차오르는 소리. 다 차면 해방
+        const float ChargeSeconds = 1.3f;
+        SkillNode charging; float charge, tickTimer;
+        Vector2 panBefore; float zoomBefore = 1f; bool panSaved; Vector2? panTarget;
 
         class NodeView
         {
@@ -55,6 +59,7 @@ namespace TinCan
             public float Rot, RotV;                      // 용수철 회전 (살 때·드러날 때 기울었다 흔들리며 돌아온다)
             public float Flash, Wake, LvPop, LvTilt;
             public float GlintTimer = -1f, Glint;        // 산 노드의 빛 반사 (주기적으로 한 번씩)
+            public Image Gauge;                           // 핵심 노드: 꾹 누르면 차는 링
             public bool Visible, Pressed;
         }
         class LinkView { public Image Img; public string A, B; public float Flash; }
@@ -113,7 +118,7 @@ namespace TinCan
 
             money = Txt("Money", veil.transform, new Vector2(760f, 455f), new Vector2(360f, 60f), 36, TextAnchor.MiddleRight, SkillTree.Yellow);
             var hint = Txt("Hint", veil.transform, new Vector2(0f, -500f), new Vector2(1400f, 40f), 20, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.55f));
-            hint.text = "누르면 산다 (누르고 있으면 연달아)   ·   휠 = 확대   ·   드래그·방향키 = 이동   ·   Tab = 닫는다";
+            hint.text = "누르면 산다 (누르고 있으면 연달아)   ·   핵심 노드는 꾹 눌러 해방   ·   휠 = 확대   ·   드래그·방향키 = 이동   ·   Tab = 닫는다";
             veil.gameObject.SetActive(false);
         }
 
@@ -131,6 +136,14 @@ namespace TinCan
             if (TreeArt.Has(iconName)) v.Icon = Img("Icon", root.transform, Vector2.zero, Vector2.one * IconPx * Px, iconName, Color.white);
             else { v.Glyph = Txt("Glyph", root.transform, Vector2.zero, Vector2.one * size, 28, TextAnchor.MiddleCenter, Color.white); v.Glyph.text = n.Glyph; }
             v.Lv = Txt("Lv", root.transform, new Vector2(0f, -size * 0.74f), new Vector2(160f, 30f), 24, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.8f));
+            if (n.Key)
+            {
+                // 게이지: 노드를 감싸는 링이 시계 방향으로 찬다
+                v.Gauge = Img("Gauge", root.transform, Vector2.zero, Vector2.one * 46f * Px, "fx_ring", Color.white);
+                v.Gauge.type = Image.Type.Filled; v.Gauge.fillMethod = Image.FillMethod.Radial360; v.Gauge.fillOrigin = (int)Image.Origin360.Top; v.Gauge.fillClockwise = true;
+                v.Gauge.fillAmount = 0f; v.Gauge.enabled = false;
+                v.Gauge.transform.SetAsFirstSibling();
+            }
             return v;
         }
 
@@ -145,6 +158,9 @@ namespace TinCan
             if (n.Color == SkillTree.Purple) return "time";
             return "root";
         }
+
+        /// <summary>핵심 노드를 지금 채울 수 있나: 안 샀고, 뿌리거나 이웃이 열려 있고, 돈이 되면</summary>
+        bool CanCharge(SkillNode n) => n.Key && n.Level < 1 && (n.Root || Available(n)) && game.Money >= n.NextCost;
 
         public bool Available(SkillNode n)
         {
@@ -216,7 +232,7 @@ namespace TinCan
             {
                 var n = kv.Value.Node; var v = kv.Value;
                 if (!v.Visible) continue;
-                bool avail = Available(n), owned = n.Level >= 1, hot = hover == n;
+                bool avail = Available(n) || (n.Key && n.Level < 1 && (n.Root || Available(n))), owned = n.Level >= 1, hot = hover == n;
                 v.Flash = Mathf.Max(0f, v.Flash - dt / 0.22f);          // 흰 네모: 4프레임 꽉 찬 흰색 → 3프레임 사라짐
                 v.Wake = Mathf.Max(0f, v.Wake - dt / 0.3f);
                 v.LvPop = Mathf.Max(0f, v.LvPop - dt / 0.25f);
@@ -241,7 +257,15 @@ namespace TinCan
                 if (!(owned && !n.Root)) v.Bevel.color = new Color(1f, 1f, 1f, white ? 0f : 0.12f);
                 var ink = white ? Color.white : (owned || avail ? Color.white : new Color(1f, 1f, 1f, 0.3f));   // 흰 네모일 땐 아이콘도 묻힌다
                 if (v.Glyph != null) v.Glyph.color = ink; if (v.Icon != null) v.Icon.color = ink;
-                v.Lv.text = n.Root ? "" : (n.Maxed ? "완료" : $"${n.NextCost:N0}");
+                v.Lv.text = n.Key ? (n.Level >= 1 ? "" : "꾹") : (n.Maxed ? "완료" : $"${n.NextCost:N0}");
+                if (v.Gauge != null)
+                {
+                    bool chg = charging == n;
+                    v.Gauge.enabled = chg;
+                    v.Gauge.fillAmount = chg ? charge : 0f;
+                    v.Gauge.color = Color.Lerp(Color.white, SkillTree.Yellow, charge);
+                    v.Gauge.rectTransform.localScale = Vector3.one * (1f + charge * 0.15f);
+                }
                 v.Lv.color = n.Maxed ? SkillTree.Green : avail ? (game.Money >= n.NextCost ? SkillTree.Green : new Color(1f, 0.45f, 0.4f)) : new Color(1f, 1f, 1f, 0.45f);
                 // 값 글자: 바뀔 때 기울며 커졌다 돌아온다 (Click the Button 숫자)
                 float lp = Ease.Punch(v.LvPop);
@@ -296,7 +320,12 @@ namespace TinCan
                 float wheel = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(wheel) > 0.01f) zoomTarget = Mathf.Clamp(zoomTarget * (wheel > 0 ? 1.15f : 0.87f), 0.5f, 1.8f);
             }
-            zoom = Mathf.Lerp(zoom, zoomTarget, 1f - Mathf.Exp(-dt * 20f));
+            zoom = Mathf.Lerp(zoom, zoomTarget, 1f - Mathf.Exp(-dt * (charging != null || panTarget.HasValue ? 6f : 20f)));
+            if (panTarget.HasValue)
+            {
+                world.anchoredPosition = Vector2.Lerp(world.anchoredPosition, panTarget.Value, 1f - Mathf.Exp(-dt * 6f));
+                if (charging == null && Vector2.Distance(world.anchoredPosition, panTarget.Value) < 1f) panTarget = null;
+            }
             if (kb != null)
             {
                 var pan = Vector2.zero;
@@ -329,11 +358,18 @@ namespace TinCan
                 bool down = mouse.leftButton.isPressed;
                 if (mouse.leftButton.wasPressedThisFrame)
                 {
-                    if (hover != null) { Press(hover); holdTimer = 0.28f; }
+                    if (hover != null && hover.Key) { if (CanCharge(hover)) BeginCharge(hover); else { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); StartCoroutine(Shake(views[hover.Id].Root)); } }
+                    else if (hover != null) { Press(hover); holdTimer = 0.28f; }
                     else { dragging = true; dragLast = canvasPt; }
                 }
-                // 누르고 있으면 연달아 산다 (Shelldiver: 초당 4번쯤)
-                if (down && hover != null && !dragging)
+                // 핵심 노드 충전 중
+                if (charging != null)
+                {
+                    if (down && hover == charging) ChargeTick(dt);
+                    else EndCharge(false);
+                }
+                // 누르고 있으면 연달아 산다 (Shelldiver: 초당 4번쯤). 핵심 노드는 제외
+                else if (down && hover != null && !hover.Key && !dragging)
                 {
                     holdTimer -= dt;
                     if (holdTimer <= 0f) { Press(hover); holdTimer = 0.25f; }
@@ -366,7 +402,8 @@ namespace TinCan
                 string hex = ColorUtility.ToHtmlStringRGB(shine);
                 tipDesc.text = NumToken.Replace(hover.Desc(hover.Level), m => $"<b><color=#{hex}>{m.Value}</color></b>");
                 bool avail = Available(hover);
-                tipCost.text = hover.Root ? "" : hover.Maxed ? "" : !avail ? "<color=#888888>옆 노드를 먼저</color>" : (game.Money >= hover.NextCost ? $"<color=#8cff9a>${hover.NextCost:N0}</color>" : $"<color=#ff6666>${hover.NextCost:N0}</color>");
+                tipCost.text = hover.Key ? (hover.Level >= 1 ? "<color=#8cff9a>해방됨</color>" : CanCharge(hover) ? "<color=#ffd966>꾹 눌러 해방</color>" : "<color=#888888>옆 노드를 먼저</color>")
+                    : hover.Maxed ? "" : !avail ? "<color=#888888>옆 노드를 먼저</color>" : (game.Money >= hover.NextCost ? $"<color=#8cff9a>${hover.NextCost:N0}</color>" : $"<color=#ff6666>${hover.NextCost:N0}</color>");
                 tipCost.supportRichText = true;
             }
             else tip.gameObject.SetActive(false);
@@ -440,12 +477,132 @@ namespace TinCan
             Destroy(d.gameObject);
         }
 
+        // ---------- 핵심 노드: 꾹 눌러 해방 ----------
+        void BeginCharge(SkillNode n)
+        {
+            charging = n; charge = 0f; tickTimer = 0f;
+            if (!panSaved) { panBefore = world.anchoredPosition; zoomBefore = zoomTarget; panSaved = true; }
+            zoomTarget = Mathf.Max(zoomTarget, 1.6f);
+            panTarget = -n.Pos * Spacing * zoomTarget;      // 노드가 화면 가운데로
+            views[n.Id].Sx = 1.1f; views[n.Id].Sy = 0.9f;  // 누른 느낌
+            Sfx.Play(Sfx.Click(), 0.4f, 0.9f);
+        }
+
+        void ChargeTick(float dt)
+        {
+            charge = Mathf.Min(1f, charge + dt / ChargeSeconds);
+            var v = views[charging.Id];
+            // 찰수록 떨리고, 커지고, 점이 빨려 들어온다
+            v.Root.anchoredPosition = charging.Pos * Spacing + Random.insideUnitCircle * charge * charge * 3f * Px;
+            v.Sx = v.Sy = 1f + charge * 0.25f; v.Vx = v.Vy = 0f;
+            tickTimer -= dt;
+            if (tickTimer <= 0f)
+            {
+                tickTimer = Mathf.Lerp(0.09f, 0.035f, charge);                  // 점점 촘촘하게
+                Sfx.Play(Sfx.Click(), 0.3f + charge * 0.4f, 0.8f + charge * 2.2f); // 점점 높게 = 쭈우욱
+                var dir = Random.insideUnitCircle.normalized;
+                var d = Img("Suck", world, v.Root.anchoredPosition + dir * NodePx * Px * Random.Range(1.2f, 2.2f), Vector2.one * 2f * Px, "fx_dot", Color.Lerp(Color.white, SkillTree.Yellow, charge));
+                StartCoroutine(SuckCo(d, v));
+            }
+            if (charge >= 1f) EndCharge(true);
+        }
+
+        IEnumerator SuckCo(Image d, NodeView v)
+        {
+            var from = d.rectTransform.anchoredPosition;
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.18f)
+            {
+                d.rectTransform.anchoredPosition = Vector2.Lerp(from, v.Root.anchoredPosition, Ease.InQuad(t));
+                yield return null;
+            }
+            Destroy(d.gameObject);
+        }
+
+        void EndCharge(bool done)
+        {
+            var n = charging; charging = null;
+            var v = views[n.Id];
+            v.Root.anchoredPosition = n.Pos * Spacing;
+            if (!done)
+            {
+                charge = 0f;
+                Sfx.Play(Sfx.Whoosh(), 0.3f, 1.6f);
+                zoomTarget = zoomBefore; panTarget = panBefore; panSaved = false;
+                return;
+            }
+            charge = 0f;
+            StartCoroutine(Unlock(n));
+        }
+
+        /// <summary>해방: 노드가 터지듯 흰색, 큰 흔들림 → 이웃을 하나씩 총으로 쏴서 연다 (총구 섬광 → 궤적 → 명중 불꽃 → 드러남)</summary>
+        IEnumerator Unlock(SkillNode n)
+        {
+            var v = views[n.Id];
+            game.BuyNode(n);
+            v.Flash = 1.6f; v.Sx = 1.5f; v.Sy = 1.5f; v.Vx = v.Vy = 0f; v.Rot = Random.Range(-20f, 20f);
+            worldPop = 1.04f; worldPopV = 0f;
+            Fx.Shake(0.5f);
+            Sfx.Play(Sfx.Bang(), 0.9f, 0.7f);
+            Sfx.Play(Sfx.Tang(), 0.7f, 0.5f);
+            StartCoroutine(Puff(v));
+            StartCoroutine(RingCo(Img("Ring", v.Root.parent, v.Root.anchoredPosition, Vector2.one * 16f * Px, "fx_ring", Color.white), 0.7f));
+            yield return new WaitForSecondsRealtime(0.25f);
+            // 이웃을 순서대로 쏜다
+            var targets = new List<string>(nb[n.Id]);
+            targets.Sort((a, b) => Mathf.Atan2(byId[a].Pos.y - n.Pos.y, byId[a].Pos.x - n.Pos.x).CompareTo(Mathf.Atan2(byId[b].Pos.y - n.Pos.y, byId[b].Pos.x - n.Pos.x)));
+            foreach (var id in targets)
+            {
+                var o = byId[id]; var ov = views[id];
+                if (ov.Visible && o.Level >= 1) continue;
+                StartCoroutine(ShootReveal(n, o));
+                yield return new WaitForSecondsRealtime(0.11f);
+            }
+            yield return new WaitForSecondsRealtime(0.4f);
+            zoomTarget = zoomBefore; panTarget = panBefore; panSaved = false;   // 카메라 돌아온다
+        }
+
+        IEnumerator ShootReveal(SkillNode from, SkillNode to)
+        {
+            Vector2 a = from.Pos * Spacing, b = to.Pos * Spacing; var d = b - a;
+            float deg = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+            // 총구 섬광 + 반동
+            var fv = views[from.Id];
+            fv.Rot = -Mathf.Sign(d.x == 0 ? 1f : d.x) * 10f; fv.Sx = 1.2f; fv.Sy = 0.9f;
+            var flash = Img("Muzzle", world, a + d.normalized * NodePx * Px * 0.6f, Vector2.one * 10f * Px, "fx_puff", Color.white);
+            Sfx.Play(Sfx.Bang(), 0.6f, 1.3f + Random.Range(-0.1f, 0.1f));
+            Fx.Shake(0.15f);
+            // 궤적: 흰 선이 0.06초에 날아간다
+            var tracer = Img("Tracer", world, a, new Vector2(d.magnitude * 0.35f, 2f * Px), "link", Color.white);
+            tracer.rectTransform.pivot = new Vector2(0f, 0.5f);
+            tracer.rectTransform.localRotation = Quaternion.Euler(0f, 0f, deg);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.06f)
+            {
+                tracer.rectTransform.anchoredPosition = a + d * t * 0.7f;
+                flash.rectTransform.localScale = Vector3.one * (1.3f - t);
+                yield return null;
+            }
+            Destroy(tracer.gameObject); Destroy(flash.gameObject);
+            // 명중: 불꽃 + 드러남 (깡통 맞은 것처럼 튀며 돈다)
+            var ov = views[to.Id];
+            ov.Visible = true; ov.Root.gameObject.SetActive(true);
+            ov.Sx = 1.35f; ov.Sy = 0.75f; ov.Vx = ov.Vy = 0f;
+            ov.Rot = Random.Range(25f, 40f) * (Random.value < 0.5f ? -1f : 1f); ov.RotV = 0f;
+            ov.Flash = 1.4f; ov.Wake = 1f;
+            Sfx.Play(Sfx.Tang(), 0.7f, 1.1f + Random.Range(-0.1f, 0.2f));
+            Fx.Shake(0.2f);
+            for (int i = 0; i < 8; i++) StartCoroutine(ShardCo(ov, deg + 180f + Random.Range(-50f, 50f)));
+            Confetti(ov, 16);
+            StartCoroutine(CornerDots(ov));
+            StartCoroutine(Twinkle(ov));
+            foreach (var l in links) if ((l.A == from.Id && l.B == to.Id) || (l.B == from.Id && l.A == to.Id)) l.Flash = 1f;
+        }
+
         /// <summary>누름: 1프레임에 납작 (Pressed). 살 수 있으면 바로 산다 → 흰 네모 + 길게 튕김</summary>
         void Press(SkillNode n)
         {
             var v = views[n.Id];
             v.Pressed = true; v.Sx = 1.15f; v.Sy = 0.8f; v.Vx = v.Vy = 0f;   // 들어가는 이징 없음: 즉시
-            if (n.Root || n.Maxed || !Available(n) || game.Money < n.NextCost)
+            if (n.Key || n.Maxed || !Available(n) || game.Money < n.NextCost)
             {
                 Sfx.Play(Sfx.Click(), 0.5f, 0.7f);
                 StartCoroutine(Shake(v.Root));

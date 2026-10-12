@@ -215,9 +215,9 @@ namespace TinCan
             for (int i = 0; i < d.nodeIds.Count && i < d.nodeLevels.Count; i++)
             {
                 var n = Nodes.Find(x => x.Id == d.nodeIds[i]);
-                if (n == null || n.Root) continue;
+                if (n == null) continue;
                 n.Level = d.nodeLevels[i];
-                if (n.Level > 0) n.Apply(this, n.Level);
+                if (n.Level > 0 && !n.Root) n.Apply(this, n.Level);   // 시작 노드는 해방 여부만 기억
             }
             var g = GunKind.ForSale.Find(x => x.Id == d.gun); if (g != null) { Primary = g; Gun.Equip(g); }
             var s2 = GunKind.ForSale.Find(x => x.Id == d.secondary); if (s2 != null && s2 != Primary) Secondary = s2;
