@@ -17,6 +17,7 @@ namespace TinCan.EditorTools
             ti.textureCompression = TextureImporterCompression.Uncompressed;
             ti.mipmapEnabled = false;
             ti.alphaIsTransparency = true;
+            ti.isReadable = true;   // 흰 실루엣(등장 때 흰색에서 제 색으로)을 코드로 만들 수 있게
             // 9슬라이스 자리(tip_panel 등)는 테두리 4px
             if (System.IO.Path.GetFileNameWithoutExtension(assetPath).EndsWith("_panel")) ti.spriteBorder = new Vector4(4, 4, 4, 4);
         }

@@ -112,14 +112,15 @@ namespace TinCan
                 t.text = text; made.Add(t);
                 Sfx.Play(lit ? Sfx.Tang() : Sfx.Click(), lit ? 0.5f : 0.3f, lit ? 1.3f + i * 0.15f : 1.2f);
                 if (lit && k > 0.4f) Fx.Shake(0.1f * k);
-                yield return Pop(t, lit ? 1.6f + k * 0.8f : 1.3f, popTime);
-                yield return new WaitForSecondsRealtime(lit ? lineGap : lineGap * 0.5f);
+                StartCoroutine(Pop(t, lit ? 1.6f + k * 0.8f : 1.3f, popTime));   // 줄은 튀는 동안 다음 줄이 온다 (딱딱딱)
+                yield return new WaitForSecondsRealtime(popTime + (lit ? lineGap : lineGap * 0.5f));
             }
             var sum = Ui.Text("TallyTotal", canvas, new Vector2(x, sumY), new Vector2(420f, 90f), Mathf.RoundToInt(Mathf.Lerp(48f, 72f, k)), TextAnchor.MiddleLeft, Ui.Gold);
             sum.text = total; made.Add(sum);
             Sfx.Play(Sfx.Bang(), 0.4f + k * 0.4f, 1.1f);
             Fx.Shake(0.2f + k * 0.5f);
-            yield return Pop(sum, 2f + k, popTime * 1.3f);
+            StartCoroutine(Pop(sum, 2f + k, popTime * 1.3f));
+            yield return new WaitForSecondsRealtime(popTime * 1.3f);
             // 합계 글자의 왼쪽 끝 근처 (글자 가운데보다 숫자 쪽)
             var rt = (RectTransform)sum.transform;
             var a = (rt.anchoredPosition + new Vector2(-100f, -20f)) * (Screen.height / 1080f);
@@ -138,15 +139,26 @@ namespace TinCan
             foreach (var t in made) if (t != null) Destroy(t.gameObject);
         }
 
+        /// <summary>
+        /// 글자 등장 (사용자 10-12, 용수철 문법): 작고 기울어진 채 1프레임에 나타나 넘쳤다 자리 잡는다 (크기·회전 용수철).
+        /// from이 클수록(큰 세트) 더 세게 튄다. seconds 동안만 돌리고 손을 뗀다
+        /// </summary>
         IEnumerator Pop(Text t, float from, float seconds)
         {
-            for (float k = 0f; k < 1f; k += Time.unscaledDeltaTime / seconds)
+            float s = Mathf.Max(0.2f, 2f - from), sv = (from - 1f) * 18f + 8f;   // 작게 시작해 세게 튀어오른다
+            float rot = Random.Range(8f, 14f) * (Random.value < 0.5f ? -1f : 1f), rv = 0f;
+            float life = Mathf.Max(seconds * 2.5f, 0.25f);
+            for (float k = 0f; k < 1f; k += Time.unscaledDeltaTime / life)
             {
-                float e = 1f - (1f - k) * (1f - k);
-                t.transform.localScale = Vector3.one * Mathf.Lerp(from, 1f, e);
+                if (t == null) yield break;
+                float dt = Time.unscaledDeltaTime;
+                Ease.Spring(ref s, ref sv, 1f, 520f, 15f, dt);
+                Ease.Spring(ref rot, ref rv, 0f, 400f, 11f, dt);
+                t.transform.localScale = Vector3.one * s;
+                t.transform.localRotation = Quaternion.Euler(0f, 0f, rot);
                 yield return null;
             }
-            t.transform.localScale = Vector3.one;
+            t.transform.localScale = Vector3.one; t.transform.localRotation = Quaternion.identity;
         }
 
         /// <summary>저주 맞음: 화면이 보라색으로 확 어두워졌다 돌아온다</summary>
@@ -171,14 +183,19 @@ namespace TinCan
             var rt = (RectTransform)t.transform;
             float life = 0.75f, time = 0f;
             var cam = Camera.main;
+            // 등장: 작고 기울어진 채 튀어 오른다 (용수철), 그다음 떠오르며 사라진다
+            float s = 0.3f, sv = 16f, rot = Random.Range(-12f, 12f), rv = 0f;
             while (time < life)
             {
-                time += Time.unscaledDeltaTime;
+                float dt = Time.unscaledDeltaTime;
+                time += dt;
                 float k = time / life;
                 var sp = cam.WorldToScreenPoint(world + Vector2.up * (0.3f + k * 0.9f));
                 rt.anchoredPosition = new Vector2(sp.x - Screen.width * 0.5f, sp.y - Screen.height * 0.5f) * (1080f / Screen.height);
-                float pop = k < 0.15f ? 1f + (0.15f - k) * 4f : 1f;
-                rt.localScale = Vector3.one * pop;
+                Ease.Spring(ref s, ref sv, 1f, 560f, 15f, dt);
+                Ease.Spring(ref rot, ref rv, 0f, 420f, 11f, dt);
+                rt.localScale = Vector3.one * s;
+                rt.localRotation = Quaternion.Euler(0f, 0f, rot);
                 var c = t.color; c.a = 1f - k * k; t.color = c;
                 yield return null;
             }
