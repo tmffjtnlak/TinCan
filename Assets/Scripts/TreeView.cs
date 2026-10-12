@@ -37,7 +37,7 @@ namespace TinCan
         float bgDotTimer;
         readonly Dictionary<string, NodeView> views = new Dictionary<string, NodeView>();
         readonly List<LinkView> links = new List<LinkView>();
-        Image tip; Text tipTitle, tipDesc, tipCost; float tipPop, tipFlash, tipTilt, tipTiltV; Vector2 tipPos;
+        Image tip; Text tipTitle, tipDesc, tipCost; float tipFlash, tipTilt, tipTiltV, tipS = 1f, tipSV; Vector2 tipPos;
         Text money; float moneyPop, moneyTilt; long moneyShown;
         RectTransform cursor; Image[] corners;
         SkillNode hover;
@@ -51,7 +51,9 @@ namespace TinCan
             public SkillNode Node; public RectTransform Root;
             public Image Frame, Fill, Bevel, Icon; public Text Glyph, Lv;
             public float Sx = 1f, Sy = 1f, Vx, Vy;      // 용수철 크기 (가로·세로 따로 = 찌그러짐)
+            public float Rot, RotV;                      // 용수철 회전 (살 때·드러날 때 기울었다 흔들리며 돌아온다)
             public float Flash, Wake, LvPop, LvTilt;
+            public float GlintTimer = -1f, Glint;        // 산 노드의 빛 반사 (주기적으로 한 번씩)
             public bool Visible, Pressed;
         }
         class LinkView { public Image Img; public string A, B; public float Flash; }
@@ -163,11 +165,18 @@ namespace TinCan
             else anim = StartCoroutine(CloseAnim());
         }
 
-        /// <summary>열기: 0.1초 페이드 + 전체가 용수철로 톡 (0.94 → 1.02 → 1)</summary>
+        /// <summary>열기: 0.1초 페이드 + 전체가 용수철로 톡. 노드들은 흰 마름모로 떴다가 뿌리에서 가까운 순으로 제 색을 입는다 (Shelldiver 0.90~1.00초)</summary>
         IEnumerator OpenAnim()
         {
             Sfx.Play(Sfx.Click(), 0.4f, 1.3f);
             worldPop = 0.94f; worldPopV = 1.2f;
+            var root = nodes.Find(n => n.Root); Vector2 origin = root != null ? root.Pos : Vector2.zero;
+            foreach (var v in views.Values)
+            {
+                if (!v.Visible) continue;
+                v.Flash = 1.2f + Vector2.Distance(v.Node.Pos, origin) * 0.12f;   // 멀수록 조금 더 오래 희다 = 순서대로 물든다
+                v.Rot = Random.Range(-8f, 8f); v.RotV = 0f;
+            }
             var vc = veil.color;
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.1f)
             {
@@ -204,13 +213,23 @@ namespace TinCan
                 v.LvPop = Mathf.Max(0f, v.LvPop - dt / 0.25f);
                 var frame = owned ? n.Color : (avail ? Color.Lerp(n.Color, Color.white, 0.25f) : new Color(n.Color.r, n.Color.g, n.Color.b, 0.3f));
                 var fill = n.Maxed ? Color.Lerp(n.Color, Color.black, 0.45f) : (owned ? Color.Lerp(n.Color, new Color(0.08f, 0.1f, 0.2f), 0.7f) : new Color(0.08f, 0.1f, 0.2f));
-                // 꽉 찬 흰색(앞 60%) → 섞이며 돌아옴(뒤 40%)
+                // 꽉 찬 흰색(0.4 위) → 섞이며 돌아옴(0.4 아래). 드러날 땐 1.6에서 시작해 더 오래 희다
                 float wf = v.Flash > 0.4f ? 1f : v.Flash / 0.4f;
                 bool white = v.Flash > 0.4f;
                 if (v.Flash > 0f) { frame = Color.Lerp(frame, Color.white, wf); fill = Color.Lerp(fill, Color.white, wf); }
                 else if (v.Wake > 0f) { frame = Color.Lerp(frame, Color.white, v.Wake); fill = Color.Lerp(fill, Color.white, v.Wake * 0.6f); }
+                // 산 노드: 빛 반사 (사용자 10-12: 안 산 노드는 먼지, 산 노드는 반짝). 2~4초마다 테두리가 흰빛으로 쓸리고 꼭짓점에 별
+                if (owned && !n.Root)
+                {
+                    if (v.GlintTimer < 0f) v.GlintTimer = Random.Range(0.5f, 3f);
+                    v.GlintTimer -= dt;
+                    if (v.GlintTimer <= 0f) { v.GlintTimer = Random.Range(2f, 4.5f); v.Glint = 1f; StartCoroutine(GlintCo(v)); }
+                    v.Glint = Mathf.Max(0f, v.Glint - dt / 0.3f);
+                    frame = Color.Lerp(frame, Color.white, Ease.Punch(v.Glint) * 0.7f);
+                    v.Bevel.color = new Color(1f, 1f, 1f, 0.12f + Ease.Punch(v.Glint) * 0.5f);
+                }
                 v.Frame.color = frame; v.Fill.color = fill;
-                v.Bevel.color = new Color(1f, 1f, 1f, white ? 0f : 0.12f);
+                if (!(owned && !n.Root)) v.Bevel.color = new Color(1f, 1f, 1f, white ? 0f : 0.12f);
                 var ink = white ? Color.white : (owned || avail ? Color.white : new Color(1f, 1f, 1f, 0.3f));   // 흰 네모일 땐 아이콘도 묻힌다
                 if (v.Glyph != null) v.Glyph.color = ink; if (v.Icon != null) v.Icon.color = ink;
                 v.Lv.text = n.Root ? "" : (n.Maxed ? "완료" : $"${n.NextCost:N0}");
@@ -223,7 +242,10 @@ namespace TinCan
                 float tx = v.Pressed ? 1.15f : (hot ? 1.12f : 1f), ty = v.Pressed ? 0.8f : (hot ? 1.12f : 1f);
                 Ease.Spring(ref v.Sx, ref v.Vx, tx, 420f, 16f, dt);
                 Ease.Spring(ref v.Sy, ref v.Vy, ty, 420f, 16f, dt);
+                // 회전: 감쇠가 약해서 서너 번 좌우로 흔들리며 돌아온다 (Click the Button 3.37~3.67초, Shelldiver 등장 0.78~0.95초)
+                Ease.Spring(ref v.Rot, ref v.RotV, 0f, 320f, 9f, dt);
                 v.Root.localScale = new Vector3(v.Sx + v.Wake * 0.1f, v.Sy + v.Wake * 0.1f, 1f);
+                v.Root.localRotation = Quaternion.Euler(0f, 0f, v.Rot);
             }
             foreach (var l in links)
             {
@@ -287,9 +309,10 @@ namespace TinCan
             }
             if (hover != null && hover != prev)
             {
-                Sfx.Play(Sfx.Click(), 0.2f, 2.6f); tipPop = 0f; StartCoroutine(CursorSnap());
-                // 설명 상자가 바뀔 때: 통째로 흰색 3~4프레임, 기울어진 채 들어와서 풀린다 (Shelldiver 3.77~3.93초)
-                tipFlash = 1f; tipTilt = Random.Range(-9f, -5f); tipTiltV = 0f;
+                Sfx.Play(Sfx.Click(), 0.2f, 2.6f); StartCoroutine(CursorSnap());
+                // 설명 상자가 바뀔 때: 통째로 흰색 3~4프레임, 작고 기울어진 채 들어와서 용수철로 커지며 풀린다 (Shelldiver 1.13~1.20초, 3.77~3.93초)
+                tipFlash = 1f; tipTilt = Random.Range(-13f, -9f); tipTiltV = 0f;
+                tipS = prev == null ? 0.55f : 0.8f; tipSV = 0f;
                 if (prev == null) tipPos = canvasPt + new Vector2(260f, 70f);
             }
             if (mouse != null)
@@ -314,17 +337,18 @@ namespace TinCan
             if (hover != null)
             {
                 cursor.anchoredPosition = hover.Pos * Spacing;
+                cursor.localRotation = Quaternion.Euler(0f, 0f, views[hover.Id].Rot);   // 꺾쇠는 노드와 같이 돈다
                 tip.gameObject.SetActive(true);
                 // 마우스를 조금 늦게 따라오고, 움직이는 속도만큼 기운다
                 var want = canvasPt + new Vector2(260f, 70f);
                 var before = tipPos;
                 tipPos = Vector2.Lerp(tipPos, want, 1f - Mathf.Exp(-dt * 16f));
                 float velTilt = Mathf.Clamp((tipPos.x - before.x) / Mathf.Max(dt, 0.001f) * -0.004f, -6f, 6f);
-                Ease.Spring(ref tipTilt, ref tipTiltV, velTilt, 260f, 14f, dt);
+                Ease.Spring(ref tipTilt, ref tipTiltV, velTilt, 520f, 20f, dt);   // 4프레임 안에 풀린다 (Shelldiver 1.13~1.20초)
                 tip.rectTransform.anchoredPosition = tipPos;
                 tip.rectTransform.localRotation = Quaternion.Euler(0f, 0f, tipTilt);
-                tipPop = Mathf.Min(1f, tipPop + dt / 0.06f);
-                tip.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.9f, 1f, Ease.OutQuad(tipPop));
+                Ease.Spring(ref tipS, ref tipSV, 1f, 600f, 17f, dt);   // 살짝 넘쳤다 자리 잡는 크기
+                tip.rectTransform.localScale = Vector3.one * tipS;
                 // 흰 번쩍: 상자가 통째로 흰색, 글자 숨김 → 3~4프레임 뒤 글자가 찬다
                 tipFlash = Mathf.Max(0f, tipFlash - dt / 0.12f);
                 bool white = tipFlash > 0f;
@@ -426,9 +450,12 @@ namespace TinCan
             v.Flash = 1f;
             v.LvPop = 1f; v.LvTilt = Random.Range(-14f, 14f);
             worldPop = 1f; worldPopV = 0.5f;            // 화면 전체가 살짝 톡
-            tipFlash = 1f; tipTilt = Random.Range(-10f, -6f); tipTiltV = 0f;   // 설명 상자도 흰색으로 번쩍, 기울어져 들어옴
+            tipFlash = 1f; tipTilt = Random.Range(-13f, -9f); tipTiltV = 0f; tipS = 0.85f; tipSV = 0f;   // 설명 상자도 흰색으로 번쩍, 작고 기울어져 들어옴
+            v.Rot = (Random.value < 0.5f ? -1f : 1f) * Random.Range(14f, 20f); v.RotV = 0f;   // 회전 킥
             Fx.Shake(0.08f);
             StartCoroutine(Rebound(v));
+            StartCoroutine(RingCo(Img("Ring", v.Root.parent, v.Root.anchoredPosition, Vector2.one * 16f * Px, "fx_ring", n.Color), 0.5f));
+            for (int i = 0; i < 6; i++) StartCoroutine(ShardCo(v, i * 60f + Random.Range(-15f, 15f)));
             StartCoroutine(Puff(v));          // 흰 구름 → 점가루 → 반짝이
             StartCoroutine(Twinkle(v));
             foreach (var l in links)
@@ -456,6 +483,37 @@ namespace TinCan
                 s.rectTransform.localRotation = Quaternion.Euler(0f, 0f, side * (i < 2 ? 35f : -35f));
                 StartCoroutine(SlashCo(s, side));
             }
+        }
+
+        /// <summary>링: 가는 테두리가 노드 네 배 반경까지 0.5초에 걸쳐 천천히 퍼진다 (Click the Button 3.33~3.67초: 빠르게 시작해 느려지며 계속 커짐)</summary>
+        IEnumerator RingCo(Image ring, float life)
+        {
+            ring.transform.SetSiblingIndex(0);   // 선·노드 뒤
+            var c0 = ring.color;
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / life)
+            {
+                ring.rectTransform.localScale = Vector3.one * Mathf.Lerp(0.8f, 4.5f, Ease.OutCubic(t));
+                ring.color = new Color(c0.r, c0.g, c0.b, t < 0.5f ? 1f : 1f - (t - 0.5f) / 0.5f);
+                yield return null;
+            }
+            Destroy(ring.gameObject);
+        }
+
+        /// <summary>흰 조각: 짧은 흰 막대가 방사형으로 날아가며 줄어든다 (Click the Button의 흰 네모 조각)</summary>
+        IEnumerator ShardCo(NodeView v, float deg)
+        {
+            var dir = new Vector2(Mathf.Cos(deg * Mathf.Deg2Rad), Mathf.Sin(deg * Mathf.Deg2Rad));
+            var s = Img("Shard", v.Root.parent, v.Root.anchoredPosition + dir * NodePx * Px * 0.5f, new Vector2(Random.Range(5f, 9f) * Px, 2f * Px), "link", Color.white);
+            s.rectTransform.localRotation = Quaternion.Euler(0f, 0f, deg);
+            var from = s.rectTransform.anchoredPosition; float dist = Random.Range(90f, 170f);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.3f)
+            {
+                s.rectTransform.anchoredPosition = from + dir * dist * Ease.OutCubic(t);
+                s.rectTransform.localScale = new Vector3(1f - t * 0.7f, 1f, 1f);
+                if (t > 0.6f) { var c = s.color; c.a = 1f - (t - 0.6f) / 0.4f; s.color = c; }
+                yield return null;
+            }
+            Destroy(s.gameObject);
         }
 
         IEnumerator SlashCo(Image s, float side)
@@ -581,12 +639,65 @@ namespace TinCan
             Destroy(p.gameObject);
             if (reveal != null)
             {
-                reveal.Sx = reveal.Sy = 1.35f; reveal.Vx = reveal.Vy = 0f;   // 1프레임에 쩍, 용수철이 가라앉힌다
-                reveal.Flash = 1f; reveal.Wake = 1f;
+                // Shelldiver 등장 (0.78~1.08초): 흰 마름모가 ±25°로 흔들리며 6프레임, 그다음 4프레임에 걸쳐 제 색으로. 꼭짓점에 계열 색 점
+                reveal.Sx = reveal.Sy = 1.3f; reveal.Vx = reveal.Vy = 0f;
+                reveal.Rot = (Random.value < 0.5f ? -1f : 1f) * Random.Range(22f, 30f); reveal.RotV = 0f;
+                reveal.Flash = 1.6f; reveal.Wake = 1f;
                 Sfx.Play(Sfx.Click(), 0.4f, 2.2f);
-                Confetti(reveal, 18);
+                StartCoroutine(CornerDots(reveal));
+                Confetti(reveal, 14);
                 StartCoroutine(Twinkle(reveal));
             }
+        }
+
+        /// <summary>
+        /// 빛 반사: 흰 빛 토막이 마름모 왼쪽 위 변을 따라 쓸고 지나가고(0.2초), 지나간 끝 꼭짓점에 흰 별이 커졌다 작아진다.
+        /// 산 노드가 살아 있다는 표시. 그림(fx_spark·link)만 바꾸면 된다.
+        /// </summary>
+        IEnumerator GlintCo(NodeView v)
+        {
+            float half = NodePx * Px * 0.5f;
+            Vector2 top = new Vector2(0f, half - Px * 1.5f), right = new Vector2(half - Px * 1.5f, 0f);
+            var bar = Img("Glint", v.Root, top, new Vector2(6f * Px, 2f * Px), "link", Color.white);
+            bar.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -45f);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.2f)
+            {
+                bar.rectTransform.anchoredPosition = Vector2.Lerp(top, right, Ease.OutQuad(t));
+                var c = bar.color; c.a = 1f - t * t; bar.color = c;
+                yield return null;
+            }
+            Destroy(bar.gameObject);
+            var star = Img("GlintStar", v.Root, right, Vector2.one * 5f * Px, "fx_spark", Color.white);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.22f)
+            {
+                star.rectTransform.localScale = Vector3.one * (0.4f + Ease.Punch(t) * 1.4f);
+                star.rectTransform.localRotation = Quaternion.Euler(0f, 0f, t * 90f);
+                yield return null;
+            }
+            Destroy(star.gameObject);
+        }
+
+        /// <summary>꼭짓점 점: 드러나는 노드의 네 꼭짓점에 계열 색 점이 붙어 0.4초 깜빡이다 흩어진다</summary>
+        IEnumerator CornerDots(NodeView v)
+        {
+            var dots = new List<Image>();
+            for (int i = 0; i < 4; i++)
+            {
+                float ang = i * 90f * Mathf.Deg2Rad;
+                var d = Img("CornerDot", v.Root.parent, v.Root.anchoredPosition + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * NodePx * Px * 0.55f, Vector2.one * 3f * Px, "fx_dot", v.Node.Color);
+                dots.Add(d);
+            }
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.4f)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    float ang = (i * 90f + v.Rot) * Mathf.Deg2Rad;
+                    dots[i].rectTransform.anchoredPosition = v.Root.anchoredPosition + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * NodePx * Px * (0.55f + t * 0.5f);
+                    dots[i].enabled = ((int)(t * 12f) + i) % 3 != 0;   // 깜빡
+                }
+                yield return null;
+            }
+            foreach (var d in dots) Destroy(d.gameObject);
         }
 
         IEnumerator Shake(RectTransform rt)
