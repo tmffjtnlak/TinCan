@@ -612,7 +612,8 @@ namespace TinCan
             StartCoroutine(RingCo(Img("Ring", v.Root.parent, v.Root.anchoredPosition, Vector2.one * 16f * Px, "fx_ring", Color.white), 0.7f));
             tumble.gameObject.SetActive(false);
             yield return new WaitForSecondsRealtime(0.7f);   // 정오의 정적 — 한 박자 쉰다
-            // 이웃을 순서대로 쏜다 (0.22초 간격, 한 발 한 발 무겁게)
+            // 줌인이 끝났으니 바로 줌아웃하며 쏜다 (사용자 10-12). 쏘는 건 0.1초 간격
+            zoomTarget = zoomBefore; panTarget = panBefore;
             var targets = new List<string>(nb[n.Id]);
             targets.Sort((a, b) => Mathf.Atan2(byId[a].Pos.y - n.Pos.y, byId[a].Pos.x - n.Pos.x).CompareTo(Mathf.Atan2(byId[b].Pos.y - n.Pos.y, byId[b].Pos.x - n.Pos.x)));
             int shot = 0;
@@ -624,11 +625,10 @@ namespace TinCan
                 var aim = NodeCanvas(o) - new Vector2(gunX, gunY);
                 gunRot = Mathf.Atan2(aim.y, aim.x) * Mathf.Rad2Deg;
                 gunKick = 1f; gunKickV = 0f;
-                zoomTarget = Mathf.Max(zoomBefore, zoomTarget - 0.1f);
                 camRotV += (shot % 2 == 0 ? 1f : -1f) * 90f;
                 StartCoroutine(ShootReveal(o));
                 shot++;
-                yield return new WaitForSecondsRealtime(0.22f);
+                yield return new WaitForSecondsRealtime(0.1f);
             }
             yield return new WaitForSecondsRealtime(0.5f);
             // 한 바퀴 천천히 돌리고 (총 돌리기)
