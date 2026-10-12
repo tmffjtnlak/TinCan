@@ -39,10 +39,80 @@ namespace TinCan
         static SkillNode N(string id, string name, string glyph, Vector2 pos, Color color, long cost, string desc, Action<Game> apply, params string[] links)
             => new SkillNode { Id = id, Name = name, Glyph = glyph, Pos = pos, Color = color, Cost = l => cost, Desc = l => desc, Apply = (g, l) => apply(g), Links = links };
 
-        public static List<SkillNode> Make() => Revolver(Raw());
+        public static List<SkillNode> Make() => Tiered(Raw());
 
         /// <summary>
-        /// 리볼버 모양으로 배치 (사용자 10-12: "완성되면 트리가 하나의 심볼이 된다. 우리는 리볼버").
+        /// 단계 구조 (사용자 10-12: "스킬트리처럼. 무조건 연결이 아니라. 초반 스킬은 첫 노드에서 하나씩, 상위 노드에 상위 스펙,
+        /// 상위 스킬 종류는 상위 노드에 붙어 나온다"). 모양(리볼버)은 나중에 이 구조 위에 입힌다.
+        ///   0단: 시작(핵심)
+        ///   1단: 세 갈래 사슬 — 장전(-20% → -20% → -25%), 선반(+1 → +1 → 할인), 돈(+30% → 연속 배수 → +40%). 하나 사야 다음이 보인다
+        ///   관문(핵심): 사슬 끝. 꾹 눌러 해방하면 2단이 열린다
+        ///   2단: 장전 응용(첫 발·마지막 발 / 연속 장전·허리춤), 선반 응용(가벼운 깡통·다시 튐 / 붙여 놓기·짝 소환),
+        ///        돈 관문 뒤엔 **새 종류**가 붙는다: 자동 사격기(초록), 슬로우(보라), 정산(노랑)
+        /// 선은 가로·세로·45°만, 정수 격자, 고리 없음(나무).
+        /// </summary>
+        static List<SkillNode> Tiered(List<SkillNode> raw)
+        {
+            var byId = new Dictionary<string, SkillNode>();
+            foreach (var n in raw) { byId[n.Id] = n; n.Links = new string[0]; }
+            var list = new List<SkillNode>();
+            var at = new Dictionary<(int, int), SkillNode>();
+            void Link(SkillNode a, SkillNode b) { var l = new List<string>(a.Links); if (!l.Contains(b.Id)) l.Add(b.Id); a.Links = l.ToArray(); }
+            SkillNode Put(string id, Color c, int x, int y, params (int, int)[] parents)
+            {
+                SkillNode n;
+                if (id.StartsWith("key:")) { var p = id.Split(':'); n = new SkillNode { Id = p[1], Name = p[2], Glyph = "★", Key = true, Color = c, Cost = l => long.Parse(p[3]), Desc = l => p[4], Apply = (g, l) => { } }; }
+                else n = byId[id];
+                n.Pos = new Vector2(x, y);
+                list.Add(n); at[(x, y)] = n;
+                foreach (var pp in parents)
+                {
+                    int dx = Mathf.Abs(pp.Item1 - x), dy = Mathf.Abs(pp.Item2 - y);
+                    if (!(dx == 0 || dy == 0 || dx == dy)) Debug.LogWarning($"트리 선이 격자 각도가 아니다: {pp} → ({x},{y})");
+                    Link(at[pp], n);
+                }
+                return n;
+            }
+
+            Put("root", White, 0, 0);
+            // 1단 — 장전 (왼쪽 위 45°)
+            Put("reload1", Red, -1, 1, (0, 0));
+            Put("reload2", Red, -2, 2, (-1, 1));
+            Put("reload3", Red, -3, 3, (-2, 2));
+            Put("key:gate_reload:사격술:150:관문. 꾹 눌러 해방하면 장전 응용이 열린다.", Red, -4, 4, (-3, 3));
+            // 2단 — 장전 응용 (관문에서 두 갈래)
+            Put("firstshot", Red, -5, 5, (-4, 4));
+            Put("lastshot", Red, -6, 6, (-5, 5));
+            Put("comboreload", Red, -5, 3, (-4, 4));
+            Put("holster", Red, -6, 2, (-5, 3));
+            // 1단 — 선반 (오른쪽 위 45°)
+            Put("shelf1", Cyan, 1, 1, (0, 0));
+            Put("shelf2", Cyan, 2, 2, (1, 1));
+            Put("cheap", Cyan, 3, 3, (2, 2));
+            Put("key:gate_shelf:곡예:150:관문. 꾹 눌러 해방하면 선반 응용이 열린다.", Cyan, 4, 4, (3, 3));
+            // 2단 — 선반 응용
+            Put("bounce", Cyan, 5, 5, (4, 4));
+            Put("rebound", Cyan, 6, 6, (5, 5));
+            Put("cluster", Cyan, 5, 3, (4, 4));
+            Put("pair", Cyan, 6, 2, (5, 3));
+            // 1단 — 돈 (아래로)
+            Put("value1", Yellow, 0, -1, (0, 0));
+            Put("combo1", Yellow, 0, -2, (0, -1));
+            Put("value2", Yellow, 0, -3, (0, -2));
+            Put("key:gate_money:장사:300:관문. 꾹 눌러 해방하면 새 종류(자동·슬로우·정산)가 열린다.", Yellow, 0, -4, (0, -3));
+            // 2단 — 돈 관문 뒤에 새 종류가 붙는다
+            Put("payout1", Yellow, 0, -5, (0, -4));
+            Put("auto1", Green, -1, -5, (0, -4));
+            Put("auto2", Green, -2, -6, (-1, -5));
+            Put("slow1", Purple, 1, -5, (0, -4));
+            Put("slow2", Purple, 2, -6, (1, -5));
+            Put("slow3", Purple, 3, -6, (2, -6));
+            Put("floor", Purple, 4, -6, (3, -6));
+            return list;
+        }
+
+        /// <summary>
+        /// (보관) 리볼버 모양 배치 1판. 구조(Tiered)가 먼저고, 모양은 나중에 이 위에 입힌다 (사용자 10-12).
         /// 뿌리 = 실린더 중심. 부위마다 기존 노드를 순서대로 앉히고 모자라면 빈 노드(시험용)로 채운다. 부위 끝은 핵심 노드.
         /// 단위 1 = 노드 간격. 오른쪽을 향한 옆모습.
         /// </summary>
