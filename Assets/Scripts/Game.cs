@@ -73,6 +73,7 @@ namespace TinCan
         public Hud Hud => hud;
         TreeView tree;
         Armory armory;
+        Booklet booklet;
         MenuTabs tabs;
         float saveTimer;
         float lastSpawnX = float.NaN;
@@ -94,6 +95,8 @@ namespace TinCan
             tree.SetOpen(false);
             armory = new GameObject("Armory").AddComponent<Armory>();
             armory.Build(this, hud.Canvas);
+            booklet = new GameObject("Booklet").AddComponent<Booklet>();
+            booklet.Build(this, hud.Canvas);
             tabs = new GameObject("MenuTabs").AddComponent<MenuTabs>();
             tabs.Build(hud.Canvas);
             new GameObject("Markers").AddComponent<OffscreenMarkers>();
@@ -242,7 +245,7 @@ namespace TinCan
             {
                 MenuOpen = !MenuOpen;
                 Gun.Enabled = !MenuOpen;
-                if (MenuOpen) OpenPage(lastPage); else { tree.SetOpen(false); armory.Hide(); tabs.Hide(); Save.Write(this); }
+                if (MenuOpen) OpenPage(lastPage); else { tree.SetOpen(false); armory.Hide(); booklet.Hide(); tabs.Hide(); Save.Write(this); }
             }
             if (MenuOpen)
             {
@@ -275,7 +278,9 @@ namespace TinCan
         {
             lastPage = p;
             tree.SetOpen(p == 2);
-            if (p == 2) armory.Hide(); else armory.Show(p == 0 ? Armory.Page.Guns : Armory.Page.Cans);
+            // 0 = 총기 책자 (사용자 10-12 종이 책자 가게), 1 = 깡통류(옛 카드, 소환비 손보기 전까지), 2 = 트리
+            if (p == 0) { armory.Hide(); booklet.Show(); }
+            else { booklet.Hide(); if (p == 2) armory.Hide(); else armory.Show(Armory.Page.Cans); }
             tabs.Show(p);
         }
 

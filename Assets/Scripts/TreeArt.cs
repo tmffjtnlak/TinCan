@@ -71,6 +71,10 @@ namespace TinCan
                 case "fx_ring": return Make(Ring(16), name);
                 case "cursor_corner": return Make(Corner(7), name);
                 case "tumbleweed": return Make(Tumbleweed(16), name);
+                // 가게 책자 (사용자 10-12 "종이 책자" 컨셉). 흰색, 색은 코드가 입힌다
+                case "book_cover": return Make(BookCover(44, 30), name);
+                case "book_open": return Make(BookOpen(160, 100), name, border: 8);
+                case "paper_tag": return Make(PaperTag(36, 16), name, border: 5);
                 default: return null;   // icon_*: 없으면 글자
             }
         }
@@ -251,6 +255,55 @@ namespace TinCan
                 bool inner = rng.NextDouble() < 0.38;
                 if (ring || inner) t.SetPixel(x, y, new Color(1f, 1f, 1f, ring ? 1f : 0.75f));
             }
+            return t;
+        }
+
+        /// <summary>책자 표지: 네모 + 왼쪽 책등 띠(어둡게) + 모서리 깎음</summary>
+        static Texture2D BookCover(int w, int h)
+        {
+            var t = Blank(w, h);
+            for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
+            {
+                bool corner = (x == 0 || x == w - 1) && (y == 0 || y == h - 1);
+                if (corner) continue;
+                bool edge = x == 0 || y == 0 || x == w - 1 || y == h - 1;
+                bool spine = x >= 1 && x <= 4;
+                float a = edge ? 1f : spine ? 0.6f : 0.85f;
+                if (x == 5) a = 0.95f;
+                t.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+            return t;
+        }
+
+        /// <summary>펼친 책: 두 쪽 종이, 가운데 접힌 선, 테두리 한 줄. 9슬라이스(테두리 8)</summary>
+        static Texture2D BookOpen(int w, int h)
+        {
+            var t = Blank(w, h);
+            for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
+            {
+                bool corner = (x <= 1 || x >= w - 2) && (y <= 1 || y >= h - 2);
+                if (corner) continue;
+                bool edge = x == 0 || y == 0 || x == w - 1 || y == h - 1;
+                bool inner = x == 2 || y == 2 || x == w - 3 || y == h - 3;
+                bool fold = x == w / 2 || x == w / 2 - 1;
+                float a = edge ? 0.55f : inner ? 0.9f : fold ? 0.8f : 1f;
+                t.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+            return t;
+        }
+
+        /// <summary>가격표: 왼쪽이 뾰족한 꼬리표 + 구멍</summary>
+        static Texture2D PaperTag(int w, int h)
+        {
+            var t = Blank(w, h); int c = h / 2;
+            for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
+            {
+                int cut = Mathf.Abs(y - c);           // 왼쪽 뾰족
+                if (x < cut) continue;
+                bool edge = y == 0 || y == h - 1 || x == w - 1 || x == cut;
+                t.SetPixel(x, y, new Color(1f, 1f, 1f, edge ? 0.6f : 1f));
+            }
+            t.SetPixel(c + 2, c, new Color(1f, 1f, 1f, 0f)); t.SetPixel(c + 3, c, new Color(1f, 1f, 1f, 0f));   // 구멍
             return t;
         }
 
