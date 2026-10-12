@@ -74,40 +74,41 @@ namespace TinCan
                 return n;
             }
 
+            // 배치: 일직선이 아니라 뿌리 둘레에 **뭉쳐서** (사용자 10-12). 사슬은 꺾이고, 갈래는 덩어리로. 전체 -4..4 × -5..2 안
             Put("root", White, 0, 0);
-            // 1단 — 장전 (왼쪽 위 45°)
-            Put("reload1", Red, -1, 1, (0, 0));
-            Put("reload2", Red, -2, 2, (-1, 1));
-            Put("reload3", Red, -3, 3, (-2, 2));
-            Put("key:gate_reload:사격술:150:관문. 꾹 눌러 해방하면 장전 응용이 열린다.", Red, -4, 4, (-3, 3));
-            // 2단 — 장전 응용 (관문에서 두 갈래)
-            Put("firstshot", Red, -5, 5, (-4, 4));
-            Put("lastshot", Red, -6, 6, (-5, 5));
-            Put("comboreload", Red, -5, 3, (-4, 4));
-            Put("holster", Red, -6, 2, (-5, 3));
-            // 1단 — 선반 (오른쪽 위 45°)
-            Put("shelf1", Cyan, 1, 1, (0, 0));
-            Put("shelf2", Cyan, 2, 2, (1, 1));
-            Put("cheap", Cyan, 3, 3, (2, 2));
-            Put("key:gate_shelf:곡예:150:관문. 꾹 눌러 해방하면 선반 응용이 열린다.", Cyan, 4, 4, (3, 3));
+            // 1단 — 장전 (왼쪽): 왼쪽으로 둘, 위로 꺾어 관문
+            Put("reload1", Red, -1, 0, (0, 0));
+            Put("reload2", Red, -2, 0, (-1, 0));
+            Put("reload3", Red, -2, 1, (-2, 0));
+            Put("key:gate_reload:사격술:150:관문. 꾹 눌러 해방하면 장전 응용이 열린다.", Red, -3, 1, (-2, 1));
+            // 2단 — 장전 응용: 관문 둘레에 덩어리
+            Put("firstshot", Red, -4, 2, (-3, 1));
+            Put("lastshot", Red, -4, 1, (-4, 2));
+            Put("comboreload", Red, -4, 0, (-3, 1));
+            Put("holster", Red, -3, -1, (-4, 0));
+            // 1단 — 선반 (오른쪽): 거울
+            Put("shelf1", Cyan, 1, 0, (0, 0));
+            Put("shelf2", Cyan, 2, 0, (1, 0));
+            Put("cheap", Cyan, 2, 1, (2, 0));
+            Put("key:gate_shelf:곡예:150:관문. 꾹 눌러 해방하면 선반 응용이 열린다.", Cyan, 3, 1, (2, 1));
             // 2단 — 선반 응용
-            Put("bounce", Cyan, 5, 5, (4, 4));
-            Put("rebound", Cyan, 6, 6, (5, 5));
-            Put("cluster", Cyan, 5, 3, (4, 4));
-            Put("pair", Cyan, 6, 2, (5, 3));
-            // 1단 — 돈 (아래로)
+            Put("bounce", Cyan, 4, 2, (3, 1));
+            Put("rebound", Cyan, 4, 1, (4, 2));
+            Put("cluster", Cyan, 4, 0, (3, 1));
+            Put("pair", Cyan, 3, -1, (4, 0));
+            // 1단 — 돈 (아래): 내려가다 오른쪽으로 꺾어 관문
             Put("value1", Yellow, 0, -1, (0, 0));
             Put("combo1", Yellow, 0, -2, (0, -1));
-            Put("value2", Yellow, 0, -3, (0, -2));
-            Put("key:gate_money:장사:300:관문. 꾹 눌러 해방하면 새 종류(자동·슬로우·정산)가 열린다.", Yellow, 0, -4, (0, -3));
-            // 2단 — 돈 관문 뒤에 새 종류가 붙는다
-            Put("payout1", Yellow, 0, -5, (0, -4));
-            Put("auto1", Green, -1, -5, (0, -4));
-            Put("auto2", Green, -2, -6, (-1, -5));
-            Put("slow1", Purple, 1, -5, (0, -4));
-            Put("slow2", Purple, 2, -6, (1, -5));
-            Put("slow3", Purple, 3, -6, (2, -6));
-            Put("floor", Purple, 4, -6, (3, -6));
+            Put("value2", Yellow, 1, -2, (0, -2));
+            Put("key:gate_money:장사:300:관문. 꾹 눌러 해방하면 새 종류(자동·슬로우·정산)가 열린다.", Yellow, 1, -3, (1, -2));
+            // 2단 — 돈 관문 둘레에 새 종류가 붙는다
+            Put("payout1", Yellow, 2, -3, (1, -3));
+            Put("auto1", Green, 0, -3, (1, -3));
+            Put("auto2", Green, -1, -4, (0, -3));
+            Put("slow1", Purple, 2, -4, (1, -3));
+            Put("slow2", Purple, 3, -4, (2, -4));
+            Put("slow3", Purple, 3, -5, (3, -4));
+            Put("floor", Purple, 2, -5, (3, -5));
             return list;
         }
 

@@ -135,8 +135,8 @@ namespace TinCan
             tumble = Img("Tumbleweed", veil.transform, new Vector2(tumbleX, -470f), Vector2.one * 16f * Px, "tumbleweed", new Color(0.75f, 0.62f, 0.35f));
             tumble.gameObject.SetActive(false);
             // 리볼버 실루엣이 화면에 다 들어오게: 조금 축소하고 총열 쪽으로 중심을 옮긴다
-            zoom = zoomTarget = 0.45f;
-            world.anchoredPosition = Vector2.zero;
+            zoom = zoomTarget = 0.72f;
+            world.anchoredPosition = new Vector2(0f, 1.3f * Spacing * zoom);
             veil.gameObject.SetActive(false);
         }
 
