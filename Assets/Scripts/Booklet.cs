@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -33,6 +33,7 @@ namespace TinCan
         float buyS = 1f, buySV, buyRot, buyRotV;
         Sprite gunSprite, gunWhiteSprite;
         RenderTexture blurRt; Camera blurCam;
+        RectTransform content; const float Fit = 0.8f;
         static readonly Dictionary<Sprite, Sprite> whites = new Dictionary<Sprite, Sprite>();
         static readonly Color Ink = new Color(0.12f, 0.1f, 0.14f);
         static readonly Vector2 GunPos = new Vector2(-180f, 120f);   // 앞 종이 위 총 자리 (왼쪽 위)
@@ -51,22 +52,26 @@ namespace TinCan
             var brt = (RectTransform)blur.transform; brt.anchorMin = brt.anchorMax = new Vector2(0.5f, 0.5f); brt.sizeDelta = new Vector2(1920f, 1080f);
             var raw = blur.AddComponent<RawImage>(); raw.texture = blurRt; raw.raycastTarget = false; raw.color = new Color(0.8f, 0.75f, 0.7f);
             Ui.Image("Tint", veil.transform, Vector2.zero, new Vector2(4000f, 3000f), new Color(0.12f, 0.08f, 0.06f, 0.62f));
+            // 전체 구성은 이 안에 (사용자 10-12: 조금 커서 0.8배)
+            content = Ui.Rect("Content", veil.transform, Vector2.zero, Vector2.zero);
+            content.localScale = Vector3.one * Fit;
+            var root = content;
 
             // 왼쪽: 작은 카드 (총 그림 축소)
             for (int i = 0; i < GunKind.ForSale.Count; i++)
             {
                 var k = GunKind.ForSale[i];
                 // 스케치대로 화면을 꽉 채운다 (사용자 10-12): 왼쪽 카드 열은 화면 1/6, 종이가 나머지를 거의 다 차지
-                var frame = Img("Card_" + k.Id, veil.transform, Vector2.zero, new Vector2(44f, 32f) * Px, "card_small", Color.white);
+                var frame = Img("Card_" + k.Id, root, Vector2.zero, new Vector2(44f, 32f) * Px, "card_small", Color.white);
                 var sp = GunView.LoadArt($"gun_{k.Id}_side") ?? GunView.LoadArt("gun_revolver_side");
                 var thumb = Img("Thumb", frame.transform, new Vector2(8f, 0f), sp != null ? new Vector2(sp.rect.width, sp.rect.height) * 1.3f : new Vector2(130f, 80f), null, Color.white);
                 thumb.sprite = sp; thumb.preserveAspect = true;
                 cards.Add(new Card { Kind = k, Frame = frame, Thumb = thumb, Home = new Vector2(-790f, 400f - i * 160f) });
             }
             // 가운데: 종이 두 장 (크게)
-            sheetBack = Img("SheetBack", veil.transform, new Vector2(160f, -10f), new Vector2(1180f, 820f), "paper_sheet", new Color(0.72f, 0.8f, 0.95f));
+            sheetBack = Img("SheetBack", root, new Vector2(160f, -10f), new Vector2(1180f, 820f), "paper_sheet", new Color(0.72f, 0.8f, 0.95f));
             sheetBack.type = Image.Type.Sliced; sheetBack.pixelsPerUnitMultiplier = Mult;
-            sheetFront = Img("SheetFront", veil.transform, new Vector2(120f, 30f), new Vector2(1140f, 780f), "paper_sheet", new Color(0.98f, 0.97f, 0.94f));
+            sheetFront = Img("SheetFront", root, new Vector2(120f, 30f), new Vector2(1140f, 780f), "paper_sheet", new Color(0.98f, 0.97f, 0.94f));
             sheetFront.type = Image.Type.Sliced; sheetFront.pixelsPerUnitMultiplier = Mult;
             // 앞 종이 위: 이름(오른쪽 위), 밑그림(왼쪽 위 크게), 설명 줄, 수치(왼쪽 아래)
             title = Ui.Text("Title", sheetFront.transform, new Vector2(300f, 270f), new Vector2(460f, 90f), 60, TextAnchor.MiddleCenter, Ink, shadow: false);
@@ -88,12 +93,12 @@ namespace TinCan
             }
             state = Ui.Text("State", sheetFront.transform, new Vector2(300f, -300f), new Vector2(400f, 48f), 36, TextAnchor.MiddleCenter, new Color(0.35f, 0.3f, 0.25f), shadow: false);
             // 오른쪽 아래: BUY 카드
-            buyCard = Img("BuyCard", veil.transform, new Vector2(700f, -400f), new Vector2(60f, 30f) * Px, "paper_sheet", new Color(0.72f, 0.8f, 0.95f));
+            buyCard = Img("BuyCard", root, new Vector2(700f, -400f), new Vector2(60f, 30f) * Px, "paper_sheet", new Color(0.72f, 0.8f, 0.95f));
             buyCard.type = Image.Type.Sliced; buyCard.pixelsPerUnitMultiplier = Mult;
             buyPill = Img("BuyPill", buyCard.transform, new Vector2(20f, -12f), new Vector2(44f, 16f) * Px, "stat_pill", new Color(1f, 0.92f, 0.6f));
             buyPill.type = Image.Type.Sliced; buyPill.pixelsPerUnitMultiplier = Mult;
             buyText = Ui.Text("BuyText", buyPill.transform, Vector2.zero, new Vector2(170f, 50f), 36, TextAnchor.MiddleCenter, Ink, shadow: false);
-            hintEquip = Ui.Text("HintEquip", veil.transform, new Vector2(160f, -490f), new Vector2(900f, 36f), 24, TextAnchor.MiddleCenter, Ui.Dim);
+            hintEquip = Ui.Text("HintEquip", root, new Vector2(160f, -490f), new Vector2(900f, 36f), 24, TextAnchor.MiddleCenter, Ui.Dim);
             veil.gameObject.SetActive(false);
         }
 
@@ -103,8 +108,8 @@ namespace TinCan
             veil.transform.SetAsLastSibling();
             if (blurCam != null) { blurCam.CopyFrom(Camera.main); blurCam.targetTexture = blurRt; blurCam.enabled = true; }
             // 종이가 날아 들어온다 (뒤 먼저, 앞은 반 박자 뒤)
-            backS = 0.4f; backSV = 9f; backRot = 30f; backRotV = 0f;
-            frontS = 0.3f; frontSV = 7f; frontRot = -40f; frontRotV = 0f;
+            backS = 0.4f; backSV = 9f; backRot = 20f; backRotV = 0f;
+            frontS = 0.3f; frontSV = 7f; frontRot = -24f; frontRotV = 0f;
             Select(selected ?? game.Primary);
             Sfx.Play(Sfx.Whoosh(), 0.5f, 1.3f);
         }
@@ -152,7 +157,7 @@ namespace TinCan
             var mouse = Mouse.current; var kb = Keyboard.current;
             Vector2 mp = mouse != null ? mouse.position.ReadValue() : Vector2.zero;
             float k = 1080f / Screen.height;
-            Vector2 canvasPt = new Vector2(mp.x - Screen.width * 0.5f, mp.y - Screen.height * 0.5f) * k;
+            Vector2 canvasPt = new Vector2(mp.x - Screen.width * 0.5f, mp.y - Screen.height * 0.5f) * k / Fit;   // 구성이 0.8배라 좌표도 나눈다
             if (mouse != null) { float wheel = mouse.scroll.ReadValue().y; if (Mathf.Abs(wheel) > 0.01f) scrollV += wheel * 90f; }
             Ease.Spring(ref scroll, ref scrollV, Mathf.Clamp(scroll, 0f, Mathf.Max(0f, (cards.Count - 6) * 160f)), 200f, 14f, dt);
             // 왼쪽 카드
@@ -173,8 +178,8 @@ namespace TinCan
             }
             if (mouse != null && mouse.leftButton.wasPressedThisFrame && hot != null && hot.Kind != selected) { Select(hot.Kind); hot.ScaleV = 3f; }
             // 종이 두 장: 크기·기울기 용수철 (뒤 +8°, 앞 -6°로 자리 잡는다)
-            Ease.Spring(ref backS, ref backSV, 1f, 300f, 12f, dt); Ease.Spring(ref backRot, ref backRotV, 8f, 260f, 11f, dt);
-            Ease.Spring(ref frontS, ref frontSV, 1f, 300f, 12f, dt); Ease.Spring(ref frontRot, ref frontRotV, -6f, 260f, 11f, dt);
+            Ease.Spring(ref backS, ref backSV, 1f, 300f, 12f, dt); Ease.Spring(ref backRot, ref backRotV, 6f, 260f, 11f, dt);
+            Ease.Spring(ref frontS, ref frontSV, 1f, 300f, 12f, dt); Ease.Spring(ref frontRot, ref frontRotV, -4f, 260f, 11f, dt);   // 두 장 합쳐 10° 안쪽 (사용자 10-12)
             sheetBack.rectTransform.localScale = Vector3.one * backS; sheetBack.rectTransform.localRotation = Quaternion.Euler(0f, 0f, backRot);
             sheetFront.rectTransform.localScale = Vector3.one * frontS; sheetFront.rectTransform.localRotation = Quaternion.Euler(0f, 0f, frontRot);
             // 진짜 총: 잠시 뒤 밑그림 위에 생겨난다
