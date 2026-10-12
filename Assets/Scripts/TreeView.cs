@@ -99,7 +99,8 @@ namespace TinCan
 
             cursor = Img("Cursor", world, Vector2.zero, Vector2.zero, null, Color.clear).rectTransform;
             corners = new Image[4];
-            float off = NodePx * Px * 0.5f + Px * 3f;
+            // 꺾쇠는 45° 돌려 쓰므로 축 거리 off → 꼭짓점 거리 off·√2. 마름모 꼭짓점(반폭 15칸)보다 2칸만 바깥 (사용자 10-12: 한두 픽셀만)
+            float off = (NodePx * 0.5f + 2f) * Px / 1.4142f;
             // 꺾쇠 그림은 왼쪽 위 ㄱ자. 왼쪽은 그대로, 오른쪽은 가로 뒤집기, 아래는 세로 뒤집기 → [ ] 모양. 마름모라 45° 돌려 꼭짓점을 감싼다
             for (int i = 0; i < 4; i++)
             {
@@ -275,9 +276,10 @@ namespace TinCan
                 }
                 v.Frame.color = frame; v.Fill.color = fill;
                 if (!(owned && !n.Root)) v.Bevel.color = new Color(1f, 1f, 1f, white ? 0f : 0.12f);
-                var ink = white ? Color.white : (owned || avail ? Color.white : new Color(1f, 1f, 1f, 0.3f));   // 흰 네모일 땐 아이콘도 묻힌다
+                // 아이콘: 살 수 있거나 샀으면 밝게, 아니면 어둡게 (사용자 10-12). 흰 네모일 땐 아이콘도 묻힌다
+                var ink = white ? Color.white : (owned || avail ? Color.white : new Color(0.38f, 0.4f, 0.5f));
                 if (v.Glyph != null) v.Glyph.color = ink; if (v.Icon != null) v.Icon.color = ink;
-                v.Lv.text = n.Key ? (n.Level >= 1 ? "" : "꾹") : (n.Maxed ? "완료" : $"${n.NextCost:N0}");
+                v.Lv.text = "";   // 노드 밑 값 글자는 뺐다 (사용자 10-12): 값은 설명 상자에, 상태는 색으로
                 if (v.Gauge != null) v.Gauge.enabled = false;   // 게이지는 링 대신 회전초가 굴러가는 걸로 (사용자 10-12)
                 v.Lv.color = n.Maxed ? SkillTree.Green : avail ? (game.Money >= n.NextCost ? SkillTree.Green : new Color(1f, 0.45f, 0.4f)) : new Color(1f, 1f, 1f, 0.45f);
                 // 값 글자: 바뀔 때 기울며 커졌다 돌아온다 (Click the Button 숫자)
@@ -449,7 +451,7 @@ namespace TinCan
                 tipDesc.text = NumToken.Replace(hover.Desc(hover.Level), m => $"<b><color=#{hex}>{m.Value}</color></b>");
                 bool avail = Available(hover);
                 tipCost.text = hover.Key ? (hover.Level >= 1 ? "<color=#8cff9a>해방됨</color>" : CanCharge(hover) ? "<color=#ffd966>꾹 눌러 해방</color>" : "<color=#888888>옆 노드를 먼저</color>")
-                    : hover.Maxed ? "" : !avail ? "<color=#888888>옆 노드를 먼저</color>" : (game.Money >= hover.NextCost ? $"<color=#8cff9a>${hover.NextCost:N0}</color>" : $"<color=#ff6666>${hover.NextCost:N0}</color>");
+                    : hover.Maxed ? "<color=#8cff9a>구매 완료</color>" : !avail ? "<color=#888888>옆 노드를 먼저</color>" : (game.Money >= hover.NextCost ? $"<color=#8cff9a>${hover.NextCost:N0}</color>" : $"<color=#ff6666>${hover.NextCost:N0}</color>");
                 tipCost.supportRichText = true;
             }
             else tip.gameObject.SetActive(false);
