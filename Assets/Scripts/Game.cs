@@ -33,7 +33,6 @@ namespace TinCan
         public float SpawnDiscount { get; set; } = 0f;
         public bool ClusterSpawn { get; set; } = false;
         public int SpawnCount { get; set; } = 1;
-        public float AutoGunSeconds { get; set; } = 0f;
         public float BurstMult { get; set; } = 2f;
         public int LandBounces { get; set; } = 0;        // 스킬 "다시 튐": 떨어진 깡통이 혼자 N번 다시 튀어오른다
         public float FloorSlow { get; set; } = 0f;       // 스킬 "바닥 근처 느려짐": 바닥 가까이에서 낙하 속도가 이만큼 줄어든다 (0.5 = 반)
@@ -347,16 +346,21 @@ namespace TinCan
             Sfx.Play(Sfx.Tang(), 0.5f, k.Pitch);
         }
 
-        AutoTurret turret;
+        AutoGunner gunner;
         Bounty bounty;
         GunViewer viewer;
-        /// <summary>자동 사격기: 스킬을 사면 선반 옆에 기계가 서고, 보이는 깡통에 조준점이 움직여 가서 쏜다</summary>
+        /// <summary>자동 사격 (10-12 2판): 스킬로 총 종류를 뚫으면 화면 아래에 총이 서서 쏜다. 많아질수록 난투</summary>
+        public void AddAutoGun(GunKind kind)
+        {
+            if (gunner == null) gunner = AutoGunner.Make();
+            gunner.Add(kind);
+        }
+        public float AutoRate { get; set; } = 1f;   // 스킬 "빠른 사격기": 간격 배수
         void AutoGun()
         {
-            if (AutoGunSeconds <= 0f) return;
-            if (turret == null) { turret = AutoTurret.Make(); hud.Float("자동 사격기 설치", new Vector2(Look.ShelfRight + 0.5f, Look.ShelfY + 1.2f), 5); }
-            turret.Interval = AutoGunSeconds;
-            turret.Tick(Time.deltaTime);
+            if (gunner == null) return;
+            gunner.RateScale = AutoRate;
+            gunner.Tick(Time.deltaTime);
         }
 
         public int CansOnShelf => Cans.FindAll(c => c != null && !c.Airborne).Count;

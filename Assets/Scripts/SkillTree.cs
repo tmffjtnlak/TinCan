@@ -105,6 +105,8 @@ namespace TinCan
             Put("payout1", Yellow, 2, -3, (1, -3));
             Put("auto1", Green, 0, -3, (1, -3));
             Put("auto2", Green, -1, -4, (0, -3));
+            Put("auto_lever", Green, 0, -4, (0, -3));
+            Put("auto_shotgun", Green, -2, -5, (-1, -4));
             Put("slow1", Purple, 2, -4, (1, -3));
             Put("slow2", Purple, 3, -4, (2, -4));
             Put("slow3", Purple, 3, -5, (3, -4));
@@ -219,8 +221,11 @@ namespace TinCan
             N("payout1", "두둑한 정산", "정", new Vector2(1.2f, -2.9f), Yellow, 220, "떨어질 때 정산 +25%", g => g.PayoutMult += 0.25f),
 
             // 자동 (초록) — 왼쪽 아래
-            N("auto1", "자동 사격기", "자", new Vector2(-1.6f, -0.5f), Green, 250, "선반 옆 기계가 공중의 깡통을 2초마다 한 번 맞춘다 (값 절반)", g => g.AutoGunSeconds = 2f, "auto2"),
-            N("auto2", "빠른 사격기", "속", new Vector2(-3.0f, -1.0f), Green, 500, "사격기 간격 1초", g => g.AutoGunSeconds = 1f),
+            // 자동 사격 (10-12 2판): 총 종류를 뚫을수록 화면 아래에 총이 늘어난다. 값은 절반
+            N("auto1", "자동 리볼버", "자", new Vector2(-1.6f, -0.5f), Green, 250, "화면 아래에 리볼버가 서서 쏜다. 빠르고 넓게 쫓는다 (값 절반)", g => g.AddAutoGun(GunKind.Revolver), "auto2"),
+            N("auto2", "빠른 사격기", "속", new Vector2(-3.0f, -1.0f), Green, 500, "자동 총들의 간격 -40%", g => g.AutoRate = 0.6f),
+            N("auto_lever", "자동 레버액션", "레", new Vector2(-3.0f, -1.0f), Green, 400, "아래에 레버액션 소총이 합류. 중간 속도로 꾸준히", g => g.AddAutoGun(GunKind.LeverAction)),
+            N("auto_shotgun", "자동 샷건", "샷", new Vector2(-3.0f, -1.0f), Green, 600, "아래에 샷건이 합류. 느리게 쫓지만 원 안을 전부 띄운다", g => g.AddAutoGun(GunKind.Shotgun)),
 
             // 시간 (보라) — 오른쪽 아래. 우클릭 슬로우
             N("slow1", "긴 숨", "숨", new Vector2(1.7f, -0.5f), Purple, 60, "슬로우 게이지 2초 → 3초", g => g.SlowGaugeMax += 0.5f, "slow2", "slow3", "floor"),
