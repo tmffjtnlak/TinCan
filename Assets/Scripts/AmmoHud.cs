@@ -98,7 +98,8 @@ namespace TinCan
 
         void LateUpdate()
         {
-            if (gun == null || gun.Kind == null || Game.I == null || Game.I.State != GameState.Play) { foreach (var s in slots) if (s != null) s.Img.gameObject.SetActive(false); return; }
+            // 플레이 중에만, 가게(트리)가 열려 있으면 숨긴다 (사용자 10-12)
+            if (gun == null || gun.Kind == null || Game.I == null || Game.I.State != GameState.Play || Game.I.MenuOpen) { foreach (var s in slots) if (s != null) s.Img.gameObject.SetActive(false); return; }
             if (gun.Kind != shownKind || slots.Length != Mathf.Min(gun.Capacity, 30)) Rebuild(gun.Kind);
             foreach (var s in slots) s.Img.gameObject.SetActive(true);
             int ammo = gun.Ammo;

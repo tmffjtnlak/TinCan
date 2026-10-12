@@ -25,7 +25,7 @@ namespace TinCan
         public Transform Canvas => canvas;
         Image moneyBoard, hintStrip, cylBoard;
         /// <summary>타이틀에선 돈·안내·실린더 판자를 숨긴다</summary>
-        public void SetPlayVisible(bool v) { moneyBoard.gameObject.SetActive(v); hintStrip.gameObject.SetActive(v); cylBoard.gameObject.SetActive(false); slowBg.gameObject.SetActive(v); slowLabel.gameObject.SetActive(v); if (!v) airBadge.gameObject.SetActive(false); }
+        public void SetPlayVisible(bool v) { moneyBoard.gameObject.SetActive(v); hintStrip.gameObject.SetActive(false); cylBoard.gameObject.SetActive(false); slowBg.gameObject.SetActive(v); slowLabel.gameObject.SetActive(v); if (!v) airBadge.gameObject.SetActive(false); }   // 위 안내 띠는 뺐다 (사용자 10-12 UI 정리)
 
         void Awake()
         {
@@ -37,9 +37,11 @@ namespace TinCan
             hurtVeil = Ui.Image("Hurt", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
 
             // 왼쪽 위: 돈 판자
-            var board = moneyBoard = Ui.Panel("MoneyBoard", canvas, new Vector2(-720f, 455f), new Vector2(420f, 130f));
-            money = Ui.Text("Money", board.transform, new Vector2(10f, 18f), new Vector2(380f, 60f), 52, TextAnchor.MiddleLeft, Ui.Gold);
+            // 돈만 (사용자 10-12 UI 정리: 기록 글자는 뺐다)
+            var board = moneyBoard = Ui.Panel("MoneyBoard", canvas, new Vector2(-760f, 470f), new Vector2(340f, 90f));
+            money = Ui.Text("Money", board.transform, new Vector2(10f, 0f), new Vector2(300f, 60f), 48, TextAnchor.MiddleLeft, Ui.Gold);
             stats = Ui.Text("Stats", board.transform, new Vector2(10f, -32f), new Vector2(380f, 34f), 19, TextAnchor.MiddleLeft, Ui.Dim);
+            stats.gameObject.SetActive(false);
 
             // 동시 공중 배지는 세트 점수판(Tally)으로 대체 (사용자 10-12). 만들어만 두고 안 보인다
             airBadge = Ui.Text("AirBadge", canvas, new Vector2(0f, -400f), new Vector2(600f, 120f), 30, TextAnchor.MiddleCenter, Ui.Gold);

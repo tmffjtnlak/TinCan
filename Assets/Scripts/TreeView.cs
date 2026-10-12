@@ -126,8 +126,7 @@ namespace TinCan
             tip.gameObject.SetActive(false);
 
             money = Txt("Money", veil.transform, new Vector2(760f, 455f), new Vector2(360f, 60f), 36, TextAnchor.MiddleRight, SkillTree.Yellow);
-            var hint = Txt("Hint", veil.transform, new Vector2(0f, -500f), new Vector2(1400f, 40f), 20, TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.55f));
-            hint.text = "누르면 산다 (누르고 있으면 연달아)   ·   핵심 노드는 꾹 눌러 해방   ·   휠 = 확대   ·   드래그·방향키 = 이동   ·   Tab = 닫는다";
+            // 아래 안내 글은 뺐다 (사용자 10-12 UI 정리)
 
             // 해방용 총 (사용자 리볼버 그림, 피벗 = 방아쇠울) — 평소엔 화면 아래에 숨어 있다
             var gunSprite = GunView.LoadArt("gun_revolver_side");
