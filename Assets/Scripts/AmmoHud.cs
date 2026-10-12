@@ -142,12 +142,14 @@ namespace TinCan
         /// <summary>쐈다: 1프레임에 옆으로 밀리며 납작 (가로 1.3, 세로 0.7) → 튕겨 돌아오고, 검게 물든다</summary>
         IEnumerator Spend(Slot s)
         {
+            s.White.color = Color.clear;                          // 등장 중(흰 실루엣)에 쏘면 흰색이 남던 버그 (사용자 10-12)
             s.Shift = SpentShift * 1.6f; s.ShiftV = 0f;          // 즉시, 넘치게
             s.Sx = 1.3f; s.Sy = 0.7f; s.Vx = s.Vy = 0f;
             s.Rot = Random.Range(-6f, 6f); s.RotV = 0f;
+            var from = s.Img.color.a < 0.99f ? Color.white : s.Img.color;   // 등장 지연 중(투명)이었으면 흰색부터
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.12f)
             {
-                s.Img.color = Color.Lerp(Color.white, Spent, t);
+                s.Img.color = Color.Lerp(from, Spent, t);
                 yield return null;
             }
             s.Img.color = Spent;
@@ -156,7 +158,7 @@ namespace TinCan
         /// <summary>장전 시작: 쓴 탄이 튕겨 날아간다 (위치는 직접, 용수철은 손 뗀다)</summary>
         IEnumerator Toss(Slot s)
         {
-            s.Flying = true;
+            s.Flying = true; s.White.color = Color.clear;
             var from = s.Rt.anchoredPosition;
             var vel = new Vector2(Random.Range(-160f, 160f), Random.Range(520f, 680f));
             float spin = Random.Range(450f, 750f) * (Random.value < 0.5f ? -1f : 1f);
