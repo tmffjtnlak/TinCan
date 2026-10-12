@@ -306,9 +306,9 @@ namespace TinCan
                 l.Img.rectTransform.sizeDelta = new Vector2(d.magnitude, 2f * Px);
                 l.Img.rectTransform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
                 bool lit = na.Level >= 1 && nbn.Level >= 1;
-                var c = na.Root ? nbn.Color : na.Color;
+                // 선은 계열 색이 아니라 흰색 (사용자 10-13: 서부 마을인데 너무 컬러풀, 통일감). 산 선은 밝은 흰색, 아직인 선은 흐린 흰 점선
                 l.Img.sprite = TreeArt.Get(lit ? "link" : "link_dim");
-                var col = lit ? c : new Color(c.r, c.g, c.b, 0.7f);
+                var col = lit ? new Color(0.95f, 0.93f, 0.88f) : new Color(0.95f, 0.93f, 0.88f, 0.45f);
                 l.Flash = Mathf.Max(0f, l.Flash - dt / 0.2f);
                 l.Img.color = Color.Lerp(col, Color.white, l.Flash);
             }
