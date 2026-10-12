@@ -490,8 +490,9 @@ namespace TinCan
             Vector2 totalAt = Vector2.zero;
             yield return hud.Tally(lines, best ? $"${total:N0}  최고!" : $"${total:N0}", k, at => totalAt = at);
             // 합계 글자에서 탄피가 주르르륵 쏟아진다. 클수록 많이, 천천히. 바닥에 눕는 것부터 판자로 올라간다
-            int count = Mathf.RoundToInt(Mathf.Lerp(4f, 30f, k));
-            float interval = Mathf.Lerp(0.02f, 0.06f, k);
+            // 개수는 금액에 비례 (사용자 10-12: $50과 $1,000이 비슷하면 안 된다). $8에 하나, 최대 240. 쏟는 시간은 연출 크기로
+            int count = Mathf.Clamp(Mathf.RoundToInt(total / 8f), 3, 240);
+            float interval = Mathf.Lerp(0.3f, 1.6f, k) / count;
             long per = total / count, rem = total - per * count;
             var target = hud.MoneyWorld();
             for (int i = 0; i < count; i++)
@@ -499,9 +500,11 @@ namespace TinCan
                 var c = Casing.Drop(totalAt + Vector2.right * Random.Range(0f, 2.5f), per + (i == count - 1 ? rem : 0), k > 0.6f && i % 3 == 0,
                     new Vector2(Random.Range(-0.5f, 2.5f), Random.Range(1f, 4f)));
                 int idx = i;
-                c.OnRest = () => StartCoroutine(c.FlyTo(target, Random.Range(0.05f, 0.2f), v => { Money += v; hud.BumpMoney(); Sfx.Play(Sfx.Click(), 0.25f, 1.4f + Mathf.Min(idx, 30) * 0.03f); }));
-                Sfx.Play(Sfx.Click(), 0.12f, Random.Range(2f, 2.6f));
-                yield return new WaitForSecondsRealtime(interval);
+                int every = Mathf.Max(1, count / 30);   // 소리는 많아야 30번쯤
+                c.OnRest = () => StartCoroutine(c.FlyTo(target, Random.Range(0.05f, 0.3f), v => { Money += v; hud.BumpMoney(); if (idx % every == 0) Sfx.Play(Sfx.Click(), 0.25f, 1.4f + Mathf.Min(idx / every, 30) * 0.03f); }));
+                if (idx % every == 0) Sfx.Play(Sfx.Click(), 0.12f, Random.Range(2f, 2.6f));
+                if (interval >= 0.01f) yield return new WaitForSecondsRealtime(interval);
+                else if (idx % Mathf.CeilToInt(0.01f / interval) == 0) yield return null;
             }
         }
 
