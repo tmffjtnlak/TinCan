@@ -480,6 +480,7 @@ namespace TinCan
             var v = rb.linearVelocity / Scale;   // 느려진 시간 안에서 계산하고 다시 줄인다
             // 기본 튐은 보수적으로 (리볼버 한 발 = 선반에서 화면 중간쯤). 총 배수·스킬로 위로 갈라진다. 천장은 안전망
             v.y = (Mathf.Max(0f, v.y * 0.3f) + 7.2f + BounceBonus + Random.Range(-0.4f, 0.6f)) * bounceScale * Kind.Bounce;   // 현상금은 낮게 (Bounce 0.7)
+            v.y *= AltitudeFactor(transform.position.y);   // 높이 있을수록 한 발이 덜 띄운다 (천장에서 노는 것 방지, 중간 높이 저글링은 그대로)
             v.x = v.x * 0.4f + side * 2.2f + Random.Range(-0.6f, 0.6f);
             // 천장 한계 (사용자 10-11): 화면 밖으로 나가면 연속이 끊기니, 꼭대기가 화면 위 끝 바로 아래가 되도록 자른다
             float top = Look.CeilingY - Kind.Height * 0.5f - transform.position.y;
@@ -503,6 +504,19 @@ namespace TinCan
             Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f + (tier - 1) * 0.05f + (Kind.Squish > 1f ? 0.25f : 0f));
             if (Kind.Squish > 1f) Sfx.Play(Sfx.Drop(), 0.55f, 0.55f);   // 묵직한 깡통: 낮은 쿵이 겹친다
             return earned;
+        }
+
+        /// <summary>
+        /// 고도 감쇠 (사용자 10-14): 한 발의 튀는 힘이 맞은 높이에 따라 줄어든다. AltitudeLow(화면 가운데쯤) 아래는 1 그대로 →
+        /// 위로 갈수록 부드럽게(smoothstep) 줄어 AltitudeHigh(천장 바로 아래)에서 AltitudeMin. 고정값이라 쉽게 천장에 닿던 것을 막는다
+        /// </summary>
+        // 시험 (꼭대기마다 계속 친 깡통의 꼭대기): 끔 0.9→4.4(천장) / 0.5·0.45 → 4.0 / 0·0.3 → 3.5에서 멈춤 (천장보다 1.2 아래). 중간(y≤1) 저글링은 90% 이상 그대로
+        public static float AltitudeLow = 0f, AltitudeMin = 0.3f;
+        static float AltitudeHigh => Look.CeilingY - 0.5f;
+        public static float AltitudeFactor(float y)
+        {
+            float t = Mathf.Clamp01((y - AltitudeLow) / Mathf.Max(0.01f, AltitudeHigh - AltitudeLow));
+            return Mathf.Lerp(1f, AltitudeMin, t * t * (3f - 2f * t));
         }
 
         // 공중 깡통 수 단계별: 탱 소리 높이 (도·레·미·솔), 맞은 자리 구름 크기
