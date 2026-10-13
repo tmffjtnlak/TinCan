@@ -37,12 +37,12 @@ namespace TinCan
         public static readonly Color TinDark = new Color(0.45f, 0.47f, 0.5f);
         public static readonly Color Label = new Color(0.85f, 0.25f, 0.2f);
 
-        // 사용자 10-13 최종: 화면 480×270(1도트 = 1080p 4px), 인게임은 위아래 띠(레터박스, 서부 영화 느낌).
-        // 인게임 그림 bg_range.png 480×180(320×180 그림 양옆을 거울로 80칸씩 늘린 것)을 화면 가운데 가로로 꽉. 위아래 45칸씩 남색 띠.
-        // 깡통과 UI는 띠 위까지 쓴다 (사용자: '통은 위로 날아가지만 구조물을 덜 그리면서 느낌을 낸다').
-        // 그림 좌표 → 월드: x = (열 - 240) / 27, y = (90 - 행) / 27.  선반 윗면 121행·x 182~287, 바닥선 147행
+        // 사용자 10-13 최종: 화면 480×270(1도트 = 1080p 4px). 인게임 그림 bg_range.png 480×270이 화면을 꽉 채운다
+        // (사용자 320×180 그림을 양옆 거울 80칸 + 위 벽 45칸 + 아래 벽돌 45칸으로 늘린 임시본).
+        // 위아래 띠(레터박스)는 평소엔 없고 우클릭 연출로만 (Letterbox.cs, 사용자: '기본이 이러니 어색하다').
+        // 아래 좌표는 가운데 480×180 부분 기준: x = (열 - 240) / 27, y = (90 - 행) / 27.  선반 윗면 121행·x 182~287, 바닥선 147행
         public const float PlayHalfW = 240f / 27f, PlayHalfH = 90f / 27f;   // 그림 반폭 8.89(= 화면 반폭), 반높이 3.33
-        public static readonly Color Bar = new Color(0.15f, 0.13f, 0.25f);   // 띠 색 = 도트 외곽선 남색
+        public static readonly Color Bar = new Color(0.15f, 0.13f, 0.25f);   // 우클릭 레터박스 띠 색 = 도트 외곽선 남색
         public const float ShelfY = -1.26f;     // 소환지역: 깡통이 올라가는 선반 (충돌 상자 가운데. 윗면 = +0.11 = 그림 121행 = -1.15)
         public const float DropY = -2.4f;       // 낙하지역: 여기 닿으면 정산 (바닥선 147행 = -2.11 아래 벽돌 속)
         public const float ShelfLeft = -2.15f, ShelfRight = 1.74f;  // 그림 속 선반 양 끝 (가운데에서 왼쪽으로 치우침)
@@ -55,7 +55,7 @@ namespace TinCan
         public static void BuildRange()
         {
             var bg = GunView.LoadArt("bg_range");
-            Camera.main.backgroundColor = bg != null ? Bar : Sky;   // 레터박스 띠 = 카메라 바탕 남색
+            Camera.main.backgroundColor = Sky;
             if (bg != null)
             {
                 var g = new GameObject("RangeArt");

@@ -15,14 +15,14 @@ namespace TinCan
     {
         const float Ppu = 27f;   // 480×270
         // 띠 경계 (원본 아래쪽부터 센 픽셀 행). 겹침 8줄: 세로 시차로 틈이 안 보이게
-        static readonly int[] cutLo = { 150, 0, 0 }, cutHi = { 270, 158, 12 };   // 뒤(하늘·산, 물탱크 위), 가운데(모래·울타리·술집), 앞(맨 아래 모래 12줄). 480×270 그림 (10-13 최종: 술집 오른쪽 아래)
+        static readonly int[] cutLo = { 196, 56, 0 }, cutHi = { 270, 204, 64 };   // 뒤, 가운데, 앞 (원래 480×270 술집 그림, 선 얇은 판 — 사용자 10-13 되돌림)
         static readonly float[] ampX = { 1f, 2f, 4f }, ampY = { 0f, 1f, 2f };     // 시차: 분석대로 절반 (마우스 끝까지 갔을 때 도트 수)
-        static readonly float[] shiftX = { 0f, 0f, 0f };                          // 320×180 그림은 술집이 이미 오른쪽에 있어 밀지 않는다
+        static readonly float[] shiftX = { 40f, 100f, 100f };                     // 술집을 오른쪽으로 — 왼쪽을 메뉴 자리로 비운다 (도트)
         readonly Transform[] layer = new Transform[3];
         readonly Vector2[] basePos = new Vector2[3];
         Vector2 look, lookV;
         Transform doorL, doorR;
-        static readonly Vector3 doorArt = new Vector3(130f / Ppu, -78f / Ppu, 0f);    // 입구 여닫이문 자리: 그림 가운데(240,135)에서 오른쪽 130, 아래 78 (문 가운데 = 그림 (370, 213))
+        static readonly Vector3 doorArt = new Vector3(0f, (135f - 165f) / Ppu, 0f);   // 입구 여닫이문 자리 (그림 x 229~251, 위에서 158~172행)
         bool frozen;
 
         // ---------- 메뉴: 글자 + ◀ (상자 없음) ----------
@@ -79,10 +79,10 @@ namespace TinCan
                 {
                     var m = new Material(hazeShader);
                     m.SetVector("_TexSize", new Vector4(tex.width, tex.height, 0f, 0f));
-                    m.SetVector("_Band", new Vector4(150f / tex.height, 180f / tex.height, 0f, 0f));   // 산 밑동 지평선 띠 (물탱크 위)
+                    m.SetVector("_Band", new Vector4(204f / tex.height, 236f / tex.height, 0f, 0f));   // 산 밑동 지평선 띠
                     m.SetFloat("_Amp", i == 2 ? 0f : 1.2f); m.SetFloat("_Rate", 6f);
                     m.SetFloat("_Desat", 0.6f);
-                    m.SetVector("_DesatBand", new Vector4(110f / tex.height, 210f / tex.height, 0f, 0f));   // 울타리 위부터 하늘 쪽으로 점점 회색
+                    m.SetVector("_DesatBand", new Vector4(150f / tex.height, 240f / tex.height, 0f, 0f));   // 울타리 위부터 하늘 쪽으로 점점 회색
                     m.SetColor("_Tint", new Color(0.84f, 0.9f, 0.97f));
                     sr.material = m;
                 }
@@ -390,10 +390,10 @@ namespace TinCan
         // 술집 = 그림 x 275~405도트(오른쪽 100 밀린 뒤), 아래에서 60~200행.
         // 위 끝 x(rayCx)는 사선(22°)을 거꾸로 따라 올라간 자리: 120행에서 각각 지붕 왼쪽·간판·물탱크 쪽에 닿는다
         // 줄기마다 기준점(rayHit: RayPivot행에서 닿는 x)을 축으로 각도가 다르다. 각도 = 22° + rayTilt ± 천천히 흔들림
-        static readonly float[] rayHit = { 330f, 375f, 430f }, rayTilt = { -6f, 1f, 6f }, rayWd = { 12f, 7f, 16f }, rayA = { 0.14f, 0.1f, 0.16f };   // 위 끝 폭. 술집 높이(120행)에선 약 2배
-        const float RayFoot = 0f, RayFull = 122f;   // 이 행(아래에서) 밑으로는 사라지고, RayFull 위로는 최대 밝기 — 술집 발밑까지만 내리쬔다
+        static readonly float[] rayHit = { 300f, 345f, 400f }, rayTilt = { -6f, 1f, 6f }, rayWd = { 12f, 7f, 16f }, rayA = { 0.14f, 0.1f, 0.16f };   // 위 끝 폭. 술집 높이(120행)에선 약 2배
+        const float RayFoot = 50f, RayFull = 170f;   // 이 행(아래에서) 밑으로는 사라지고, RayFull 위로는 최대 밝기 — 술집 발밑까지만 내리쬔다
         const float RayAngle = 22f, RaySway = 2.5f;  // 기준 각도, 시간에 따라 각 줄기가 ±이만큼 천천히 흔들림
-        const float RayPivot = 72f;                  // 이 행(술집 간판 높이)을 축으로 돌아서, 각도가 바뀌어도 술집은 계속 비춘다
+        const float RayPivot = 120f;                 // 이 행(술집 간판 높이)을 축으로 돌아서, 각도가 바뀌어도 술집은 계속 비춘다
         const float RaySpread = 2.2f;                 // 사다리꼴: 바닥에서 폭이 위 끝의 (1 + 이 값)배
 
         void BuildRays()
