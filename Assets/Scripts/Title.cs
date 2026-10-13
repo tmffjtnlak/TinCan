@@ -27,9 +27,16 @@ namespace TinCan
 
         // ---------- 메뉴: 글자 + ◀ (상자 없음) ----------
         public static readonly Color Ink = new Color(0.97f, 0.97f, 0.97f), Line = new Color(0.15f, 0.13f, 0.25f);
-        class Btn { public Text Label; public RectTransform Rect; public System.Action Act; public float X, Y; }
+        // 용수철 상태 (사용자 10-13 "용수철로 부드럽게"): 가로 밀림 ox, 크기 s, 기울기 rot, 투명도 a
+        class Btn
+        {
+            public Text Label; public RectTransform Rect; public System.Action Act; public float X, Y;
+            public bool Shown; public float Ox = -60f, OxV, S = 0.6f, SV, Rot, RotV, A;
+        }
         readonly List<Btn> btns = new List<Btn>();
-        Image pointer; int hovered = -1;
+        Image pointer; int hovered = -1, lastHovered = -1;
+        float pX, pXV, pY, pYV, pS, pSV;   // ◀ 용수철: 위치(항목 사이를 미끄러짐), 크기(톡 튀어나옴)
+        bool pPlaced;
         Transform canvas;
         public const float MenuX = -860f, MenuTop = -30f, MenuStep = 72f;   // 왼쪽 3%, 울타리 아래 빈 모래, 줄 간격 18도트
 
@@ -143,18 +150,61 @@ namespace TinCan
             btns.Add(b);
         }
 
-        /// <summary>항목이 위에서 아래로 하나씩 (0.07초 간격)</summary>
-        public void ShowButtons() => StartCoroutine(ShowCo());
-        IEnumerator ShowCo()
+        /// <summary>항목이 위에서 아래로 하나씩 (0.06초 간격): 왼쪽에서 작게 → 용수철로 튕기며 제자리·제 크기</summary>
+        public void ShowButtons() => StartCoroutine(StaggerCo(true));
+        /// <summary>v=false: 위에서부터 차례로 왼쪽으로 빠지며 흐려진다 (용수철). 다 흐려지면 꺼진다</summary>
+        public void SetButtonsVisible(bool v) => StartCoroutine(StaggerCo(v));
+        IEnumerator StaggerCo(bool v)
         {
             foreach (var b in btns)
             {
-                if (b.Label != null) b.Label.gameObject.SetActive(true);
-                yield return new WaitForSecondsRealtime(0.07f);
+                if (b.Label == null) continue;
+                if (v && !b.Shown) { b.Ox = -60f; b.OxV = 0f; b.S = 0.6f; b.SV = 0f; b.Rot = -8f; b.RotV = 0f; b.A = 0f; b.Label.gameObject.SetActive(true); }
+                b.Shown = v;
+                if (!v) { b.OxV -= 300f; }   // 빠질 땐 왼쪽으로 툭 밀어 준다
+                yield return new WaitForSecondsRealtime(v ? 0.06f : 0.03f);
             }
         }
-        public void SetButtonsVisible(bool v) { foreach (var b in btns) if (b.Label != null) b.Label.gameObject.SetActive(v); if (!v && pointer != null) pointer.gameObject.SetActive(false); }
-        public void ClearButtons() { foreach (var b in btns) if (b.Label != null) Destroy(b.Label.gameObject); btns.Clear(); if (pointer != null) pointer.gameObject.SetActive(false); }
+        public void ClearButtons() { foreach (var b in btns) if (b.Label != null) Destroy(b.Label.gameObject); btns.Clear(); if (pointer != null) pointer.gameObject.SetActive(false); hovered = lastHovered = -1; pPlaced = false; pS = 0f; }
+
+        /// <summary>매 프레임: 항목·◀ 용수철 (stiffness, damping은 Hud 버튼과 같은 결)</summary>
+        void TickMenu(float dt)
+        {
+            for (int i = 0; i < btns.Count; i++)
+            {
+                var b = btns[i]; if (b.Label == null) continue;
+                bool hov = i == hovered && b.Shown;
+                float tx = b.Shown ? (hov ? Ui.Px * 3f : 0f) : -70f;      // 올리면 오른쪽으로 3도트
+                float ts = b.Shown ? (hov ? 1.1f : 1f) : 0.7f;
+                Ease.Spring(ref b.Ox, ref b.OxV, tx, 320f, 15f, dt);
+                Ease.Spring(ref b.S, ref b.SV, ts, 420f, 13f, dt);         // 덜 감쇠: 살짝 넘쳤다 자리
+                Ease.Spring(ref b.Rot, ref b.RotV, 0f, 300f, 12f, dt);
+                b.A = Mathf.MoveTowards(b.A, b.Shown ? 1f : 0f, dt / (b.Shown ? 0.12f : 0.15f));
+                b.Rect.anchoredPosition = new Vector2(b.X + Mathf.Round(b.Ox / Ui.Px) * Ui.Px, b.Y);   // 위치는 도트 칸에
+                b.Rect.localScale = Vector3.one * b.S;
+                b.Rect.localRotation = Quaternion.Euler(0f, 0f, b.Rot);
+                var c = b.Label.color; c.a = b.A; b.Label.color = c;
+                if (!b.Shown && b.A <= 0.01f && b.Label.gameObject.activeSelf) b.Label.gameObject.SetActive(false);
+            }
+            // ◀: 올린 항목 끝으로 미끄러진다. 처음 나타날 땐 그 자리에서 톡 튀어나오고, 손을 떼면 쏙 들어간다
+            if (pointer == null) return;
+            bool on = hovered >= 0 && !frozen;
+            if (on)
+            {
+                var b = btns[hovered];
+                float tx = b.X + Mathf.Round(b.Ox / Ui.Px) * Ui.Px + b.Label.preferredWidth * b.S + Ui.Px * 5f, ty = b.Y;
+                if (!pPlaced) { pX = tx + Ui.Px * 4f; pY = ty; pXV = pYV = 0f; pPlaced = true; }
+                Ease.Spring(ref pX, ref pXV, tx, 500f, 22f, dt);
+                Ease.Spring(ref pY, ref pYV, ty, 500f, 20f, dt);
+            }
+            Ease.Spring(ref pS, ref pSV, on ? 1f : 0f, 600f, 16f, dt);
+            if (!on && pS < 0.05f) pPlaced = false;
+            pointer.gameObject.SetActive(pS > 0.05f);
+            // 가만히 있을 땐 1도트 숨쉬기 (왼쪽을 가리키며 까딱)
+            float bob = on ? Mathf.Round(Mathf.Sin(Time.unscaledTime * 6f)) * Ui.Px * 0.5f : 0f;
+            pointer.rectTransform.anchoredPosition = new Vector2(Mathf.Round((pX + bob) / Ui.Px) * Ui.Px, Mathf.Round(pY / Ui.Px) * Ui.Px);
+            pointer.rectTransform.localScale = Vector3.one * Mathf.Max(0f, pS);
+        }
 
         // ---------- 가구: 오른쪽 아래 조작 안내, 왼쪽 아래 버전 ----------
         void BuildFurniture()
@@ -204,27 +254,38 @@ namespace TinCan
                     layer[i].localPosition = basePos[i] + new Vector2(px, py) / Ppu;
                 }
             }
-            // 메뉴: 올리면 ◀만 붙는다. 글자는 안 변한다. 누르면 그 자리에서 실행
+            // 메뉴: 올리면 오른쪽으로 밀리며 살짝 커지고 ◀가 따라붙는다. 누르면 납작했다 튕기고, 그 모습이 보이도록 0.1초 뒤 실행
             var pt = new Vector2(mp.x - Screen.width * 0.5f, mp.y - Screen.height * 0.5f) * (1080f / Screen.height);
             hovered = -1;
-            for (int i = 0; i < btns.Count; i++)
-            {
-                var b = btns[i];
-                if (b.Label == null || !b.Label.gameObject.activeSelf) continue;
-                float w = b.Label.preferredWidth + Ui.Px * 8f;
-                bool over = pt.x >= b.X - Ui.Px * 2f && pt.x <= b.X + w && Mathf.Abs(pt.y - b.Y) < MenuStep * 0.5f;
-                if (!over) continue;
-                hovered = i;
-                if (mouse.leftButton.wasPressedThisFrame) { Sfx.Play(Sfx.Click(), 0.5f, 1.2f); lastClick = pt; b.Act?.Invoke(); }
-                break;
-            }
-            if (pointer != null)
-            {
-                pointer.gameObject.SetActive(hovered >= 0 && !frozen);
-                if (hovered >= 0) pointer.rectTransform.anchoredPosition = new Vector2(btns[hovered].X + btns[hovered].Label.preferredWidth + Ui.Px * 5f, btns[hovered].Y);
-            }
+            if (!frozen && !pressing)
+                for (int i = 0; i < btns.Count; i++)
+                {
+                    var b = btns[i];
+                    if (b.Label == null || !b.Shown || b.A < 0.5f) continue;
+                    float w = b.Label.preferredWidth + Ui.Px * 10f;
+                    bool over = pt.x >= b.X - Ui.Px * 2f && pt.x <= b.X + w && Mathf.Abs(pt.y - b.Y) < MenuStep * 0.5f;
+                    if (!over) continue;
+                    hovered = i;
+                    if (hovered != lastHovered) { Sfx.Play(Sfx.Click(), 0.15f, 2.2f); b.SV += 4f; }   // 올라탈 때 작게 똑
+                    if (mouse.leftButton.wasPressedThisFrame) StartCoroutine(Press(b));
+                    break;
+                }
+            if (pressing && pressed >= 0) hovered = pressed;
+            lastHovered = hovered;
+            TickMenu(dt);
         }
-        Vector2 lastClick;
+        bool pressing; int pressed = -1;
+
+        IEnumerator Press(Btn b)
+        {
+            pressing = true; pressed = btns.IndexOf(b);
+            Sfx.Play(Sfx.Click(), 0.5f, 1.2f);
+            b.S = 0.86f; b.SV = 0f; b.Rot = Random.Range(-5f, 5f); b.OxV += 200f;   // 납작 + 살짝 비틀림 + 앞으로 툭
+            pSV -= 8f;                                                             // ◀도 움찔
+            yield return new WaitForSecondsRealtime(0.1f);
+            pressing = false; pressed = -1;
+            b.Act?.Invoke();
+        }
 
         /// <summary>시작: 클릭한 자리에서 원형이 0.2초에 딱 닫힌다 (Shelldiver 분석). 문 줌인은 그 전에 0.3초만</summary>
         public IEnumerator Enter(System.Action onDone)
