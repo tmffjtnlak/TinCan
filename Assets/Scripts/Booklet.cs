@@ -62,7 +62,7 @@ namespace TinCan
             {
                 var k = GunKind.ForSale[i];
                 // 스케치대로 화면을 꽉 채운다 (사용자 10-12): 왼쪽 카드 열은 화면 1/6, 종이가 나머지를 거의 다 차지
-                var frame = Img("Card_" + k.Id, root, Vector2.zero, new Vector2(29f, 21f) * Px, "card_small", Color.white);
+                var frame = Img("Card_" + k.Id, root, Vector2.zero, new Vector2(44f, 32f) * Px, "card_small", Color.white);
                 var sp = GunView.LoadArt($"gun_{k.Id}_side") ?? GunView.LoadArt("gun_revolver_side");
                 var thumb = Img("Thumb", frame.transform, new Vector2(8f, 0f), sp != null ? new Vector2(sp.rect.width, sp.rect.height) * 1.3f : new Vector2(130f, 80f), null, Color.white);
                 thumb.sprite = sp; thumb.preserveAspect = true;
@@ -85,17 +85,17 @@ namespace TinCan
             {
                 var s = new Stat();
                 float y = -200f - i * 90f;
-                s.Icon = Img("StatIcon" + i, sheetFront.transform, new Vector2(-400f, y), Vector2.one * 11f * Px, i == 0 ? "icon_reload" : "icon_time", Ink);
-                s.Pill = Img("StatPill" + i, sheetFront.transform, new Vector2(-240f, y), new Vector2(27f, 11f) * Px, "stat_pill", new Color(0.9f, 0.88f, 0.84f));
+                s.Icon = Img("StatIcon" + i, sheetFront.transform, new Vector2(-400f, y), Vector2.one * 16f * Px, i == 0 ? "icon_reload" : "icon_time", Ink);
+                s.Pill = Img("StatPill" + i, sheetFront.transform, new Vector2(-240f, y), new Vector2(40f, 16f) * Px, "stat_pill", new Color(0.9f, 0.88f, 0.84f));
                 s.Pill.type = Image.Type.Sliced; s.Pill.pixelsPerUnitMultiplier = Mult;
                 s.Value = Ui.Text("StatValue", s.Pill.transform, Vector2.zero, new Vector2(150f, 50f), 36, TextAnchor.MiddleCenter, Ink, shadow: false);
                 statRows[i] = s;
             }
             state = Ui.Text("State", sheetFront.transform, new Vector2(300f, -300f), new Vector2(400f, 48f), 36, TextAnchor.MiddleCenter, new Color(0.35f, 0.3f, 0.25f), shadow: false);
             // 오른쪽 아래: BUY 카드
-            buyCard = Img("BuyCard", root, new Vector2(700f, -400f), new Vector2(40f, 20f) * Px, "paper_sheet", new Color(0.72f, 0.8f, 0.95f));
+            buyCard = Img("BuyCard", root, new Vector2(700f, -400f), new Vector2(60f, 30f) * Px, "paper_sheet", new Color(0.72f, 0.8f, 0.95f));
             buyCard.type = Image.Type.Sliced; buyCard.pixelsPerUnitMultiplier = Mult;
-            buyPill = Img("BuyPill", buyCard.transform, new Vector2(20f, -12f), new Vector2(29f, 11f) * Px, "stat_pill", new Color(1f, 0.92f, 0.6f));
+            buyPill = Img("BuyPill", buyCard.transform, new Vector2(20f, -12f), new Vector2(44f, 16f) * Px, "stat_pill", new Color(1f, 0.92f, 0.6f));
             buyPill.type = Image.Type.Sliced; buyPill.pixelsPerUnitMultiplier = Mult;
             buyText = Ui.Text("BuyText", buyPill.transform, Vector2.zero, new Vector2(170f, 50f), 36, TextAnchor.MiddleCenter, Ink, shadow: false);
             hintEquip = Ui.Text("HintEquip", root, new Vector2(160f, -490f), new Vector2(900f, 36f), 24, TextAnchor.MiddleCenter, Ui.Dim);

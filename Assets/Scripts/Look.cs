@@ -37,45 +37,43 @@ namespace TinCan
         public static readonly Color TinDark = new Color(0.45f, 0.47f, 0.5f);
         public static readonly Color Label = new Color(0.85f, 0.25f, 0.2f);
 
-        // 화면 세 구역 (카메라 세로 반지름 5 기준)
-        // 사용자 배경 bg_range.png (320×180, 10-13 임시)에 맞춘 자리: 선반 윗면 = 그림 위에서 121행, 선반 x 102~207, 바닥선 = 147행.
-        // 월드 y = (90 - 행) / 18, x = (열 - 160) / 18
-        public const float ShelfY = -1.83f;     // 소환지역: 깡통이 올라가는 선반 (충돌 상자 가운데. 윗면 = +0.11 = 그림 121행)
-        public const float DropY = -3.6f;       // 낙하지역: 여기 닿으면 정산 (바닥선 147행 = -3.17 아래 벽돌 속)
-        public const float ShelfLeft = -3.2f, ShelfRight = 2.6f;   // 그림 속 선반 양 끝 (가운데에서 왼쪽으로 치우침)
-        public const float CeilingY = 4.75f;    // 천장: 깡통은 이 아래에서만 논다 (화면 위 끝 바로 아래)
+        // 사용자 10-13 최종: 화면 480×270(1도트 = 1080p 4px), 인게임은 위아래 띠(레터박스, 서부 영화 느낌).
+        // 인게임 그림 bg_range.png 480×180(320×180 그림 양옆을 거울로 80칸씩 늘린 것)을 화면 가운데 가로로 꽉. 위아래 45칸씩 남색 띠.
+        // 깡통과 UI는 띠 위까지 쓴다 (사용자: '통은 위로 날아가지만 구조물을 덜 그리면서 느낌을 낸다').
+        // 그림 좌표 → 월드: x = (열 - 240) / 27, y = (90 - 행) / 27.  선반 윗면 121행·x 182~287, 바닥선 147행
+        public const float PlayHalfW = 240f / 27f, PlayHalfH = 90f / 27f;   // 그림 반폭 8.89(= 화면 반폭), 반높이 3.33
+        public static readonly Color Bar = new Color(0.15f, 0.13f, 0.25f);   // 띠 색 = 도트 외곽선 남색
+        public const float ShelfY = -1.26f;     // 소환지역: 깡통이 올라가는 선반 (충돌 상자 가운데. 윗면 = +0.11 = 그림 121행 = -1.15)
+        public const float DropY = -2.4f;       // 낙하지역: 여기 닿으면 정산 (바닥선 147행 = -2.11 아래 벽돌 속)
+        public const float ShelfLeft = -2.15f, ShelfRight = 1.74f;  // 그림 속 선반 양 끝 (가운데에서 왼쪽으로 치우침)
+        public const float CeilingY = 4.75f;                         // 천장: 화면 위 끝 바로 아래 (위 띠까지 날아간다)
 
         /// <summary>
-        /// 사격장: 위 = 타격지역(하늘), 가운데 = 소환지역(긴 선반), 아래 = 낙하지역(모래).
-        /// 왼쪽 구석에 술집 벽 한 조각만 남겨 서부 티를 낸다.
+        /// 사격장: 사용자 그림(bg_range) 창 + 보이지 않는 충돌(선반·천장·양옆 벽·낙하 감지).
+        /// 그림이 없으면 예전 도형 사격장을 그린다 (자리는 같은 상수).
         /// </summary>
         public static void BuildRange()
         {
-            Camera.main.backgroundColor = Sky;
-            // 사용자 배경 그림이 있으면 도형 사격장 위에 덮는다 (충돌·벽은 아래 코드 그대로). 시작 화면 그림(10~14)보다는 아래
             var bg = GunView.LoadArt("bg_range");
+            Camera.main.backgroundColor = bg != null ? Bar : Sky;   // 레터박스 띠 = 카메라 바탕 남색
             if (bg != null)
             {
                 var g = new GameObject("RangeArt");
                 var sr = g.AddComponent<SpriteRenderer>(); sr.sprite = bg; sr.sortingOrder = -2;
                 g.transform.position = Vector3.zero;
             }
-            // 낙하지역: 모래 + 어두운 띠
-            Quad("DropZone", new Vector2(0f, -4.9f), new Vector2(40f, 2.2f), Sand, -10);
-            Quad("DropEdge", new Vector2(0f, -3.8f), new Vector2(40f, 0.05f), new Color(0.55f, 0.38f, 0.22f), -9);
-            Quad("DropTint", new Vector2(0f, -4.9f), new Vector2(40f, 2.2f), new Color(0.3f, 0.15f, 0.05f, 0.18f), -8);
-            // 소환지역: 긴 선반 + 기둥
-            var shelf = new GameObject("Shelf").transform;
-            Quad("Rail", new Vector2(0f, ShelfY), new Vector2(ShelfRight - ShelfLeft, 0.22f), WoodLight, -5, shelf);
-            Quad("RailShadow", new Vector2(0f, ShelfY - 0.16f), new Vector2(ShelfRight - ShelfLeft, 0.1f), Wood, -5, shelf);
-            for (float x = ShelfLeft + 0.5f; x <= ShelfRight - 0.5f; x += 1.5f)
-                Quad("Post", new Vector2(x, (ShelfY + DropY) * 0.5f + 0.2f), new Vector2(0.22f, ShelfY - DropY - 0.4f), Wood, -6, shelf);
+            else
+            {
+                // 예전 도형 사격장 (그림이 없을 때만)
+                Quad("DropZone", new Vector2(0f, DropY - 0.6f), new Vector2(PlayHalfW * 2f, 1.4f), Sand, -10);
+                var shelf = new GameObject("Shelf").transform;
+                Quad("Rail", new Vector2((ShelfLeft + ShelfRight) * 0.5f, ShelfY), new Vector2(ShelfRight - ShelfLeft, 0.22f), WoodLight, -5, shelf);
+                Quad("Beam", new Vector2(0f, CeilingY + 0.14f), new Vector2(PlayHalfW * 2f, 0.22f), Wood, -4);
+            }
             var rail = new GameObject("RailCollider"); rail.transform.position = new Vector3((ShelfLeft + ShelfRight) * 0.5f, ShelfY, 0f);
             var rc = rail.AddComponent<BoxCollider2D>(); rc.size = new Vector2(ShelfRight - ShelfLeft, 0.22f);
             rail.AddComponent<Shelf>();
-            // 타격지역: 하늘. 맨 위에 들보 — 천장. 넘치면 튕겨 돌아온다
-            Quad("Beam", new Vector2(0f, CeilingY + 0.14f), new Vector2(40f, 0.22f), Wood, -4);
-            Quad("BeamLight", new Vector2(0f, CeilingY + 0.2f), new Vector2(40f, 0.06f), WoodLight, -3);
+            // 천장: 넘치면 튕겨 돌아온다
             var ceil = new GameObject("Ceiling"); ceil.transform.position = new Vector3(0f, CeilingY + 0.4f, 0f);
             var cc = ceil.AddComponent<BoxCollider2D>(); cc.size = new Vector2(40f, 0.5f); cc.sharedMaterial = new PhysicsMaterial2D("ceil") { bounciness = 0.5f, friction = 0.1f };
             ceil.AddComponent<Wall>();
@@ -84,26 +82,15 @@ namespace TinCan
             var dc = drop.AddComponent<BoxCollider2D>(); dc.size = new Vector2(40f, 0.6f); dc.isTrigger = true;
             drop.AddComponent<DropZone>();
             // 양옆 벽: 화면 끝. 깡통이 튕겨 돌아온다 (사용자 10-10)
-            float halfW = Camera.main.orthographicSize * Camera.main.aspect;
             var bouncy = new PhysicsMaterial2D("wall") { bounciness = 0.75f, friction = 0.1f };
             foreach (float sx in new[] { -1f, 1f })
             {
-                var w = new GameObject(sx < 0 ? "WallL" : "WallR"); w.transform.position = new Vector3(sx * (halfW + 0.25f), 0f, 0f);
+                var w = new GameObject(sx < 0 ? "WallL" : "WallR"); w.transform.position = new Vector3(sx * (PlayHalfW + 0.25f), 0f, 0f);
                 var wc = w.AddComponent<BoxCollider2D>(); wc.size = new Vector2(0.5f, 40f); wc.sharedMaterial = bouncy;
                 w.AddComponent<Wall>();
-                // 벽 표시: 가장자리 기둥
-                Quad("WallPost", new Vector2(sx * (halfW - 0.12f), 0.5f), new Vector2(0.24f, 9f), Wood, -4);
-                Quad("WallPostLight", new Vector2(sx * (halfW - 0.2f), 0.5f), new Vector2(0.06f, 9f), WoodLight, -3);
             }
-            // 서부 티: 왼쪽 위 술집 간판 조각
-            var sign = new GameObject("Saloon").transform; sign.position = new Vector3(7.0f, 3.4f, 0f);
-            Quad("Board", Vector2.zero, new Vector2(3.6f, 1.0f), WoodLight, -7, sign);
-            Quad("Text", Vector2.zero, new Vector2(2.6f, 0.26f), Dark, -6, sign);
-            Quad("Chain1", new Vector2(-1.4f, 0.9f), new Vector2(0.06f, 0.9f), Dark, -7, sign);
-            Quad("Chain2", new Vector2(1.4f, 0.9f), new Vector2(0.06f, 0.9f), Dark, -7, sign);
         }
     }
-
     /// <summary>선반 표식: 깡통이 올라가 있는 곳. 띄워진 깡통은 이걸 통과해 떨어진다</summary>
     public class Shelf : MonoBehaviour { }
 
