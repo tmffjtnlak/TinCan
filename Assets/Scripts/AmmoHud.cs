@@ -157,11 +157,10 @@ namespace TinCan
             s.Shift = SpentShift * 1.6f; s.ShiftV = 0f;          // 즉시, 넘치게
             s.Sx = 1.3f; s.Sy = 0.7f; s.Vx = s.Vy = 0f;
             s.Rot = Random.Range(-6f, 6f); s.RotV = 0f;
-            // 10-14 통일 (소환 문법): 색이 서서히 바뀌지 않고, 흰 실루엣 1프레임 → 바로 빈 탄 색
-            s.Img.color = Color.white; s.White.color = Color.white;
-            yield return null;
+            // 10-14: 색이 서서히 바뀌지 않고 바로 빈 탄 색. 흰 번쩍임은 뺐다 (사용자: HUD가 너무 반짝인다)
             s.White.color = Color.clear;
             s.Img.color = Spent;
+            yield break;
         }
 
         /// <summary>장전 시작: 쓴 탄이 튕겨 날아간다 (위치는 직접, 용수철은 손 뗀다)</summary>
@@ -193,7 +192,7 @@ namespace TinCan
             s.Shift = 0f; s.ShiftV = 0f;
             s.Sx = 0.3f; s.Sy = 0.3f; s.Vx = 9f; s.Vy = 9f;           // 작게 시작해 튀어 오른다
             s.Rot = (order % 2 == 0 ? -1f : 1f) * Random.Range(16f, 24f); s.RotV = 0f;
-            yield return null; yield return null;                     // 흰 실루엣 2프레임
+            yield return null;                                        // 흰 실루엣 1프레임 (10-14: 2프레임은 너무 반짝였다)
             s.White.color = Color.clear;                              // 10-14 통일: 서서히 빼지 않고 딱 제 색 (중간 파스텔이 생겼다)
         }
     }

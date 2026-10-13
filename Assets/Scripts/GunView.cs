@@ -272,7 +272,7 @@ namespace TinCan
                 // 10-14 통일: 바닥 탄피와 같은 도트 그림 (없으면 예전 노란 네모)
                 SpriteRenderer s;
                 if (casingArt == null) casingArt = LoadArt("casing");
-                if (casingArt != null) { s = new GameObject("Shell").AddComponent<SpriteRenderer>(); s.sprite = casingArt; s.sortingOrder = 46; s.transform.position = at; }
+                if (casingArt != null) { s = new GameObject("Shell").AddComponent<SpriteRenderer>(); s.sprite = casingArt; s.sortingOrder = 46; s.transform.position = at; s.transform.localScale = Vector3.one * 0.25f; }   // 10-14: 바닥 탄피 그림 그대로는 너무 커서 25%
                 else s = Look.Quad("Shell", at, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
                 var rb = s.gameObject.AddComponent<Rigidbody2D>();
                 rb.gravityScale = 2f;
