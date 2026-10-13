@@ -99,7 +99,6 @@ namespace TinCan
             hud = new GameObject("Hud").AddComponent<Hud>();
             hud.Bind(this);
             new GameObject("AmmoHud").AddComponent<AmmoHud>().Build(hud.Canvas, Gun);
-            new GameObject("CylinderHud").AddComponent<CylinderHud>().Build(Gun);   // 임시 실린더 (10-14): 8발 이하 총은 기둥 대신 이것
             Letterbox.Make(hud.Canvas);   // 우클릭 연출: 위아래 띠 + UI 흐리게 (사용자 10-13)
             tree = new GameObject("Tree").AddComponent<TreeView>();
             tree.Build(this, Nodes, hud.Canvas);
