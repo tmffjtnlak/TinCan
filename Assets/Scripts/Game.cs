@@ -105,11 +105,11 @@ namespace TinCan
         }
 
         // ================= 타이틀 =================
-        readonly List<Text> menuLabels = new List<Text>();
         Text signTitle, tagline;
-        readonly List<ShootButton> settingButtons = new List<ShootButton>();
+        bool entering;   // 시작을 눌러 술집으로 들어가는 중
 
-        /// <summary>시작 화면 (사용자 10-13): 술집 그림 3띠 시차 + 입구 문 + 평범한 버튼. 플레이로 가면 없앤다. 깡통 쏘기 메뉴(MenuCan)는 보관</summary>
+        /// <summary>시작 화면 (사용자 10-13): 술집 그림 3띠 시차 + 입구 문 + 글자 메뉴. 플레이로 가면 없앤다.
+        /// 깡통·총으로 쏘는 메뉴는 폐기 (사용자 10-13 "총 쏘는 방식은 안 쓰는 걸로") — 설정도 같은 글자 메뉴</summary>
         Title title;
 
         void EnterTitle()
@@ -124,46 +124,36 @@ namespace TinCan
             signTitle.text = "깡통";
             tagline = Title.Label("Tagline", hud.Canvas, new Vector2(300f, 290f), new Vector2(900f, 50f), 24, TextAnchor.MiddleCenter);
             tagline.text = "쏴서 띄우고, 떨어지기 전에 또 쏴라.";
-            // 메뉴 = 왼쪽 글자 세로. 상자 없음, 위에서 아래로 하나씩 뜬다
+            BuildMainMenu();
+        }
+
+        /// <summary>메뉴 = 왼쪽 글자 세로. 상자 없음, 위에서 아래로 하나씩 뜬다</summary>
+        void BuildMainMenu()
+        {
+            title.ClearButtons();
             title.AddButton("시작", () => StartCoroutine(GoPlay(load: false)));
             if (Save.Exists) title.AddButton("이어서", () => StartCoroutine(GoPlay(load: true)));
             title.AddButton("설정", OpenSettings);
             title.ShowButtons();
         }
 
-        void MenuCan(string label, Vector2 at, System.Action onLanded)
+        /// <summary>메뉴 바꾸기: 지금 항목이 차례로 빠지고 → 새 항목이 차례로 들어온다</summary>
+        IEnumerator SwapMenu(System.Action build)
         {
-            var can = Can.Spawn(CanKind.Tin, at);
-            can.MakeMenu(onLanded);
-            Cans.Add(can);
-            var t = Ui.Text("MenuLabel", hud.Canvas, Vector2.zero, new Vector2(300f, 50f), 30, TextAnchor.MiddleCenter, Ui.Ink);
-            t.text = label;
-            menuLabels.Add(t);
-            StartCoroutine(FollowCan(t, can));
-        }
-
-        IEnumerator FollowCan(Text t, Can can)
-        {
-            var cam = Camera.main;
-            while (can != null && t != null)
-            {
-                var sp = cam.WorldToScreenPoint(can.transform.position + Vector3.up * 0.85f);
-                ((RectTransform)t.transform).anchoredPosition = new Vector2(sp.x - Screen.width * 0.5f, sp.y - Screen.height * 0.5f) * (1080f / Screen.height);
-                t.color = can.Airborne ? new Color(Ui.Ink.r, Ui.Ink.g, Ui.Ink.b, 0.35f) : Ui.Ink;
-                yield return null;
-            }
-            if (t != null) Destroy(t.gameObject);
+            title.SetButtonsVisible(false);
+            yield return new WaitForSecondsRealtime(0.22f);
+            build();
         }
 
         IEnumerator GoPlay(bool load)
         {
             if (State != GameState.Title) yield break;
-            State = GameState.Settings; // 더 못 쏘게
+            State = GameState.Settings; // 메뉴 입력 막기
+            entering = true;
             Gun.Enabled = false;
             // 글자는 원형 페이드 위에 그려지니까 먼저 치운다
             if (signTitle != null) Destroy(signTitle.gameObject);
             if (tagline != null) Destroy(tagline.gameObject);
-            foreach (var l in menuLabels) if (l != null) Destroy(l.gameObject);
             // 문으로 줌인 → 문 열림 → 원형 페이드 닫힘 (Title.Enter)
             bool done = false;
             yield return title.Enter(() => done = true);
@@ -177,30 +167,27 @@ namespace TinCan
         {
             if (State != GameState.Title) return;
             State = GameState.Settings;
-            foreach (var l in menuLabels) if (l != null) l.gameObject.SetActive(false);
-            if (title != null) title.SetButtonsVisible(false);
-            float y = 0.9f;
-            settingButtons.Add(ShootButton.Make("VolDown", new Vector2(-3.2f, y), new Vector2(1.6f, 0.9f), () => "소리 −", () => SetVolume(AudioListener.volume - 0.1f), hud.Canvas));
-            settingButtons.Add(ShootButton.Make("Vol", new Vector2(-1.2f, y), new Vector2(1.9f, 0.9f), () => $"소리 {Mathf.RoundToInt(AudioListener.volume * 100)}%", () => { }, hud.Canvas));
-            settingButtons.Add(ShootButton.Make("VolUp", new Vector2(0.8f, y), new Vector2(1.6f, 0.9f), () => "소리 +", () => SetVolume(AudioListener.volume + 0.1f), hud.Canvas));
-            settingButtons.Add(ShootButton.Make("Full", new Vector2(3.0f, y), new Vector2(2.2f, 0.9f), () => Screen.fullScreen ? "창 모드로" : "전체 화면으로", () => Screen.fullScreen = !Screen.fullScreen, hud.Canvas));
-            settingButtons.Add(ShootButton.Make("AutoReload", new Vector2(-1.6f, y - 1.4f), new Vector2(3.0f, 0.9f), () => Gun.AutoReloadOnEmpty ? "다 쏘면 자동 장전: 켜짐" : "다 쏘면 자동 장전: 꺼짐", () => Gun.AutoReloadOnEmpty = !Gun.AutoReloadOnEmpty, hud.Canvas));
-            settingButtons.Add(ShootButton.Make("Back", new Vector2(1.6f, y - 1.4f), new Vector2(2.4f, 0.9f), () => "돌아가기", CloseSettings, hud.Canvas));
+            StartCoroutine(SwapMenu(BuildSettingsMenu));
         }
 
-        void SetVolume(float v) { AudioListener.volume = Mathf.Clamp01(v); PlayerPrefs.SetFloat("volume", AudioListener.volume); PlayerPrefs.Save(); }
+        /// <summary>설정 = 같은 글자 메뉴 (사용자 10-13). 값 항목은 글자 왼쪽 반을 누르면 줄고 오른쪽 반이면 늘어난다 (우클릭 = 줄임). 켜고 끄는 항목은 누르면 바뀐다</summary>
+        void BuildSettingsMenu()
+        {
+            title.ClearButtons();
+            title.AddHeader("설정");
+            title.AddOption(() => $"소리  < {Mathf.RoundToInt(AudioListener.volume * 100)}% >", d => SetVolume(AudioListener.volume + 0.1f * d));
+            title.AddOption(() => Screen.fullScreen ? "화면  전체 화면" : "화면  창 모드", d => Screen.fullScreen = !Screen.fullScreen);
+            title.AddOption(() => Gun.AutoReloadOnEmpty ? "다 쏘면 자동 장전  켜짐" : "다 쏘면 자동 장전  꺼짐", d => Gun.AutoReloadOnEmpty = !Gun.AutoReloadOnEmpty);
+            title.AddButton("돌아가기", CloseSettings);
+            title.ShowButtons();
+        }
+
+        void SetVolume(float v) { AudioListener.volume = Mathf.Clamp01(Mathf.Round(v * 10f) / 10f); PlayerPrefs.SetFloat("volume", AudioListener.volume); PlayerPrefs.Save(); }
 
         void CloseSettings()
         {
-            foreach (var b in settingButtons) if (b != null) Destroy(b.gameObject);
-            settingButtons.Clear();
-            foreach (var l in menuLabels) if (l != null) Destroy(l.gameObject);
-            menuLabels.Clear();
-            foreach (var c in Cans) if (c != null) Destroy(c.gameObject);
-            Cans.Clear();
-            if (signTitle != null) Destroy(signTitle.gameObject);
-            if (tagline != null) Destroy(tagline.gameObject);
-            EnterTitle();
+            if (State != GameState.Settings || entering) return;
+            StartCoroutine(SwapMenu(() => { State = GameState.Title; BuildMainMenu(); }));
         }
 
         // ================= 플레이 =================
@@ -243,8 +230,8 @@ namespace TinCan
             if (viewer.Open) return;
             if (State != GameState.Play)
             {
-                Gun.Enabled = State == GameState.Settings && settingButtons.Count > 0;   // 시작 화면은 버튼(마우스), 설정은 아직 쏘는 버튼
-                if (State == GameState.Settings && settingButtons.Count > 0 && kb.escapeKey.wasPressedThisFrame) CloseSettings();
+                Gun.Enabled = false;   // 시작 화면·설정은 마우스 글자 메뉴. 총은 플레이에서만
+                if (State == GameState.Settings && kb.escapeKey.wasPressedThisFrame) CloseSettings();
                 return;
             }
             // 가게는 오른쪽 아래 버튼 둘(스킬트리·총 상점)로 연다 (사용자 10-12). Tab/Esc = 닫기 (Tab은 마지막 페이지 다시 열기도)

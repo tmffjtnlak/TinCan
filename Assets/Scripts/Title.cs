@@ -31,6 +31,9 @@ namespace TinCan
         class Btn
         {
             public Text Label; public RectTransform Rect; public System.Action Act; public float X, Y;
+            public System.Func<string> Txt;            // 값이 바뀌는 항목 (설정)
+            public System.Action<int> Change;          // 값 항목: -1 줄임 / +1 늘림
+            public bool Header; public float AlphaMul = 1f;
             public bool Shown; public float Ox = -60f, OxV, S = 0.6f, SV, Rot, RotV, A;
         }
         readonly List<Btn> btns = new List<Btn>();
@@ -138,16 +141,32 @@ namespace TinCan
             pointer.sprite = sp; pointer.gameObject.SetActive(false);
         }
 
-        public void AddButton(string label, System.Action act)
+        public void AddButton(string label, System.Action act) => Add(label, 36).Act = act;
+
+        /// <summary>값 항목 (설정): 글자는 매 프레임 text()로, 누르면 change(-1|+1)</summary>
+        public void AddOption(System.Func<string> text, System.Action<int> change)
         {
-            int i = btns.Count;
-            var b = new Btn { Act = act, X = MenuX, Y = MenuTop - MenuStep * i };
-            b.Label = Label("TitleBtn", canvas, new Vector2(b.X, b.Y), new Vector2(400f, 56f), 36, TextAnchor.MiddleLeft);
+            var b = Add(text(), 36); b.Txt = text; b.Change = change;
+        }
+
+        /// <summary>메뉴 위 제목줄 (누를 수 없음, 작고 흐리게)</summary>
+        public void AddHeader(string text)
+        {
+            var b = Add(text, 24, header: true);
+            b.AlphaMul = 0.7f;
+        }
+
+        Btn Add(string label, int size, bool header = false)
+        {
+            int i = 0; foreach (var x in btns) if (!x.Header) i++;
+            var b = new Btn { X = MenuX, Y = header ? MenuTop + MenuStep * 0.85f : MenuTop - MenuStep * i, Header = header };
+            b.Label = Label("TitleBtn", canvas, new Vector2(b.X, b.Y), new Vector2(600f, 56f), size, TextAnchor.MiddleLeft);
             b.Label.text = label;
             b.Rect = b.Label.rectTransform;
             b.Rect.pivot = new Vector2(0f, 0.5f); b.Rect.anchoredPosition = new Vector2(b.X, b.Y);
             b.Label.gameObject.SetActive(false);
             btns.Add(b);
+            return b;
         }
 
         /// <summary>항목이 위에서 아래로 하나씩 (0.06초 간격): 왼쪽에서 작게 → 용수철로 튕기며 제자리·제 크기</summary>
@@ -165,7 +184,7 @@ namespace TinCan
                 yield return new WaitForSecondsRealtime(v ? 0.06f : 0.03f);
             }
         }
-        public void ClearButtons() { foreach (var b in btns) if (b.Label != null) Destroy(b.Label.gameObject); btns.Clear(); if (pointer != null) pointer.gameObject.SetActive(false); hovered = lastHovered = -1; pPlaced = false; pS = 0f; }
+        public void ClearButtons() { foreach (var b in btns) if (b.Label != null) Destroy(b.Label.gameObject); btns.Clear(); if (pointer != null) pointer.gameObject.SetActive(false); hovered = lastHovered = -1; pPlaced = false; pS = 0f; pressing = false; pressed = -1; }
 
         /// <summary>매 프레임: 항목·◀ 용수철 (stiffness, damping은 Hud 버튼과 같은 결)</summary>
         void TickMenu(float dt)
@@ -180,10 +199,11 @@ namespace TinCan
                 Ease.Spring(ref b.S, ref b.SV, ts, 420f, 13f, dt);         // 덜 감쇠: 살짝 넘쳤다 자리
                 Ease.Spring(ref b.Rot, ref b.RotV, 0f, 300f, 12f, dt);
                 b.A = Mathf.MoveTowards(b.A, b.Shown ? 1f : 0f, dt / (b.Shown ? 0.12f : 0.15f));
+                if (b.Txt != null) b.Label.text = b.Txt();
                 b.Rect.anchoredPosition = new Vector2(b.X + Mathf.Round(b.Ox / Ui.Px) * Ui.Px, b.Y);   // 위치는 도트 칸에
                 b.Rect.localScale = Vector3.one * b.S;
                 b.Rect.localRotation = Quaternion.Euler(0f, 0f, b.Rot);
-                var c = b.Label.color; c.a = b.A; b.Label.color = c;
+                var c = b.Label.color; c.a = b.A * b.AlphaMul; b.Label.color = c;
                 if (!b.Shown && b.A <= 0.01f && b.Label.gameObject.activeSelf) b.Label.gameObject.SetActive(false);
             }
             // ◀: 올린 항목 끝으로 미끄러진다. 처음 나타날 땐 그 자리에서 톡 튀어나오고, 손을 떼면 쏙 들어간다
@@ -261,13 +281,16 @@ namespace TinCan
                 for (int i = 0; i < btns.Count; i++)
                 {
                     var b = btns[i];
-                    if (b.Label == null || !b.Shown || b.A < 0.5f) continue;
+                    if (b.Label == null || b.Header || !b.Shown || b.A < 0.5f) continue;
                     float w = b.Label.preferredWidth + Ui.Px * 10f;
                     bool over = pt.x >= b.X - Ui.Px * 2f && pt.x <= b.X + w && Mathf.Abs(pt.y - b.Y) < MenuStep * 0.5f;
                     if (!over) continue;
                     hovered = i;
                     if (hovered != lastHovered) { Sfx.Play(Sfx.Click(), 0.15f, 2.2f); b.SV += 4f; }   // 올라탈 때 작게 똑
-                    if (mouse.leftButton.wasPressedThisFrame) StartCoroutine(Press(b));
+                    // 값 항목: 글자 왼쪽 반 = 줄임, 오른쪽 반 = 늘림, 우클릭 = 줄임
+                    int dir = pt.x < b.X + b.Label.preferredWidth * 0.5f ? -1 : 1;
+                    if (mouse.leftButton.wasPressedThisFrame) StartCoroutine(Press(b, dir));
+                    else if (b.Change != null && mouse.rightButton.wasPressedThisFrame) StartCoroutine(Press(b, -1));
                     break;
                 }
             if (pressing && pressed >= 0) hovered = pressed;
@@ -276,13 +299,14 @@ namespace TinCan
         }
         bool pressing; int pressed = -1;
 
-        IEnumerator Press(Btn b)
+        IEnumerator Press(Btn b, int dir)
         {
-            pressing = true; pressed = btns.IndexOf(b);
-            Sfx.Play(Sfx.Click(), 0.5f, 1.2f);
-            b.S = 0.86f; b.SV = 0f; b.Rot = Random.Range(-5f, 5f); b.OxV += 200f;   // 납작 + 살짝 비틀림 + 앞으로 툭
+            Sfx.Play(Sfx.Click(), 0.5f, dir < 0 && b.Change != null ? 1.0f : 1.2f);
+            b.S = 0.86f; b.SV = 0f; b.Rot = Random.Range(-5f, 5f); b.OxV += 200f * (b.Change != null ? dir : 1);   // 납작 + 살짝 비틀림 + 누른 쪽으로 툭
             pSV -= 8f;                                                             // ◀도 움찔
-            yield return new WaitForSecondsRealtime(0.1f);
+            if (b.Change != null) { b.Change(dir); yield break; }                  // 값 항목은 바로 바뀐다 (연달아 누를 수 있게)
+            pressing = true; pressed = btns.IndexOf(b);
+            yield return new WaitForSecondsRealtime(0.1f);                         // 누른 모습이 보이게 0.1초 뒤 실행
             pressing = false; pressed = -1;
             b.Act?.Invoke();
         }
