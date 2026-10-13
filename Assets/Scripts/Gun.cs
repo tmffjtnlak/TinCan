@@ -233,7 +233,7 @@ namespace TinCan
                 cam.transform.position = pos;
                 Fx.CamFocus = pos;   // 흔들림도 이 자리를 기준으로
             }
-            SpriteRenderer head = null, tail = null;
+            SpriteRenderer[] streak = null;
             try
             {
                 // 1) 시간이 0.12초 만에 0.18배로 (OutCubic: 확 느려졌다 가라앉음)
@@ -243,8 +243,11 @@ namespace TinCan
                 Sfx.Play(Sfx.Whoosh(), 0.7f, 0.5f);
                 // 2) 얇은 직선 총알 (10-13 4판: "슈우---------우---우"): 비행 1.2초 동안 시간이 0.18 → 0.015배로 계속 느려진다 (맞기 직전이 가장 느림).
                 //    총알도 그 시간 흐름을 그대로 탄다 = 진행도는 시간 배수의 적분. 출발은 빠르고 갈수록 기어가듯 다가간다. 카메라도 같은 진행도로 따라가며 줌인
-                head = Look.Quad("FinisherHead", Vector2.zero, Vector2.one, new Color(1f, 0.98f, 0.85f, 1f), 46);
-                tail = Look.Quad("FinisherTail", Vector2.zero, Vector2.one, new Color(1f, 0.9f, 0.6f, 0.45f), 45);
+                // 총알 = 한 줄기 섬광 (10-13 5판): 같은 색 6칸으로 나눠 꼬리 끝 두 칸만 흐리게. 길이는 빠르기에 비례 → 깡통 앞에서 느려지면 짧아진다
+                var streakColor = new Color(1f, 0.96f, 0.78f, 1f);
+                float[] segAlpha = { 1f, 1f, 1f, 1f, 0.55f, 0.25f };   // 0 = 머리 … 5 = 꼬리 끝
+                streak = new SpriteRenderer[segAlpha.Length];
+                for (int i = 0; i < streak.Length; i++) streak[i] = Look.Quad("FinisherStreak" + i, Vector2.zero, Vector2.one, new Color(streakColor.r, streakColor.g, streakColor.b, segAlpha[i]), 46);
                 Vector2 from = view.Muzzle;
                 const float Flight = 1.2f, Thin = 1f / 27f;
                 float Ts(float u) => Mathf.Lerp(SlowStart, SlowEnd, Ease.OutQuad(u));   // 처음에 빨리 느려지고 끝으로 갈수록 더 천천히 바닥에 가라앉는다
@@ -259,21 +262,23 @@ namespace TinCan
                     Vector2 to = can.transform.position;
                     Vector2 p = Vector2.Lerp(from, to, k);
                     var dir = (to - from); float ang = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-                    // 머리: 길이 14도트 / 꼬리: 총구부터 머리까지
                     var hDir = dir.normalized;
-                    float headLen = 14f * Thin;
-                    head.transform.position = p - hDir * headLen * 0.5f; head.transform.rotation = Quaternion.Euler(0f, 0f, ang);
-                    head.transform.localScale = new Vector3(headLen, Thin, 1f);
-                    float tailLen = Vector2.Distance(from, p);
-                    tail.transform.position = (from + p) * 0.5f; tail.transform.rotation = Quaternion.Euler(0f, 0f, ang);
-                    tail.transform.localScale = new Vector3(tailLen, Thin, 1f);
-                    tail.color = new Color(1f, 0.9f, 0.6f, 0.45f * (1f - t * 0.6f));
+                    // 줄기 길이 = 지금 빠르기 × 0.12초 (최소 3도트, 총구를 넘지 않게). 빠르기 = 거리 × 시간배수 / (적분 합 × 비행시간)
+                    float speed = dir.magnitude * Ts(u) / (total * Flight);
+                    float len = Mathf.Clamp(speed * 0.12f, 3f * Thin, Vector2.Distance(from, p));
+                    float seg = len / streak.Length;
+                    for (int i = 0; i < streak.Length; i++)
+                    {
+                        streak[i].transform.position = p - hDir * seg * (i + 0.5f);
+                        streak[i].transform.rotation = Quaternion.Euler(0f, 0f, ang);
+                        streak[i].transform.localScale = new Vector3(seg + Thin * 0.2f, Thin, 1f);   // 칸 사이 틈이 안 보이게 살짝 겹친다
+                    }
                     // 카메라: 총알 머리를 따라가며(조금 앞서) 깡통 쪽으로 줌인. 총알과 같은 진행도라 도착할 때 같이 선다
                     float camK = Ease.InOutCubic(k);
                     SetCam(Vector2.Lerp(camStart, Vector2.Lerp(p, to, 0.35f), camK), Mathf.Lerp(size0, size0 * FinisherZoom, camK));
                     yield return null;
                 }
-                Destroy(head.gameObject); Destroy(tail.gameObject); head = tail = null;
+                foreach (var s in streak) Destroy(s.gameObject); streak = null;
                 if (can == null || can.Done) yield break;
                 // 3) 닿는 순간 (10-13 3판): 슬로우는 여기까지. 터지면서 시간이 0.12초 만에 확 원래대로 (슬로우가 연출을 드러내지 않게)
                 Vector2 at = can.transform.position;
@@ -309,8 +314,7 @@ namespace TinCan
             }
             finally
             {
-                if (head != null) Destroy(head.gameObject);
-                if (tail != null) Destroy(tail.gameObject);
+                if (streak != null) foreach (var s in streak) if (s != null) Destroy(s.gameObject);
                 SetTime(1f);
                 cam.orthographicSize = size0;
                 cam.transform.position = camStart;
