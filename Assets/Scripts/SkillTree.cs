@@ -96,6 +96,7 @@ namespace TinCan
             Put("rebound", Cyan, 4, 1, (4, 2));
             Put("cluster", Cyan, 4, 0, (3, 1));
             Put("pair", Cyan, 3, -1, (4, 0));
+            Put("juggle", Cyan, 3, 2, (3, 1));   // 10-14: 저글링 낙하 완화는 기본이 아니라 성장 보상
             // 1단 — 돈 (아래): 내려가다 오른쪽으로 꺾어 관문
             Put("value1", Yellow, 0, -1, (0, 0));
             Put("combo1", Yellow, 0, -2, (0, -1));
@@ -212,6 +213,8 @@ namespace TinCan
             N("bounce", "가벼운 깡통", "경", new Vector2(2.8f, 1.3f), Cyan, 60, "맞으면 더 높이 튄다", g => Can.BounceBonus += 1.0f, "rebound"),
             N("rebound", "다시 튐", "튐", new Vector2(4.1f, 1.7f), Cyan, 300, "떨어진 깡통이 혼자 한 번 다시 튀어오른다 (연속 유지)", g => g.LandBounces = 1),
             N("cluster", "붙여 놓기", "붙", new Vector2(0.5f, 2.2f), Cyan, 50, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true, "pair"),
+            // 10-14 사용자: 저글링 중 낙하 완화를 기본에서 빼 스킬로 (초반은 아슬아슬, 사면 쉬워지는 성장)
+            N("juggle", "공중 곡예", "곡", new Vector2(3.4f, 2.4f), Cyan, 180, "공중에 둘 이상이면 천천히 떨어진다 (2개 -30%, 3개 -45%, 4개+ -55%)", g => Can.JuggleFall = new[] { 1f, 0.7f, 0.55f, 0.45f }),
             N("pair", "짝 소환", "짝", new Vector2(0.0f, 3.3f), Cyan, 250, "Space 한 번에 2개 (비용도 2개)", g => g.SpawnCount = 2),
 
             // 돈 (노랑) — 아래

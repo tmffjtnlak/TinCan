@@ -135,7 +135,7 @@ namespace TinCan
                 if (!Game.I.MenuOpen && !Gun.Cinematic) escape -= Time.deltaTime;
                 if (escape <= 0f) { can.RunAway(); break; }
                 bool hurry = escape < 5f;
-                hp.text = $"남은 {left} / {kind.Hits}";
+                hp.text = $"남은 {left} / {kind.Hits}   ·   다시 튐 {can.ReboundsLeft}";
                 timer.text = $"도주까지 {Mathf.CeilToInt(escape)}초";
                 timer.color = hurry ? new Color(1f, 0.35f, 0.25f) : Ui.Gold;
                 if (hurry) rt.localRotation = Quaternion.Euler(0f, 0f, -6f + Mathf.Sin(Time.time * 40f) * 2.5f);   // 마지막 5초: 포스터가 떤다

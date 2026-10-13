@@ -533,7 +533,8 @@ namespace TinCan
         /// 하나만 쏠 땐 혜택 없음. 스킬트리로 강화할 자리
         /// </summary>
         // 시간은 중력의 제곱근으로 늘어서 0.8/0.7/0.6은 거의 안 느껴졌다 (셋: 체공 0.96 → 1.04초) → 더 내림
-        public static float[] JuggleFall = { 1f, 0.7f, 0.55f, 0.45f };
+        public static readonly float[] NoJuggleFall = { 1f, 1f, 1f, 1f };   // (먼저 선언: 정적 초기화는 적힌 순서대로)
+        public static float[] JuggleFall = NoJuggleFall;   // 10-14: 기본은 완화 없음. 스킬 "공중 곡예"가 { 1, 0.7, 0.55, 0.45 }로
         static float JuggleFallMul()
         {
             int air = Game.I != null ? Game.I.Airborne : 1;
@@ -558,6 +559,8 @@ namespace TinCan
 
         // ---------- 현상금: 바닥에서 다시 튀어 오르기 + 도주 (사용자 10-14) ----------
         bool crouching;
+        /// <summary>현상금이 바닥에서 스스로 튀어 오를 수 있는 남은 횟수 (사용자 10-14: 2회)</summary>
+        public int ReboundsLeft = 2;
         /// <summary>
         /// 현상금이 바닥에 닿았다: 쿵 납작 → 0.5초 웅크림(그사이에도 쏠 수 있다) → 선반 높이쯤(y≈0.4)까지 스스로 튀어 오른다.
         /// 잃는 건 시간뿐. 끝은 도주 시간이 다 됐을 때 (Bounty.cs)
@@ -616,7 +619,8 @@ namespace TinCan
             if (c.GetComponent<DropZone>() == null) return;
             if (rb != null && rb.linearVelocity.y > 0f) return;   // 올라가는 중엔 바닥 판정 없음 (화면 아래에서 던져진 다이너마이트가 지나간다)
             if (ChainHeld) { SyncScale(); parked = true; rb.linearVelocity = Vector2.zero; rb.gravityScale = 0f; return; }   // 연쇄 차례를 기다리는 중: 바닥에서 멈춰 기다린다
-            if (Kind.IsBounty) { StartCoroutine(BountyRebound()); return; }   // 현상금은 떨어져도 끝이 아니다 (사용자 10-14): 웅크렸다 스스로 튀어 오른다
+            // 현상금은 떨어져도 바로 끝이 아니다 (사용자 10-14): 웅크렸다 스스로 튀어 오른다. 2번까지 — 그다음 바닥에선 도망간다
+            if (Kind.IsBounty) { if (ReboundsLeft > 0) { ReboundsLeft--; StartCoroutine(BountyRebound()); } else RunAway(); return; }
             if (bouncesLeft < 0) bouncesLeft = IsMenu ? 0 : (Game.I != null ? Game.I.LandBounces : 0);
             if (bouncesLeft > 0)
             {

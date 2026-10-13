@@ -88,7 +88,7 @@ namespace TinCan
         float lastSpawnX = float.NaN;
         int lastPage = 2;
 
-        void Awake() { I = this; Can.BounceBonus = 0f; Can.TimeScale = 1f; }
+        void Awake() { I = this; Can.BounceBonus = 0f; Can.TimeScale = 1f; Can.JuggleFall = Can.NoJuggleFall; }   // 스킬로 바뀌는 정적 값은 씬마다 처음으로
 
         void Start()
         {
