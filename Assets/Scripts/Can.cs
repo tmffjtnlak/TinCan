@@ -21,7 +21,7 @@ namespace TinCan
         /// <summary>무게 = 떨어지는 속도 (중력 배수). 깡통은 특능 없이 물성만: 무게·크기·체력·값 (사용자 10-10)</summary>
         public float Weight = 1f;
 
-        public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 6번 맞으면 터진다.", Value = 1, Cost = 2, Price = 0, Hits = 6, Weight = 1f, Width = 0.5f, Height = 0.7f, Mass = 1f, Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
+        public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 6번 맞으면 터진다.", Value = 1, Cost = 2, Price = 0, Hits = 6, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f,   /* 크기 = 사용자 임시 그림 can_tin 16×20 (10-13) */ Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
         public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 무겁다. 4번이면 깨진다.", Value = 3, Cost = 8, Price = 60, Hits = 4, Weight = 1.15f, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
         public static readonly CanKind Rubber = new CanKind { Id = "rubber", Name = "고무 깡통", Desc = "값 2. 가벼워서 천천히 떨어진다. 8번이면 터진다.", Value = 2, Cost = 6, Price = 200, Hits = 8, Weight = 0.6f, Width = 0.5f, Height = 0.7f, Mass = 0.7f, Pitch = 0.85f, Body = new Color(0.9f, 0.45f, 0.5f), Rim = new Color(0.55f, 0.2f, 0.25f), Label = new Color(1f, 0.9f, 0.5f) };
         public static readonly CanKind Hat = new CanKind { Id = "hat", Name = "모자", Desc = "값 10. 납작하고 아주 가볍다. 10번이면 찢어진다.", Value = 10, Cost = 30, Price = 400, Hits = 10, Weight = 0.45f, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
@@ -111,11 +111,22 @@ namespace TinCan
             foreach (var other in All) if (other != null && other != this) Physics2D.IgnoreCollision(col, other.GetComponent<Collider2D>(), true);
             All.Add(this);
             visual = new GameObject("Visual").transform; visual.SetParent(transform, false);
-            body = Look.Quad("Body", Vector2.zero, new Vector2(kind.Width, kind.Height), kind.Body, 2, visual);
-            label = Look.Quad("Label", Vector2.zero, new Vector2(kind.Width + 0.02f, kind.Height * 0.4f), kind.Label, 3, visual);
-            rim = Look.Quad("RimTop", new Vector2(0f, kind.Height * 0.5f - 0.04f), new Vector2(kind.Width + 0.04f, 0.08f), kind.Rim, 4, visual);
-            Look.Quad("RimBot", new Vector2(0f, -kind.Height * 0.5f + 0.04f), new Vector2(kind.Width + 0.04f, 0.08f), kind.Rim, 4, visual);
-            Look.Quad("Shine", new Vector2(-kind.Width * 0.3f, 0f), new Vector2(0.06f, kind.Height * 0.8f), new Color(1f, 1f, 1f, 0.35f), 5, visual);
+            var art = GunView.LoadArt("can_" + kind.Id);   // 사용자 그림이 있으면 도형 대신 (Assets/Art/can_{id}.png)
+            if (art != null)
+            {
+                body = new GameObject("Body").AddComponent<SpriteRenderer>(); body.transform.SetParent(visual, false);
+                body.sprite = art; body.sortingOrder = 2;
+                var w = WhiteOf(art);
+                if (w != null) { white = new GameObject("White").AddComponent<SpriteRenderer>(); white.transform.SetParent(visual, false); white.sprite = w; white.sortingOrder = 3; white.color = Color.white; }
+            }
+            else
+            {
+                body = Look.Quad("Body", Vector2.zero, new Vector2(kind.Width, kind.Height), kind.Body, 2, visual);
+                label = Look.Quad("Label", Vector2.zero, new Vector2(kind.Width + 0.02f, kind.Height * 0.4f), kind.Label, 3, visual);
+                rim = Look.Quad("RimTop", new Vector2(0f, kind.Height * 0.5f - 0.04f), new Vector2(kind.Width + 0.04f, 0.08f), kind.Rim, 4, visual);
+                Look.Quad("RimBot", new Vector2(0f, -kind.Height * 0.5f + 0.04f), new Vector2(kind.Width + 0.04f, 0.08f), kind.Rim, 4, visual);
+                Look.Quad("Shine", new Vector2(-kind.Width * 0.3f, 0f), new Vector2(0.06f, kind.Height * 0.8f), new Color(1f, 1f, 1f, 0.35f), 5, visual);
+            }
             // 체력 점: 깡통 위에 남은 횟수만큼 (맞을 때마다 하나씩 꺼진다)
             HitsLeft = kind.Hits;
             if (Game.I != null && Game.I.Hud != null) earnedLabel = Game.I.Hud.CanLabel();
@@ -150,15 +161,56 @@ namespace TinCan
         static PhysicsMaterial2D mat;
         static PhysicsMaterial2D Mat() => mat != null ? mat : (mat = new PhysicsMaterial2D("can") { bounciness = 0.15f, friction = 0.5f });
 
+        /// <summary>
+        /// 소환 (사용자 10-13): 뒤에 흰 도트 구름이 피어오르고, 깡통은 흰 실루엣으로 작게 나타나 용수철로 튕기며 커지고 제 색이 된다.
+        /// 선반에 닿는 순간 납작(1.3×0.7)해졌다 용수철로 돌아오고 먼지.
+        /// </summary>
         IEnumerator PopIn()
         {
-            for (float t = 0f; t < 1f; t += Time.deltaTime * 7f) { float s = Mathf.Sin(t * Mathf.PI * 0.5f); visual.localScale = new Vector3(s * 1.15f, s, 1f); yield return null; }
+            if (!IsMenu) Fx.Cloud(transform.position, 1f);
+            float sx = 0.15f, sy = 0.15f, vx = 0f, vy = 0f, whiteA = 1f;
+            bool landed = false; float t = 0f;
+            while (t < 1.2f && !Airborne)
+            {
+                float dt = Time.deltaTime; t += dt;
+                // 가로가 조금 덜 감쇠: 옆으로 먼저 퍼졌다 자리 (말랑)
+                Ease.Spring(ref sx, ref vx, 1f, 420f, 11f, dt);
+                Ease.Spring(ref sy, ref vy, 1f, 420f, 14f, dt);
+                if (t > 0.05f) whiteA = Mathf.Max(0f, whiteA - dt / 0.12f);   // 3프레임 흰색 → 0.12초에 제 색
+                if (white != null) white.color = new Color(1f, 1f, 1f, Mathf.Max(whiteA, flashLeft > 0f ? 1f : 0f));
+                // 선반에 닿았다: 떨어지던 속도가 거의 0이 된 첫 순간
+                if (!landed && t > 0.12f && rb != null && Mathf.Abs(rb.linearVelocity.y) < 0.05f)
+                {
+                    landed = true;
+                    if (!IsMenu) { Fx.Dust(new Vector2(transform.position.x, Look.ShelfY + 0.15f), 3, 0.5f); Sfx.Play(Sfx.Drop(), 0.3f, Kind.Pitch * 1.2f); }
+                    sx = 1.3f; sy = 0.7f; vx = vy = 0f;
+                }
+                visual.localScale = new Vector3(sx, sy, 1f);
+                if (landed && whiteA <= 0f && Mathf.Abs(sx - 1f) < 0.01f && Mathf.Abs(vx) < 0.05f) break;
+                yield return null;
+            }
             visual.localScale = Vector3.one;
-            // 선반에 쿵 하고 앉는다: 납작해졌다 돌아오고 먼지
-            yield return new WaitForSeconds(0.12f);
-            if (!IsMenu) { Fx.Dust(new Vector2(transform.position.x, Look.ShelfY + 0.15f), 3, 0.5f); Sfx.Play(Sfx.Drop(), 0.3f, Kind.Pitch * 1.2f); }
-            for (float t = 0f; t < 1f; t += Time.deltaTime * 9f) { float s = Mathf.Sin(t * Mathf.PI); visual.localScale = new Vector3(1f + s * 0.25f, 1f - s * 0.25f, 1f); yield return null; }
-            visual.localScale = Vector3.one;
+            if (white != null && flashLeft <= 0f) white.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        SpriteRenderer white;   // 그림의 흰 실루엣 (소환·맞을 때 번쩍임)
+        static readonly System.Collections.Generic.Dictionary<Sprite, Sprite> whites = new System.Collections.Generic.Dictionary<Sprite, Sprite>();
+        static Sprite WhiteOf(Sprite s)
+        {
+            if (s == null) return null;
+            if (whites.TryGetValue(s, out var w)) return w;
+            try
+            {
+                var r = s.textureRect;
+                var tex = new Texture2D((int)r.width, (int)r.height, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+                var px = s.texture.GetPixels((int)r.x, (int)r.y, (int)r.width, (int)r.height);
+                for (int i = 0; i < px.Length; i++) px[i] = new Color(1f, 1f, 1f, px[i].a);
+                tex.SetPixels(px); tex.Apply();
+                w = Sprite.Create(tex, new Rect(0, 0, r.width, r.height), new Vector2(0.5f, 0.5f), s.pixelsPerUnit);
+            }
+            catch { w = null; }
+            whites[s] = w;
+            return w;
         }
 
         /// <summary>총에 맞았다. hitPoint = 맞은 자리(월드). 맞은 쪽 반대로, 위로 튄다. 돌려주는 값 = 이번 한 발로 쌓인 돈</summary>
@@ -301,7 +353,13 @@ namespace TinCan
                     ((RectTransform)earnedLabel.transform).anchoredPosition = new Vector2(sp.x - Screen.width * 0.5f, sp.y - Screen.height * 0.5f) * (1080f / Screen.height);
                 }
             }
-            if (flashLeft > 0f)
+            if (label == null)
+            {
+                // 그림 깡통: 번쩍임 = 흰 실루엣을 겹친다, 저주 = 보라로 물들인다
+                if (flashLeft > 0f) { flashLeft -= Time.deltaTime; if (white != null) white.color = new Color(1f, 1f, 1f, flashLeft > 0f ? 1f : 0f); }
+                body.color = Cursed ? new Color(0.75f, 0.45f, 0.9f) : Color.white;
+            }
+            else if (flashLeft > 0f)
             {
                 flashLeft -= Time.deltaTime;
                 bool on = flashLeft > 0f;

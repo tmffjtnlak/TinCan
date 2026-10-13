@@ -10,6 +10,60 @@ namespace TinCan
         static Fx I => inst != null ? inst : (inst = new GameObject("Fx").AddComponent<Fx>());
         static Vector3 camHome; static float shake, shakeDecay = 6f;
 
+        // ---------- 소환 구름 (사용자 10-13): 흰 도트 원 여러 개가 튕기며 부풀었다 위로 떠오르며 줄어든다 ----------
+        // 원은 반지름마다 따로 찍은 도트 원 그림을 갈아 끼운다 → 크기가 변해도 늘 도트 (늘려서 키우지 않는다)
+        static Sprite[] discs;
+        static Sprite Disc(int r)
+        {
+            if (discs == null) discs = new Sprite[16];
+            r = Mathf.Clamp(r, 1, discs.Length - 1);
+            if (discs[r] != null) return discs[r];
+            int n = r * 2 + 1;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = x - r, dy = y - r;
+                    tex.SetPixel(x, y, dx * dx + dy * dy <= r * r + r * 0.6f ? Color.white : Color.clear);
+                }
+            tex.Apply();
+            return discs[r] = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 27f);
+        }
+
+        /// <summary>흰 구름 한 뭉치: 가운데 큰 원 + 둘레 작은 원 5개. 깡통(2)과 탄피(1)보다 뒤(0)</summary>
+        public static void Cloud(Vector2 at, float size = 1f)
+        {
+            I.StartCoroutine(I.PuffCo(at, 9f * size, 0f, Vector2.up * 0.25f));
+            for (int i = 0; i < 5; i++)
+            {
+                float a = (i * 72f + Random.Range(-18f, 18f)) * Mathf.Deg2Rad;
+                var off = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.75f) * Random.Range(0.28f, 0.4f) * size;
+                I.StartCoroutine(I.PuffCo(at + off, Random.Range(4.5f, 7f) * size, i * 0.025f, off * 0.9f + Vector2.up * 0.2f));
+            }
+        }
+
+        IEnumerator PuffCo(Vector2 at, float maxR, float delay, Vector2 drift)
+        {
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+            var sr = new GameObject("Puff").AddComponent<SpriteRenderer>(); sr.sortingOrder = 0; sr.color = Color.white;
+            float r = 0f, v = 0f, t = 0f; Vector2 pos = at;
+            while (true)
+            {
+                float dt = Time.deltaTime; t += dt;
+                bool grow = t < 0.16f;
+                // 부풀 땐 빠르고 살짝 넘치게, 줄 땐 느긋하게 (용수철)
+                Ease.Spring(ref r, ref v, grow ? maxR : 0f, grow ? 520f : 90f, grow ? 13f : 11f, dt);
+                if (!grow) pos += drift * dt * 1.6f;
+                int ri = Mathf.RoundToInt(r);
+                if (!grow && ri < 1) break;
+                sr.sprite = ri >= 1 ? Disc(ri) : null;
+                sr.transform.position = new Vector3(Mathf.Round(pos.x * 27f) / 27f, Mathf.Round(pos.y * 27f) / 27f, 0f);   // 도트 칸에 붙인다
+                if (t > 1.5f) break;
+                yield return null;
+            }
+            Destroy(sr.gameObject);
+        }
+
         /// <summary>맞은 자리 불꽃: 노란 조각이 사방으로 짧게</summary>
         public static void Spark(Vector2 at, int count = 6, float power = 1f)
         {
