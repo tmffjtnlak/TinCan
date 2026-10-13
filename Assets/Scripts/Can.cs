@@ -20,6 +20,8 @@ namespace TinCan
         public int Hits;
         /// <summary>무게 = 떨어지는 속도 (중력 배수). 깡통은 특능 없이 물성만: 무게·크기·체력·값 (사용자 10-10)</summary>
         public float Weight = 1f;
+        /// <summary>맞을 때 튀는 힘 배수 / 회전 배수 / 찌그러짐 배수 (사용자 10-14: 현상금은 "느리고 묵직하게" — 낮게 뜨고 천천히 돌고 크게 찌그러진다)</summary>
+        public float Bounce = 1f, Spin = 1f, Squish = 1f;
 
         public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 6번 맞으면 터진다.", Value = 1, Cost = 2, Price = 0, Hits = 6, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f,   /* 크기 = 사용자 임시 그림 can_tin 16×20 (10-13) */ Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
         public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 무겁다. 5번이면 깨진다.", Value = 3, Cost = 8, Price = 60, Hits = 5, Weight = 1.15f, Width = 15f / 27f, Height = 34f / 27f,   /* 크기 = 사용자 그림 can_bottle 15×34, 체력 5 (10-13) */ Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
@@ -51,10 +53,10 @@ namespace TinCan
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
         /// <summary>현상수배 깡통: 체력 15 (10-14: 30 → 15), 무겁고, 값 5. 터뜨리면 값×15×16 = 1,200 기본. 가게엔 없다</summary>
-        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 1.35f, Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
+        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
         public bool IsBounty;
         /// <summary>시험용 현상수배 깡통 (사용자 10-13): 체력 3. F4로 부른다 (막타 연출 확인용)</summary>
-        public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 1.35f, Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
+        public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
         public static readonly System.Collections.Generic.List<CanKind> ForSale = new System.Collections.Generic.List<CanKind> { Tin, Bottle, Rubber, Hat };
         /// <summary>터뜨리면 기본 얼마: 값 × H(H+1). (n번 맞추면 값 × n(n+1)/2 쌓이고, 터뜨리면 ×2) — 예측 가능한 점수</summary>
         public long BurstBase => (long)Value * Hits * (Hits + 1);
@@ -475,7 +477,7 @@ namespace TinCan
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
             var v = rb.linearVelocity / Scale;   // 느려진 시간 안에서 계산하고 다시 줄인다
             // 기본 튐은 보수적으로 (리볼버 한 발 = 선반에서 화면 중간쯤). 총 배수·스킬로 위로 갈라진다. 천장은 안전망
-            v.y = (Mathf.Max(0f, v.y * 0.3f) + 7.2f + BounceBonus + Random.Range(-0.4f, 0.6f)) * bounceScale;
+            v.y = (Mathf.Max(0f, v.y * 0.3f) + 7.2f + BounceBonus + Random.Range(-0.4f, 0.6f)) * bounceScale * Kind.Bounce;   // 현상금은 낮게 (Bounce 0.7)
             v.x = v.x * 0.4f + side * 2.2f + Random.Range(-0.6f, 0.6f);
             // 천장 한계 (사용자 10-11): 화면 밖으로 나가면 연속이 끊기니, 꼭대기가 화면 위 끝 바로 아래가 되도록 자른다
             float top = Look.CeilingY - Kind.Height * 0.5f - transform.position.y;
@@ -483,7 +485,7 @@ namespace TinCan
             float vmax = top > 0f ? Mathf.Sqrt(2f * g * top) : 0f;
             if (v.y > vmax) v.y = vmax;
             rb.linearVelocity = v * Scale;
-            rb.angularVelocity = (-side * Random.Range(400f, 800f) + Random.Range(-200f, 200f)) * Scale;
+            rb.angularVelocity = (-side * Random.Range(400f, 800f) + Random.Range(-200f, 200f)) * Scale * Kind.Spin;   // 현상금은 천천히 돈다
             flashLeft = 0.06f;
             StopAllCoroutines(); StartCoroutine(Squash());
             // 저글링 감각 (사용자 10-14): 공중에 동시에 뜬 깡통 수(1·2·3·4+)로 소리·구름·불꽃·흔들림이 한 단계씩 커진다.
@@ -496,7 +498,8 @@ namespace TinCan
             if (!Done) Fx.Cloud(hitPoint, 0.45f * TierCloud[tier - 1]);   // 맞은 자리에 작은 흰 구름 (저글링일수록 크게)
             if (!Done && Kind.Special == CanKind.Trait.Magnet) MagnetPull();
             if (!Done && props.Count > 0 && Random.value < PropDropChance) DropProp(hitPoint);   // 부착물이 일정 확률로 떨어져 나간다
-            Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f + (tier - 1) * 0.05f);
+            Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f + (tier - 1) * 0.05f + (Kind.Squish > 1f ? 0.25f : 0f));
+            if (Kind.Squish > 1f) Sfx.Play(Sfx.Drop(), 0.55f, 0.55f);   // 묵직한 깡통: 낮은 쿵이 겹친다
             return earned;
         }
 
@@ -524,7 +527,7 @@ namespace TinCan
                 t += Time.deltaTime;
                 float k = t / 0.16f;
                 float s = Mathf.Sin(k * Mathf.PI);
-                visual.localScale = new Vector3(1f + s * 0.35f, 1f - s * 0.3f, 1f);
+                visual.localScale = new Vector3(1f + s * 0.35f * Kind.Squish, 1f - s * 0.3f * Kind.Squish, 1f);   // 묵직한 깡통은 크게 찌그러짐
                 yield return null;
             }
             visual.localScale = Vector3.one;
