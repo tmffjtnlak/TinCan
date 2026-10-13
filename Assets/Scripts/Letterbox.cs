@@ -9,9 +9,11 @@ namespace TinCan
     /// 띠는 배경(-2) 위, 탄피(1)·깡통(2) 아래 → 깡통은 띠 위로도 보인다 (서부 영화 느낌).
     /// 띠 두께는 도트 단위(최대 45칸 = 화면 1/6), 움직임은 용수철.
     /// </summary>
+    [DefaultExecutionOrder(100)]   // 화면 흔들림(Fx.LateUpdate)이 카메라를 옮긴 뒤에 띠를 맞춘다 → 띠 경계가 흔들림에 같이 떨지 않는다
     public class Letterbox : MonoBehaviour
     {
         const float MaxDots = 45f, Ppu = 27f;
+        const float Overhang = 2f;          // 화면 밖으로 더 늘린 길이 (월드 단위, 흔들림 최대 ≈ 0.23보다 넉넉히)
         const float UiDim = 0f;             // 띠가 다 들어왔을 때 UI 투명도 (탄 빼고 전부 사라짐)
         SpriteRenderer top, bottom;
         CanvasGroup ui;
@@ -70,14 +72,17 @@ namespace TinCan
         void Apply()
         {
             var cam = Camera.main; if (cam == null) return;
-            float halfH = cam.orthographicSize, w = halfH * 2f * cam.aspect + 2f;
+            float halfH = cam.orthographicSize, w = halfH * 2f * cam.aspect + 2f * Overhang;
             float dots = Mathf.Round(Mathf.Clamp(k, 0f, 1.15f) * MaxDots);   // 두께는 화면 도트 단위 (넘칠 땐 최대 52칸)
             float screenDot = halfH * 2f / 270f;                              // 줌해도 띠 두께는 화면 기준 그대로
             float h = dots * screenDot;
+            // 화면 밖으로 Overhang만큼 길게 (사용자 10-13): 흔들림·카메라 이동에 띠 바깥 끝이 화면 안으로 들어와 뒤가 비치지 않게.
+            // 안쪽 끝(화면에 보이는 경계)은 그대로, 바깥쪽으로만 늘린다
+            float H = h + Overhang;
             var c = cam.transform.position;
-            top.transform.position = new Vector3(c.x, c.y + halfH - h * 0.5f, 0f);
-            bottom.transform.position = new Vector3(c.x, c.y - halfH + h * 0.5f, 0f);
-            top.transform.localScale = bottom.transform.localScale = new Vector3(w, Mathf.Max(0.0001f, h), 1f);
+            top.transform.position = new Vector3(c.x, c.y + halfH - h + H * 0.5f, 0f);
+            bottom.transform.position = new Vector3(c.x, c.y - halfH + h - H * 0.5f, 0f);
+            top.transform.localScale = bottom.transform.localScale = new Vector3(w, H, 1f);
             top.enabled = bottom.enabled = dots > 0f;
             if (ui != null) ui.alpha = Mathf.Lerp(1f, UiDim, Mathf.Clamp01(uiK));
         }
