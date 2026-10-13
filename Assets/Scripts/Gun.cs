@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -284,6 +285,7 @@ namespace TinCan
                 Vector2 at = can.transform.position;
                 SetCam(at, size0 * FinisherZoom * 0.92f);   // 맞는 순간 한 번 더 당긴다 (펀치)
                 HitOne(can, at);
+                StartCoroutine(ChainBursts(at));   // 연출 동안 조준을 못 했으니 공중의 다른 깡통들은 가까운 것부터 차례로 터진다
                 Fx.HitMark(at);
                 Fx.Ring(at, new Color(1f, 0.95f, 0.7f), 3.4f);
                 Fx.Ring(at, Color.white, 1.6f);
@@ -330,6 +332,27 @@ namespace TinCan
             while (Cinematic) yield return null;
             if (c == null) yield break;
             yield return c.FlyTo(Game.I.Hud.MoneyWorld(), Random.Range(0.02f, 0.45f), _ => { Game.I.Hud.BumpMoney(); Sfx.Play(Sfx.Click(), 0.18f, Random.Range(1.6f, 2.4f)); });
+        }
+
+        /// <summary>
+        /// 연쇄 터짐 (사용자 10-13): 현상금 깡통이 터지면, 그 순간 공중에 떠 있던 다른 깡통들이 가까운 것부터 0.1초 간격으로
+        /// 퍼-퍼-퍼-펑 터진다 (한 번에 말고 차례로). 터질 때마다 소리가 조금씩 높아진다. 선반 위(아직 안 쏜) 깡통은 그대로
+        /// </summary>
+        IEnumerator ChainBursts(Vector2 from)
+        {
+            var targets = new List<Can>();
+            foreach (var c in Game.I.Cans) if (c != null && !c.Done && c.Airborne && !c.Kind.IsBounty) targets.Add(c);
+            targets.Sort((a, b) => ((Vector2)a.transform.position - from).sqrMagnitude.CompareTo(((Vector2)b.transform.position - from).sqrMagnitude));
+            yield return new WaitForSecondsRealtime(0.15f);   // 큰 터짐 바로 뒤에서 시작
+            int n = 0;
+            foreach (var c in targets)
+            {
+                if (c == null || c.Done || !c.Airborne) continue;
+                c.ChainBurst();
+                Sfx.Play(Sfx.Tang(), 0.5f, 1f + n * 0.08f);
+                n++;
+                yield return new WaitForSecondsRealtime(0.1f);
+            }
         }
 
         /// <summary>화면 전체 흰 번쩍임 (0.15초)</summary>

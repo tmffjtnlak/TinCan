@@ -357,6 +357,14 @@ namespace TinCan
         }
 
         /// <summary>체력이 다했다: 터진다. 최고치 정산. 파편이 사방으로</summary>
+        /// <summary>연쇄로 터진다 (현상금 깡통이 터질 때 공중의 다른 깡통들, 사용자 10-13). 보통 터뜨린 것과 똑같이 정산</summary>
+        public void ChainBurst()
+        {
+            if (Done || !Airborne) return;
+            SyncScale();
+            Burst(transform.position);
+        }
+
         void Burst(Vector2 at)
         {
             Done = true;
