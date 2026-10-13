@@ -49,7 +49,7 @@ namespace TinCan
                 c.sr = go.AddComponent<SpriteRenderer>();
                 c.sr.sprite = art; c.sr.sortingOrder = 1;
                 c.sr.color = gold ? new Color(1f, 1f, 0.8f) : Color.white;
-                c.baseScale = 2f / 3f;   // 도트 규칙: 27×14 원본은 2픽셀 칸으로 (반 크기로 다시 그리면 1)
+                c.baseScale = 0.5f;      // 도트 규칙(4px 칸): 27×14 원본은 2픽셀 칸으로 (반 크기로 다시 그리면 1)
                 var w = WhiteOf(art);
                 if (w != null)
                 {

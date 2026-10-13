@@ -9,8 +9,8 @@ namespace TinCan
     /// </summary>
     public static class Ui
     {
-        /// <summary>마스터 픽셀: 1080p 기준 화면 픽셀 수. 그림(PPU 36)과 UI가 이 한 칸을 같이 쓴다</summary>
-        public const float Px = 3f;
+        /// <summary>마스터 픽셀: 1080p 기준 화면 픽셀 수. 화면비 480×270 (사용자 10-13) → 4. 그림(PPU 27)과 UI가 이 한 칸을 같이 쓴다</summary>
+        public const float Px = 4f;
         static Font font;
         /// <summary>도트 폰트 (사용자 10-12: x10y12pxDenkiChipHangul, 12px 격자). 없으면 기본 벡터 폰트</summary>
         public static Font Font => font != null ? font : (font = Resources.Load<Font>("Fonts/DenkiChip") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));

@@ -21,7 +21,7 @@ namespace TinCan
     public static class TreeArt
     {
         static readonly Dictionary<string, Sprite> cache = new Dictionary<string, Sprite>();
-        public const float Ppu = 36f;
+        public const float Ppu = 27f;   // 화면 480×270 기준 (Assets/Art 가져오기 설정과 같아야 타일·9슬라이스 배수가 맞는다)
 
         public static Sprite Get(string name)
         {

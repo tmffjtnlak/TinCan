@@ -12,7 +12,7 @@ namespace TinCan.EditorTools
             var ti = (TextureImporter)assetImporter;
             ti.textureType = TextureImporterType.Sprite;
             ti.spriteImportMode = SpriteImportMode.Single;
-            ti.spritePixelsPerUnit = 36;
+            ti.spritePixelsPerUnit = 27;   // 화면 480×270 (사용자 10-13): 카메라 세로 10유닛 = 270px → 1그림픽셀 = 1080p에서 4픽셀
             ti.filterMode = FilterMode.Point;
             ti.textureCompression = TextureImporterCompression.Uncompressed;
             ti.mipmapEnabled = false;

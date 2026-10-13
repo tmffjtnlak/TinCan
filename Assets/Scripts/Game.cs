@@ -109,11 +109,27 @@ namespace TinCan
         Text signTitle, tagline;
         readonly List<ShootButton> settingButtons = new List<ShootButton>();
 
+        /// <summary>시작 화면 배경 (사용자 그림 bg_saloon 480×270, 10-13). 화면을 꽉 채우고 사격장 그림을 덮는다. 플레이로 가면 숨긴다</summary>
+        SpriteRenderer saloon;
+        void ShowSaloon(bool on)
+        {
+            if (saloon == null)
+            {
+                var sp = GunView.LoadArt("bg_saloon");
+                if (sp == null) return;
+                var go = new GameObject("Saloon");
+                saloon = go.AddComponent<SpriteRenderer>(); saloon.sprite = sp; saloon.sortingOrder = -2;   // 선반·모래(-10~-3) 위, 깡통(2) 아래
+                go.transform.position = Vector3.zero;
+            }
+            saloon.gameObject.SetActive(on);
+        }
+
         void EnterTitle()
         {
             State = GameState.Title;
             Money = 0;
             hud.SetPlayVisible(false);
+            ShowSaloon(true);
             signTitle = Ui.Text("SignTitle", hud.Canvas, new Vector2(0f, 300f), new Vector2(1200f, 120f), 96, TextAnchor.MiddleCenter, Ui.Gold);
             signTitle.text = "깡통";   // 가제. 간판 그림이 오면 교체
             tagline = Ui.Text("Tagline", hud.Canvas, new Vector2(0f, 220f), new Vector2(1200f, 50f), 26, TextAnchor.MiddleCenter, Ui.Dim);
@@ -198,6 +214,7 @@ namespace TinCan
         void BeginPlay(bool load)
         {
             State = GameState.Play;
+            ShowSaloon(false);
             Money = 10;
             hud.SetPlayVisible(true);
             if (load) Load();
