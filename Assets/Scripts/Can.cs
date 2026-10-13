@@ -525,7 +525,9 @@ namespace TinCan
 
         // ---------- 특성 (사용자 10-14) ----------
         const float MagnetRange = 2.0f;      // 옆의 옆까지 (깡통 간격 ≈ 0.85 × 2 + 여유)
-        const float DynamiteRange = 2.6f;    // 폭발 구름 크기만큼 (1.9는 공중에서 터지면 선반 깡통에 안 닿았다)
+        // 폭발 반경 = 화면 가로의 33% (사용자 10-14 "많이 큰 범위") ≈ 5.9 유닛 → 화면 2/3를 덮는다
+        static float DynamiteRange => Look.PlayHalfW * 2f * 0.33f;
+        const float BlastSpeed = 22f;        // 충격파가 퍼지는 빠르기 (유닛/초): 가장자리까지 ≈ 0.27초
 
         /// <summary>자석: 맞을 때마다 반경 안의 다른 깡통을 이쪽으로 끌어당긴다 (공중은 그대로 당김, 선반 위는 옆으로 미끄러짐)</summary>
         void MagnetPull()
@@ -573,17 +575,39 @@ namespace TinCan
         /// </summary>
         static IEnumerator Explode(Vector2 at, Can source)
         {
-            Fx.Cloud(at, 1.8f);
-            Fx.Spark(at, 30, 2f);
-            Fx.Shake(1.0f);
-            Sfx.Play(Sfx.Bang(), 1f, 0.55f);
-            yield return new WaitForSeconds(0.05f);
+            float range = DynamiteRange;
+            Fx.Cloud(at, 2.2f);
+            Fx.Spark(at, 40, 2.6f);
+            Fx.Shake(1.4f);
+            Sfx.Play(Sfx.Bang(), 1f, 0.5f);
+            // 충격파: 소환 구름과 같은 흰 도트 구름이 고리 두 겹으로 퍼져 나간다 (반경 절반 → 끝)
+            for (int ring = 0; ring < 2; ring++)
+            {
+                int n = ring == 0 ? 9 : 15; float r = range * (ring == 0 ? 0.45f : 0.9f);
+                for (int i = 0; i < n; i++)
+                {
+                    float a = (i + ring * 0.5f) / n * Mathf.PI * 2f;
+                    var p = at + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+                    Fx.CloudLater(p, ring == 0 ? 0.9f : 0.6f, r / BlastSpeed);
+                }
+            }
             var g = Game.I; if (g == null) yield break;
+            // 가까운 깡통부터, 충격파가 닿는 때에 한 발씩 (선반 위 깡통도 떠오른다 → 연쇄)
+            var targets = new System.Collections.Generic.List<(Can c, float d)>();
             foreach (var c in g.Cans.ToArray())
             {
                 if (c == null || c == source || c.Done) continue;
+                float d = Vector2.Distance(c.transform.position, at);
+                if (d <= range) targets.Add((c, d));
+            }
+            targets.Sort((x, y) => x.d.CompareTo(y.d));
+            float t = 0f;
+            foreach (var (c, d) in targets)
+            {
+                float when = 0.05f + d / BlastSpeed;
+                if (when > t) { yield return new WaitForSeconds(when - t); t = when; }
+                if (c == null || c.Done) continue;
                 Vector2 p = c.transform.position;
-                if (Vector2.Distance(p, at) > DynamiteRange) continue;
                 var dir = (p - at).sqrMagnitude > 0.0001f ? (p - at).normalized : Vector2.up;
                 var hitPoint = p - dir * 0.2f;   // 폭발 쪽 면을 맞힌다 → 반대쪽으로 튄다
                 int earned = c.Hit(hitPoint, 1f, 1.1f);

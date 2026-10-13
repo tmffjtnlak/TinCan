@@ -45,6 +45,10 @@ namespace TinCan
             }
         }
 
+        /// <summary>구름을 delay초 뒤에 (다이너마이트 충격파 고리)</summary>
+        public static void CloudLater(Vector2 at, float size, float delay) => I.StartCoroutine(I.CloudLaterCo(at, size, delay));
+        IEnumerator CloudLaterCo(Vector2 at, float size, float delay) { yield return new WaitForSeconds(delay); Cloud(at, size); }
+
         /// <summary>
         /// 총구 연기 (사용자 10-13): 소환 구름과 같은 도트 원을 회색으로 작게. 총구 앞에서 피었다가 총 방향·위로 흩어진다.
         /// 총(42)보다 앞(46)
