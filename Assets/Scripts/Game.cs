@@ -109,36 +109,25 @@ namespace TinCan
         Text signTitle, tagline;
         readonly List<ShootButton> settingButtons = new List<ShootButton>();
 
-        /// <summary>시작 화면 배경 (사용자 그림 bg_saloon 480×270, 10-13). 화면을 꽉 채우고 사격장 그림을 덮는다. 플레이로 가면 숨긴다</summary>
-        SpriteRenderer saloon;
-        void ShowSaloon(bool on)
-        {
-            if (saloon == null)
-            {
-                var sp = GunView.LoadArt("bg_saloon");
-                if (sp == null) return;
-                var go = new GameObject("Saloon");
-                saloon = go.AddComponent<SpriteRenderer>(); saloon.sprite = sp; saloon.sortingOrder = -2;   // 선반·모래(-10~-3) 위, 깡통(2) 아래
-                go.transform.position = Vector3.zero;
-            }
-            saloon.gameObject.SetActive(on);
-        }
+        /// <summary>시작 화면 (사용자 10-13): 술집 그림 3띠 시차 + 입구 문 + 평범한 버튼. 플레이로 가면 없앤다. 깡통 쏘기 메뉴(MenuCan)는 보관</summary>
+        Title title;
 
         void EnterTitle()
         {
             State = GameState.Title;
             Money = 0;
             hud.SetPlayVisible(false);
-            ShowSaloon(true);
-            signTitle = Ui.Text("SignTitle", hud.Canvas, new Vector2(0f, 300f), new Vector2(1200f, 120f), 96, TextAnchor.MiddleCenter, Ui.Gold);
-            signTitle.text = "깡통";   // 가제. 간판 그림이 오면 교체
-            tagline = Ui.Text("Tagline", hud.Canvas, new Vector2(0f, 220f), new Vector2(1200f, 50f), 26, TextAnchor.MiddleCenter, Ui.Dim);
+            if (title == null) title = Title.Make(hud.Canvas);
+            title.ClearButtons();
+            // 왼쪽 모래밭 위에 세로로. 글자 가제 「깡통」은 간판 그림이 오면 교체
+            signTitle = Ui.Text("SignTitle", hud.Canvas, new Vector2(-560f, 60f), new Vector2(600f, 120f), 96, TextAnchor.MiddleCenter, Ui.Gold);
+            signTitle.text = "깡통";
+            tagline = Ui.Text("Tagline", hud.Canvas, new Vector2(-560f, -20f), new Vector2(600f, 50f), 26, TextAnchor.MiddleCenter, Ui.Dim);
             tagline.text = "쏴서 띄우고, 떨어지기 전에 또 쏴라.";
-            float y = Look.ShelfY + 0.11f + 0.35f;
-            MenuCan("시작", new Vector2(Save.Exists ? -1.6f : 0f, y), () => StartCoroutine(GoPlay(load: false)));
-            if (Save.Exists) MenuCan("이어서", new Vector2(0f, y), () => StartCoroutine(GoPlay(load: true)));
-            MenuCan("설정", new Vector2(Save.Exists ? 1.6f : 1.8f, y), OpenSettings);
-            if (!Save.Exists) { Cans[0].transform.position = new Vector3(-0.9f, y + 1.2f, 0f); Cans[1].transform.position = new Vector3(0.9f, y + 1.2f, 0f); }
+            float y = -120f; int i = 0;
+            title.AddButton("시작", new Vector2(-560f, y - 90f * i++), () => StartCoroutine(GoPlay(load: false)));
+            if (Save.Exists) title.AddButton("이어서", new Vector2(-560f, y - 90f * i++), () => StartCoroutine(GoPlay(load: true)));
+            title.AddButton("설정", new Vector2(-560f, y - 90f * i++), OpenSettings);
         }
 
         void MenuCan(string label, Vector2 at, System.Action onLanded)
@@ -170,12 +159,14 @@ namespace TinCan
             if (State != GameState.Title) yield break;
             State = GameState.Settings; // 더 못 쏘게
             Gun.Enabled = false;
-            Sfx.Play(Sfx.Reload(), 0.8f, 1.4f);
             // 글자는 원형 페이드 위에 그려지니까 먼저 치운다
             if (signTitle != null) Destroy(signTitle.gameObject);
             if (tagline != null) Destroy(tagline.gameObject);
             foreach (var l in menuLabels) if (l != null) Destroy(l.gameObject);
-            yield return Iris.Get().Close(0.55f);
+            // 문으로 줌인 → 문 열림 → 원형 페이드 닫힘 (Title.Enter)
+            bool done = false;
+            yield return title.Enter(() => done = true);
+            while (!done) yield return null;
             if (!load) Save.Delete();
             pendingPlay = true; pendingLoad = load;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
@@ -186,6 +177,7 @@ namespace TinCan
             if (State != GameState.Title) return;
             State = GameState.Settings;
             foreach (var l in menuLabels) if (l != null) l.gameObject.SetActive(false);
+            if (title != null) title.SetButtonsVisible(false);
             float y = 0.9f;
             settingButtons.Add(ShootButton.Make("VolDown", new Vector2(-3.2f, y), new Vector2(1.6f, 0.9f), () => "소리 −", () => SetVolume(AudioListener.volume - 0.1f), hud.Canvas));
             settingButtons.Add(ShootButton.Make("Vol", new Vector2(-1.2f, y), new Vector2(1.9f, 0.9f), () => $"소리 {Mathf.RoundToInt(AudioListener.volume * 100)}%", () => { }, hud.Canvas));
@@ -214,7 +206,7 @@ namespace TinCan
         void BeginPlay(bool load)
         {
             State = GameState.Play;
-            ShowSaloon(false);
+            if (title != null) { Destroy(title.gameObject); title = null; }
             Money = 10;
             hud.SetPlayVisible(true);
             if (load) Load();
@@ -250,7 +242,7 @@ namespace TinCan
             if (viewer.Open) return;
             if (State != GameState.Play)
             {
-                Gun.Enabled = State != GameState.Settings || settingButtons.Count > 0;
+                Gun.Enabled = State == GameState.Settings && settingButtons.Count > 0;   // 시작 화면은 버튼(마우스), 설정은 아직 쏘는 버튼
                 if (State == GameState.Settings && settingButtons.Count > 0 && kb.escapeKey.wasPressedThisFrame) CloseSettings();
                 return;
             }
