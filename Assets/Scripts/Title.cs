@@ -265,10 +265,10 @@ namespace TinCan
         Texture2D rayTex; Color32[] rayPx; SpriteRenderer raySr; float rayClock;
         // 술집 = 그림 x 275~405도트(오른쪽 100 밀린 뒤), 아래에서 60~200행.
         // 위 끝 x(rayCx)는 사선(22°)을 거꾸로 따라 올라간 자리: 120행에서 각각 지붕 왼쪽·간판·물탱크 쪽에 닿는다
-        static readonly float[] rayCx = { 240f, 285f, 338f }, rayWd = { 22f, 12f, 28f }, rayA = { 0.14f, 0.1f, 0.16f };
+        static readonly float[] rayCx = { 240f, 285f, 338f }, rayWd = { 12f, 7f, 16f }, rayA = { 0.14f, 0.1f, 0.16f };   // 위 끝 폭. 술집 높이(120행)에선 약 2배
         const float RayFoot = 50f, RayFull = 170f;   // 이 행(아래에서) 밑으로는 사라지고, RayFull 위로는 최대 밝기 — 술집 발밑까지만 내리쬔다
         const float RaySlope = 0.404f;                // tan 22°. 한 줄 내려갈 때 오른쪽으로 가는 도트 수
-        const float RayStep = 0.05f;                  // 밝기 단 (도트 그림의 색 단계처럼)
+        const float RaySpread = 2.2f;                 // 사다리꼴: 바닥에서 폭이 위 끝의 (1 + 이 값)배
 
         void BuildRays()
         {
@@ -294,24 +294,25 @@ namespace TinCan
             for (int i = 0; i < n; i++)
             {
                 al[i] = rayA[i] * (0.7f + 0.3f * Mathf.Sin(t * (0.2f + 0.07f * i) + i * 1.7f));
-                cx[i] = Mathf.Round(rayCx[i] + 4f * Mathf.Sin(t * 0.12f + i * 0.85f));   // 떠돌아도 한 도트씩
+                cx[i] = Mathf.Round(rayCx[i] + 4f * Mathf.Sin(t * 0.12f + i * 0.85f));   // 떠돌아도 한 도트씩 (형태는 도트)
             }
+            // 사용자 10-13 정정: 형태만 도트(가장자리 딱 끊김·계단), 밝기 변화는 부드럽게, 아래로 갈수록 넓어지는 사다리꼴
             for (int y = 0; y < RayH; y++)
             {
-                float fade = Mathf.Clamp01((y - RayFoot) / (RayFull - RayFoot));
-                fade = Mathf.Ceil(fade * 4f) / 4f;                       // 길이 방향 4단 계단
-                float dx = Mathf.Round((RayH - 1 - y) * RaySlope);       // 내려갈수록 오른쪽. 행마다 정수 도트 → 가장자리가 계단
+                float fade = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((y - RayFoot) / (RayFull - RayFoot)));   // 길이 방향 부드럽게
+                float down = (RayH - 1 - y) / (float)RayH;               // 0 = 위 끝, 1 = 바닥
+                float dx = Mathf.Round(down * RayH * RaySlope);          // 내려갈수록 오른쪽. 행마다 정수 도트 → 가장자리가 계단
                 int row = y * RayW;
                 for (int x = 0; x < RayW; x++)
                 {
                     float a = 0f;
                     for (int i = 0; i < n; i++)
                     {
-                        float d = Mathf.Abs(x - (cx[i] + dx)) / (rayWd[i] * 0.5f);
-                        if (d < 1f) a += al[i] * (d < 0.35f ? 1.6f : 1f); // 딱 끊긴 가장자리 + 밝은 심지
+                        float half = Mathf.Round(rayWd[i] * 0.5f * (1f + RaySpread * down));   // 사다리꼴: 반폭이 정수 도트로 커진다
+                        float d = Mathf.Abs(x - (cx[i] + dx)) / half;
+                        if (d < 1f) a += al[i] * (1f - 0.6f * d * d);    // 가장자리는 딱 끊기고, 속은 가운데가 부드럽게 밝다
                     }
                     a *= fade;
-                    a = Mathf.Floor(a / RayStep) * RayStep;              // 밝기도 단으로만
                     rayPx[row + x] = new Color32(255, 248, 215, (byte)(255f * Mathf.Min(0.35f, a)));
                 }
             }
