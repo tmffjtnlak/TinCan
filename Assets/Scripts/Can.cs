@@ -60,13 +60,7 @@ namespace TinCan
         void FixedUpdate()
         {
             if (rb == null || Done) return;
-            if (!Mathf.Approximately(appliedScale, TimeScale))
-            {
-                float k = TimeScale / appliedScale;
-                rb.linearVelocity *= k; rb.angularVelocity *= k;
-                rb.gravityScale = held ? 0f : Gravity;
-                appliedScale = TimeScale;
-            }
+            SyncScale();
             // 스킬 "바닥 근처 느려짐": 떨어지다 바닥 가까이 오면 속도가 반으로 (한 번만, 다시 맞으면 초기화)
             if (Airborne && !floorSlowed && Game.I != null && Game.I.FloorSlow > 0f && rb.linearVelocity.y < 0f && transform.position.y < Look.DropY + 1.6f)
             {
@@ -74,6 +68,20 @@ namespace TinCan
                 var v = rb.linearVelocity; v.y *= 1f - Game.I.FloorSlow; rb.linearVelocity = v;
                 Fx.Dust(new Vector2(transform.position.x, transform.position.y - 0.3f), 2, 0.4f);
             }
+        }
+
+        /// <summary>
+        /// 리지드바디 속도를 지금 TimeScale 단위로 맞춘다. 속도를 읽거나 새로 넣기 전에 반드시 먼저 부른다.
+        /// (10-13 버그: 느려지기가 켜지거나 꺼진 바로 그 프레임에 맞으면, Hit은 새 배수로 속도를 넣고
+        ///  다음 FixedUpdate가 옛 배수 기준으로 한 번 더 곱해서 4배로 튀어 천장에 박히거나, 덜 튀어 떨어졌다)
+        /// </summary>
+        void SyncScale()
+        {
+            if (rb == null || Mathf.Approximately(appliedScale, TimeScale)) return;
+            float k = TimeScale / appliedScale;
+            rb.linearVelocity *= k; rb.angularVelocity *= k;
+            rb.gravityScale = held ? 0f : Gravity;
+            appliedScale = TimeScale;
         }
 
         public int HitsLeft { get; private set; }
@@ -208,8 +216,8 @@ namespace TinCan
                 // 중력 풀기: 트윈이 어느 정도 끝났을 때 (늦어도 0.39초). 아래로 살짝 밀어 바로 떨어지기 시작
                 if (releasedAt < 0f && (t > 0.39f || (spun && t > 0.31f && Mathf.Abs(sx - 1f) < 0.08f && Mathf.Abs(rot - endTilt) < 4f)))
                 {
-                    releasedAt = t; ReleaseHold();
-                    if (rb != null) rb.linearVelocity = new Vector2(0f, -2.5f);
+                    releasedAt = t; ReleaseHold(); SyncScale();
+                    if (rb != null) rb.linearVelocity = new Vector2(0f, -2.5f * TimeScale);
                 }
                 // 선반에 닿은 그 프레임
                 if (!landed && shelfHit)
@@ -271,6 +279,7 @@ namespace TinCan
         public int Hit(Vector2 hitPoint, float scale = 1f, float bounceScale = 1f)
         {
             if (Done) return 0;
+            SyncScale();   // 속도 계산 전에 배수부터 맞춘다 (느려지기 켜고 끄는 프레임 버그)
             if (!Airborne)
             {
                 Airborne = true;
@@ -334,6 +343,7 @@ namespace TinCan
                 // 스킬 "다시 튐": 떨어진 깡통이 혼자 한 번 다시 튀어오른다 (연속은 이어진다)
                 bouncesLeft--;
                 floorSlowed = false;
+                SyncScale();
                 var v = rb.linearVelocity; v.y = (11f + BounceBonus) * TimeScale; v.x *= 0.5f; rb.linearVelocity = v;
                 transform.position = new Vector3(transform.position.x, Look.DropY + 0.5f, 0f);
                 flashLeft = 0.06f;
