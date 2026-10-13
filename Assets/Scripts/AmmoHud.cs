@@ -78,18 +78,33 @@ namespace TinCan
 
         static Sprite SpriteFor(GunKind k) => Load(k.Kin == GunKind.Family.Shotgun ? "bullet_shotgun" : "bullet_revolver");
 
+        // 10-14 통일: 쏜 칸은 회색 총알이 아니라 탄피 그림 (탄두가 빠졌다). 장전 때 날아가는 것도 탄피
+        Sprite bulletSp, bulletWh, casingSp, casingWh;
+        Vector2 bulletSize, casingSize;
+        void SetArt(Slot s, bool casing)
+        {
+            bool c = casing && casingSp != null;
+            s.Img.sprite = c ? casingSp : bulletSp; s.White.sprite = c ? casingWh : bulletWh;
+            s.Rt.sizeDelta = c ? casingSize : bulletSize; s.White.rectTransform.sizeDelta = s.Rt.sizeDelta;
+        }
+
         void Rebuild(GunKind kind)
         {
             StopAllCoroutines();
             foreach (var s in slots) if (s != null && s.Img != null) Destroy(s.Img.gameObject);
             int cap = Mathf.Min(gun.Capacity, 30);
             var sp = SpriteFor(kind); var wh = WhiteOf(sp);
+            bulletSp = sp; bulletWh = wh;
+            casingSp = Load("casing"); casingWh = WhiteOf(casingSp);
+            bulletSize = sp != null ? new Vector2(sp.rect.width, sp.rect.height) * Scale : new Vector2(25f, 11f) * Scale;
+            casingSize = casingSp != null ? new Vector2(casingSp.rect.width, casingSp.rect.height) * Scale : bulletSize;
             slots = new Slot[cap];
             float w = (sp != null ? sp.rect.width : 25f) * Scale, h = (sp != null ? sp.rect.height : 11f) * Scale;
-            float total = cap * h + (cap - 1) * Gap;
+            float pitch = Mathf.Max(h, casingSize.y);   // 줄 간격은 탄피(조금 더 높다) 기준 → 탄피끼리 겹치지 않게
+            float total = cap * pitch + (cap - 1) * Gap;
             for (int i = 0; i < cap; i++)
             {
-                var home = Anchor + new Vector2(0f, total * 0.5f - h * 0.5f - i * (h + Gap));
+                var home = Anchor + new Vector2(0f, total * 0.5f - pitch * 0.5f - i * (pitch + Gap));
                 var img = Ui.Image($"Bullet{i}", canvas, home, new Vector2(w, h), Color.white);
                 img.sprite = sp; img.preserveAspect = true;
                 var white = Ui.Image("White", img.transform, Vector2.zero, new Vector2(w, h), Color.clear);
@@ -131,7 +146,7 @@ namespace TinCan
             if (gun.Reloading != wasReloading)
             {
                 wasReloading = gun.Reloading;
-                if (wasReloading) for (int i = ammo; i < slots.Length; i++) Play(slots[i], Toss(slots[i]));
+                if (wasReloading) for (int i = ammo; i < slots.Length; i++) Play(slots[i], Toss(slots[i], i - ammo));   // 위 칸부터 차례로
             }
             // 용수철: 크기·회전·옆 밀림. 날아가는 칸은 제외
             float dt = Time.unscaledDeltaTime;
@@ -148,7 +163,7 @@ namespace TinCan
             }
         }
 
-        void SetFull(Slot s) { s.Img.color = Color.white; s.Sx = s.Sy = 1f; s.Vx = s.Vy = 0f; s.Rot = s.RotV = 0f; s.Shift = 0f; s.White.color = Color.clear; }
+        void SetFull(Slot s) { SetArt(s, false); s.Img.color = Color.white; s.Sx = s.Sy = 1f; s.Vx = s.Vy = 0f; s.Rot = s.RotV = 0f; s.Shift = 0f; s.White.color = Color.clear; }
 
         /// <summary>쐈다: 1프레임에 옆으로 밀리며 납작 (가로 1.3, 세로 0.7) → 튕겨 돌아오고, 검게 물든다</summary>
         IEnumerator Spend(Slot s)
@@ -157,28 +172,52 @@ namespace TinCan
             s.Shift = SpentShift * 1.6f; s.ShiftV = 0f;          // 즉시, 넘치게
             s.Sx = 1.3f; s.Sy = 0.7f; s.Vx = s.Vy = 0f;
             s.Rot = Random.Range(-6f, 6f); s.RotV = 0f;
-            // 10-14: 색이 서서히 바뀌지 않고 바로 빈 탄 색. 흰 번쩍임은 뺐다 (사용자: HUD가 너무 반짝인다)
+            // 10-14: 색이 서서히 바뀌지 않고 바로. 흰 번쩍임은 뺐다 (사용자: HUD가 너무 반짝인다)
+            // 10-14 통일: 탄두가 빠져 탄피만 남는다 (그림 교체) + 살짝 어둡게
+            SetArt(s, true);
             s.White.color = Color.clear;
             s.Img.color = Spent;
             yield break;
         }
 
-        /// <summary>장전 시작: 쓴 탄이 튕겨 날아간다 (위치는 직접, 용수철은 손 뗀다)</summary>
-        IEnumerator Toss(Slot s)
+        static float Snap4(float v) => Mathf.Round(v / Scale) * Scale;
+
+        /// <summary>
+        /// 장전 시작 (10-14 통일, 리볼버 탄피 털기): 탄피 기둥이 다 같이 2도트 톡 들렸다(납작) →
+        /// 위 칸부터 0.03초씩 하나씩, 오른쪽으로 살짝 밀리며 아래로 떨어져 화면 밖으로. 회전은 90°쯤만 기운다.
+        /// 위로 솟구치던 것·여섯 개 동시·계속 빙빙 돌던 것을 바꿨다 (총에서 튀는 탄피·바닥 탄피·깡통처럼 아래로)
+        /// </summary>
+        IEnumerator Toss(Slot s, int order)
         {
             s.Flying = true; s.White.color = Color.clear;
-            var from = s.Rt.anchoredPosition;
-            var vel = new Vector2(Random.Range(-160f, 160f), Random.Range(520f, 680f));
-            float spin = Random.Range(450f, 750f) * (Random.value < 0.5f ? -1f : 1f);
-            // 10-14 통일: 투명해지지 않고(반투명 유령이 남았다) 뒤쪽 절반 동안 작아지며 사라진다
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.0f)
+            SetArt(s, true);
+            var from = s.Home + new Vector2(s.Shift, 0f);
+            // 1) 톡 들림: 0.1초 동안 2도트 위로 올랐다 내려오며 납작 → 용수철 느낌
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.1f)
             {
-                s.Rt.anchoredPosition = from + vel * t + new Vector2(0f, -1000f * t * t);
-                s.Rt.localRotation = Quaternion.Euler(0f, 0f, spin * t);
-                s.Rt.localScale = Vector3.one * (1f - Ease.InCubic(Mathf.Clamp01((t - 0.5f) / 0.5f)));
+                float k = Mathf.Sin(t * Mathf.PI);
+                s.Rt.anchoredPosition = from + new Vector2(0f, Snap4(Scale * 2f * k));
+                s.Rt.localScale = new Vector3(1f + 0.15f * k, 1f - 0.15f * k, 1f);
+                s.Rt.localRotation = Quaternion.identity;
+                yield return null;
+            }
+            s.Rt.localScale = Vector3.one; s.Rt.anchoredPosition = from;
+            // 2) 차례 기다림 (위 칸부터)
+            float wait = order * 0.03f; while (wait > 0f) { wait -= Time.unscaledDeltaTime; yield return null; }
+            // 3) 떨어짐: 오른쪽으로 살짝, 거의 바로 아래로. 90°쯤까지만 기운다. 화면 아래(-540) 밖으로 나가면 끝
+            var vel = new Vector2(Random.Range(60f, 160f), Random.Range(40f, 120f));
+            float tilt = (Random.value < 0.5f ? -1f : 1f) * Random.Range(70f, 100f);
+            var pos = from;
+            for (float t = 0f; t < 1.5f && pos.y > -620f; t += Time.unscaledDeltaTime)
+            {
+                float dt = Time.unscaledDeltaTime;
+                vel.y -= 2600f * dt; pos += vel * dt;
+                s.Rt.anchoredPosition = new Vector2(Snap4(pos.x), Snap4(pos.y));
+                s.Rt.localRotation = Quaternion.Euler(0f, 0f, tilt * Ease.OutQuad(Mathf.Clamp01(t / 0.35f)));
                 yield return null;
             }
             s.Img.color = Color.clear; s.Flying = false;
+            s.Rt.localScale = Vector3.one; s.Rt.localRotation = Quaternion.identity;
             s.Sx = s.Sy = 1f; s.Rot = 0f; s.Shift = 0f;
         }
 
@@ -188,6 +227,7 @@ namespace TinCan
             s.Flying = false;
             s.Img.color = Color.clear; s.White.color = Color.clear;
             float delay = order * 0.035f; while (delay > 0f) { delay -= Time.unscaledDeltaTime; yield return null; }
+            SetArt(s, false);                                          // 새 탄은 다시 총알 그림
             s.Img.color = Color.white; s.White.color = Color.white;
             s.Shift = 0f; s.ShiftV = 0f;
             s.Sx = 0.3f; s.Sy = 0.3f; s.Vx = 9f; s.Vy = 9f;           // 작게 시작해 튀어 오른다
