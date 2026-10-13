@@ -424,11 +424,42 @@ namespace TinCan
             StartCoroutine(Vanish());
         }
 
+        /// <summary>
+        /// 바닥 착지 (사용자 10-13): 소환 때 선반 착지와 같은 문법 — 밑면 기준 납작(1.35×0.65) → 용수철, 기울기는 가까운 90° 자리로 용수철
+        /// (서 있거나 옆으로 눕는다). 그다음 사라질 땐 효과 없이 심심하게 아래로 빠진다 → 터질 때(구름·불꽃)와 대비
+        /// </summary>
         IEnumerator Vanish()
         {
             rb.simulated = false;
-            yield return new WaitForSeconds(0.15f);
-            for (float t = 0f; t < 1f; t += Time.deltaTime * 8f) { visual.localScale = Vector3.one * (1f - t); yield return null; }
+            if (white != null && flashLeft <= 0f) white.color = new Color(1f, 1f, 1f, 0f);
+            foreach (var p in pips) if (p != null) p.gameObject.SetActive(false);   // 체력 점도 같이 끈다 (심심하게)
+            // 지금 기울기 → 가까운 90° 자리. 옆으로 누우면 세로 반높이 = 폭의 반
+            float rot = Mathf.DeltaAngle(0f, transform.eulerAngles.z), rv = 0f;
+            float target = Mathf.Round(rot / 90f) * 90f;
+            bool side = Mathf.Abs(Mathf.DeltaAngle(target, 90f)) < 1f || Mathf.Abs(Mathf.DeltaAngle(target, -90f)) < 1f;
+            float half = (side ? Kind.Width : Kind.Height) * 0.5f;
+            transform.rotation = Quaternion.identity;
+            var basePos = new Vector3(transform.position.x, Look.DropY + half, 0f);
+            transform.position = basePos;
+            // 납작 → 용수철 (소환 착지와 같은 값). sx·sy는 화면 기준 가로·세로
+            float sx = 1.35f, sy = 0.65f, vx = 0f, vy = 0f;
+            for (float t = 0f; t < 0.7f; t += Time.deltaTime)
+            {
+                float dt = Time.deltaTime;
+                Ease.Spring(ref sx, ref vx, 1f, 1150f, 18f, dt);
+                Ease.Spring(ref sy, ref vy, 1f, 1150f, 23f, dt);
+                Ease.Spring(ref rot, ref rv, target, 720f, 13f, dt);
+                visual.localScale = side ? new Vector3(sy, sx, 1f) : new Vector3(sx, sy, 1f);   // 누웠으면 그림의 가로가 화면 세로
+                visual.localPosition = new Vector3(0f, -(1f - sy) * half, 0f);                     // 밑면이 바닥에 붙어 있게
+                visual.localRotation = Quaternion.Euler(0f, 0f, rot);
+                if (t > 0.25f && Mathf.Abs(sx - 1f) < 0.01f && Mathf.Abs(vx) < 0.05f && Mathf.Abs(rot - target) < 0.5f) break;
+                yield return null;
+            }
+            visual.localScale = Vector3.one; visual.localPosition = Vector3.zero; visual.localRotation = Quaternion.Euler(0f, 0f, target);
+            yield return new WaitForSeconds(0.2f);
+            // 심심하게: 소리·먼지 없이 아래로 쭉 빠져 화면 밖으로
+            float y = 0f, v = 0f, bottom = -(Look.DropY + 5.5f + half * 2f);
+            while (y > bottom) { float dt = Time.deltaTime; v -= 30f * dt; y += v * dt; transform.position = basePos + Vector3.up * y; yield return null; }
             Destroy(gameObject);
         }
 
