@@ -38,9 +38,11 @@ namespace TinCan
         public static readonly Color Label = new Color(0.85f, 0.25f, 0.2f);
 
         // 화면 세 구역 (카메라 세로 반지름 5 기준)
-        public const float ShelfY = -1.6f;      // 소환지역: 깡통이 올라가는 선반
-        public const float DropY = -4.3f;       // 낙하지역: 여기 닿으면 정산
-        public const float ShelfLeft = -6.5f, ShelfRight = 6.5f;
+        // 사용자 배경 bg_range.png (320×180, 10-13 임시)에 맞춘 자리: 선반 윗면 = 그림 위에서 121행, 선반 x 102~207, 바닥선 = 147행.
+        // 월드 y = (90 - 행) / 18, x = (열 - 160) / 18
+        public const float ShelfY = -1.83f;     // 소환지역: 깡통이 올라가는 선반 (충돌 상자 가운데. 윗면 = +0.11 = 그림 121행)
+        public const float DropY = -3.6f;       // 낙하지역: 여기 닿으면 정산 (바닥선 147행 = -3.17 아래 벽돌 속)
+        public const float ShelfLeft = -3.2f, ShelfRight = 2.6f;   // 그림 속 선반 양 끝 (가운데에서 왼쪽으로 치우침)
         public const float CeilingY = 4.75f;    // 천장: 깡통은 이 아래에서만 논다 (화면 위 끝 바로 아래)
 
         /// <summary>
@@ -50,6 +52,14 @@ namespace TinCan
         public static void BuildRange()
         {
             Camera.main.backgroundColor = Sky;
+            // 사용자 배경 그림이 있으면 도형 사격장 위에 덮는다 (충돌·벽은 아래 코드 그대로). 시작 화면 그림(10~14)보다는 아래
+            var bg = GunView.LoadArt("bg_range");
+            if (bg != null)
+            {
+                var g = new GameObject("RangeArt");
+                var sr = g.AddComponent<SpriteRenderer>(); sr.sprite = bg; sr.sortingOrder = -2;
+                g.transform.position = Vector3.zero;
+            }
             // 낙하지역: 모래 + 어두운 띠
             Quad("DropZone", new Vector2(0f, -4.9f), new Vector2(40f, 2.2f), Sand, -10);
             Quad("DropEdge", new Vector2(0f, -3.8f), new Vector2(40f, 0.05f), new Color(0.55f, 0.38f, 0.22f), -9);
@@ -60,7 +70,7 @@ namespace TinCan
             Quad("RailShadow", new Vector2(0f, ShelfY - 0.16f), new Vector2(ShelfRight - ShelfLeft, 0.1f), Wood, -5, shelf);
             for (float x = ShelfLeft + 0.5f; x <= ShelfRight - 0.5f; x += 1.5f)
                 Quad("Post", new Vector2(x, (ShelfY + DropY) * 0.5f + 0.2f), new Vector2(0.22f, ShelfY - DropY - 0.4f), Wood, -6, shelf);
-            var rail = new GameObject("RailCollider"); rail.transform.position = new Vector3(0f, ShelfY, 0f);
+            var rail = new GameObject("RailCollider"); rail.transform.position = new Vector3((ShelfLeft + ShelfRight) * 0.5f, ShelfY, 0f);
             var rc = rail.AddComponent<BoxCollider2D>(); rc.size = new Vector2(ShelfRight - ShelfLeft, 0.22f);
             rail.AddComponent<Shelf>();
             // 타격지역: 하늘. 맨 위에 들보 — 천장. 넘치면 튕겨 돌아온다
