@@ -3,12 +3,20 @@ using UnityEngine;
 
 namespace TinCan
 {
-    /// <summary>원형 페이드: 검은 판 가운데 구멍이 줄어들어 닫히고, 다시 커지며 열린다. 카메라를 따라다닌다.</summary>
+    /// <summary>
+    /// 원형 페이드: 검은 화면 가운데 구멍이 줄어들어 닫히고, 다시 커지며 열린다.
+    /// 2판 (사용자 10-13 "게임 도트에 맞춰서"): 화면을 덮는 사각형 하나 + Iris 셰이더. 화면을 480×270 도트 칸으로 나눠
+    /// 칸 단위로 원 안/밖을 정하므로, 카메라가 줌해도 원의 계단은 늘 게임 도트 한 칸이다. 가장자리는 딱 끊김.
+    /// </summary>
     public class Iris : MonoBehaviour
     {
         static Iris inst;
-        SpriteRenderer hole, solid;
-        const float OpenScale = 60f, ClosedScale = 0.5f;
+        const float Rows = 270f;                 // 화면 세로 도트 수 (480×270)
+        MeshRenderer quad; Material mat;
+        float radius = 9999f;                    // 도트 단위
+
+        /// <summary>구멍 중심을 카메라 중심에서 이만큼(월드 단위) 옮긴다. Open이 끝나면 0으로</summary>
+        public Vector2 Offset;
 
         public static Iris Get()
         {
@@ -21,78 +29,75 @@ namespace TinCan
 
         void Build()
         {
-            // 1024×1024 검정, 가운데 반지름 8px 투명 구멍 (가장자리 부드럽게). PPU 32 → 32유닛 폭, 구멍 0.5유닛
-            int s = 1024, r = 8;
-            var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
-            var px = new Color32[s * s];
-            int cx = s / 2, cy = s / 2;
-            for (int y = 0; y < s; y++)
-                for (int x = 0; x < s; x++)
-                {
-                    float d = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-                    byte a = (byte)(d < r ? 0 : 255);   // 가장자리 딱딱하게 (Shelldiver 분석 10-13: 페더 없음)
-                    px[y * s + x] = new Color32(0, 0, 0, a);
-                }
-            tex.SetPixels32(px); tex.Apply(false);
-            var sprite = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 32f);
-            hole = new GameObject("Hole").AddComponent<SpriteRenderer>();
-            hole.transform.SetParent(transform, false);
-            hole.sprite = sprite; hole.sortingOrder = 200;
-            solid = Look.Quad("Solid", Vector2.zero, new Vector2(100f, 100f), Color.black, 199, transform);
-            SetOpen(1f);
+            mat = new Material(Shader.Find("TinCan/Iris"));
+            mat.SetFloat("_Rows", Rows);
+            var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Destroy(q.GetComponent<Collider>());
+            q.name = "IrisQuad"; q.transform.SetParent(transform, false);
+            quad = q.GetComponent<MeshRenderer>(); quad.sharedMaterial = mat; quad.sortingOrder = 200;
+            SetRadius(9999f);
             gameObject.SetActive(false);
         }
 
-        /// <summary>k = 0 닫힘 … 1 열림</summary>
-        void SetOpen(float k)
+        /// <summary>화면을 다 덮는 반지름 (도트) — 구멍 중심이 옮겨진 만큼 더</summary>
+        float OpenRadius()
         {
-            float sc = Mathf.Lerp(ClosedScale, OpenScale, k * k);   // 닫힐 때 빨리 좁아진다
-            hole.transform.localScale = Vector3.one * sc;
-            hole.gameObject.SetActive(k > 0.02f);
-            solid.gameObject.SetActive(k <= 0.02f);
+            var c = Camera.main; float aspect = c != null ? c.aspect : 16f / 9f;
+            float halfDiag = 0.5f * Mathf.Sqrt(Rows * Rows * aspect * aspect + Rows * Rows);
+            float off = c != null ? Offset.magnitude / (c.orthographicSize * 2f) * Rows : 0f;
+            return halfDiag + off + 2f;
         }
 
-        /// <summary>구멍 중심을 카메라 중심에서 이만큼 옮긴다 (클릭한 자리에서 닫히게). Open/Close가 끝나면 0으로</summary>
-        public Vector2 Offset;
+        void SetRadius(float r) { radius = r; if (mat != null) mat.SetFloat("_Radius", r); }
+
+        /// <summary>k = 0 닫힘 … 1 열림 (옛 호출용)</summary>
+        void SetOpen(float k) => SetRadius(k <= 0.001f ? -1f : Mathf.Lerp(0f, OpenRadius(), k * k));
 
         void LateUpdate()
         {
             var c = Camera.main; if (c == null) return;
-            transform.position = new Vector3(c.transform.position.x + Offset.x, c.transform.position.y + Offset.y, 0f);
+            // 카메라 앞을 꽉 덮는다 (줌으로 크기가 바뀌어도 매 프레임 맞춤)
+            float h = c.orthographicSize * 2f, w = h * c.aspect;
+            transform.position = new Vector3(c.transform.position.x, c.transform.position.y, 0f);
+            quad.transform.localScale = new Vector3(w * 1.02f, h * 1.02f, 1f);
+            var vp = c.WorldToViewportPoint(c.transform.position + (Vector3)Offset);
+            mat.SetVector("_Center", new Vector4(vp.x, vp.y, 0f, 0f));
         }
 
         public IEnumerator Close(float seconds) => Close(seconds, null);
 
-        /// <summary>곡선을 주면 구멍 크기를 로그 공간에서 그 곡선대로 줄인다 (크기는 곱으로 변해야 일정하게 느껴진다)</summary>
+        /// <summary>닫힘. 곡선을 주면 반지름을 로그 공간에서 그 곡선대로 줄인다 (크기는 곱으로 변해야 일정하게 느껴진다)</summary>
         public IEnumerator Close(float seconds, System.Func<float, float> ease)
         {
             gameObject.SetActive(true);
+            float r0 = OpenRadius();
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / seconds)
             {
                 if (ease == null) SetOpen(1f - t);
-                else SetScale(Ease.LerpLog(OpenScale * 0.5f, ClosedScale * 0.6f, ease(t)));
+                else SetRadius(Ease.LerpLog(r0, 0.8f, ease(t)));
+                LateUpdate();
                 yield return null;
             }
-            SetOpen(0f);
+            SetRadius(-1f);   // 완전히 검정
         }
 
-        void SetScale(float sc)
-        {
-            hole.transform.localScale = Vector3.one * sc;
-            hole.gameObject.SetActive(true);
-            solid.gameObject.SetActive(false);
-        }
-
+        /// <summary>열림: 한 칸에서 시작해 확 퍼졌다 느려지며 화면 끝에 닿는다 (로그 공간 OutCubic)</summary>
         public IEnumerator Open(float seconds)
         {
             gameObject.SetActive(true);
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / seconds) { SetOpen(t); yield return null; }
-            SetOpen(1f);
+            float r1 = OpenRadius();
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / seconds)
+            {
+                SetRadius(Ease.LerpLog(0.8f, r1, Ease.OutCubic(t)));
+                LateUpdate();
+                yield return null;
+            }
+            SetRadius(9999f);
             Offset = Vector2.zero;
             gameObject.SetActive(false);
         }
 
         /// <summary>닫힌 채로 시작 (씬이 새로 열렸을 때)</summary>
-        public void StartClosed() { gameObject.SetActive(true); SetOpen(0f); }
+        public void StartClosed() { gameObject.SetActive(true); SetRadius(-1f); }
     }
 }
