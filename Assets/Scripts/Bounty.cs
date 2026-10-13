@@ -13,9 +13,11 @@ namespace TinCan
     public class Bounty : MonoBehaviour
     {
         public int EveryBursts = 5;
+        /// <summary>도주 시간 (초, 선반에 내려앉은 때부터). 떨어져도 안 끝나고 이 시간이 다 되면 도망간다 (사용자 10-14, 첫 시험값)</summary>
+        public float EscapeSeconds = 25f;
         int lastTrigger;
         Can can;
-        Image poster; Text title, amount, hp, stamp;
+        Image poster; Text title, amount, hp, stamp, timer;
         Image[] pips;
         Transform canvas;
         bool busy;
@@ -65,7 +67,9 @@ namespace TinCan
             title.text = "WANTED";
             // 깡통 그림 자리: 마름모 틀 (사용자 그림이 들어갈 칸)
             Ui.Diamond("Mug", poster.transform, new Vector2(0f, 10f), 120f, ink, new Color(0.6f, 0.2f, 0.15f));
-            hp = Ui.Text("Hp", poster.transform, new Vector2(0f, -64f), new Vector2(280f, 30f), 18, TextAnchor.MiddleCenter, ink, shadow: false);
+            hp = Ui.Text("Hp", poster.transform, new Vector2(0f, -62f), new Vector2(280f, 30f), 18, TextAnchor.MiddleCenter, ink, shadow: false);
+            // 도주 시간: 포스터 아래에 따로 크게 (10-14: 포스터 안에선 작아서 안 읽혔다)
+            timer = Ui.Text("Escape", poster.transform, new Vector2(0f, -232f), new Vector2(320f, 50f), 36, TextAnchor.MiddleCenter, Ui.Gold);
             amount = Ui.Text("Amount", poster.transform, new Vector2(0f, -150f), new Vector2(280f, 60f), 40, TextAnchor.MiddleCenter, new Color(0.55f, 0.1f, 0.08f), shadow: false);
             pips = new Image[30];
             for (int i = 0; i < pips.Length; i++) pips[i] = Ui.Image($"Pip{i}", poster.transform, new Vector2(-116f + (i % 15) * 16.5f, -88f - (i / 15) * 14f), new Vector2(10f, 10f), ink);
@@ -123,15 +127,23 @@ namespace TinCan
             Game.I.Cans.Add(can);
             Fx.Shake(0.6f);
             Sfx.Play(Sfx.Drop(), 1f, 0.5f);
-            // 살아 있는 동안 체력 표시
+            // 살아 있는 동안 체력·도주 시간 표시. 시간이 다 되면 도망간다 (사용자 10-14). 가게가 열렸거나 막타 연출 중엔 멈춘다
+            float escape = EscapeSeconds;
             while (can != null && !can.Done)
             {
                 int left = can.HitsLeft;
+                if (!Game.I.MenuOpen && !Gun.Cinematic) escape -= Time.deltaTime;
+                if (escape <= 0f) { can.RunAway(); break; }
+                bool hurry = escape < 5f;
                 hp.text = $"남은 {left} / {kind.Hits}";
+                timer.text = $"도주까지 {Mathf.CeilToInt(escape)}초";
+                timer.color = hurry ? new Color(1f, 0.35f, 0.25f) : Ui.Gold;
+                if (hurry) rt.localRotation = Quaternion.Euler(0f, 0f, -6f + Mathf.Sin(Time.time * 40f) * 2.5f);   // 마지막 5초: 포스터가 떤다
                 for (int i = 0; i < pips.Length; i++) pips[i].color = i < kind.Hits ? (i < left ? new Color(0.25f, 0.15f, 0.08f) : new Color(0.8f, 0.3f, 0.2f, 0.4f)) : Color.clear;
-                if (can.Airborne) rt.localRotation = Quaternion.Euler(0f, 0f, -6f + Mathf.Sin(Time.time * 30f) * 1.5f);
+                if (can.Airborne && !hurry) rt.localRotation = Quaternion.Euler(0f, 0f, -6f + Mathf.Sin(Time.time * 30f) * 1.5f);
                 yield return null;
             }
+            timer.text = "";
             yield return new WaitForSeconds(1.6f);
             // 포스터 퇴장
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 3f) { rt.anchoredPosition = Vector2.Lerp(new Vector2(-720f, 180f), new Vector2(-1300f, 700f), t * t); yield return null; }

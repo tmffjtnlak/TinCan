@@ -459,6 +459,7 @@ namespace TinCan
             // 묶음에서 풀린 깡통: 처음 맞기 전까지 자기만 느려져 있다 → 맞는 순간 제 속도 (사용자 10-14)
             if (slowUntilHit) { slowUntilHit = false; localSlowTarget = 1f; localSlow = 1f; }
             if (flyLeft > 0f) flyLeft = 0f;   // 날던 깡통은 맞으면 평범하게 튄다 (그다음은 중력)
+            if (crouching) { crouching = false; held = false; if (rb != null) rb.gravityScale = Gravity; }   // 바닥에 웅크린 현상금을 맞히면 그 한 발로 뜬다
             SyncScale();   // 속도 계산 전에 배수부터 맞춘다 (느려지기 켜고 끄는 프레임 버그)
             if (!Airborne)
             {
@@ -555,12 +556,67 @@ namespace TinCan
 
         int bouncesLeft = -1;
 
+        // ---------- 현상금: 바닥에서 다시 튀어 오르기 + 도주 (사용자 10-14) ----------
+        bool crouching;
+        /// <summary>
+        /// 현상금이 바닥에 닿았다: 쿵 납작 → 0.5초 웅크림(그사이에도 쏠 수 있다) → 선반 높이쯤(y≈0.4)까지 스스로 튀어 오른다.
+        /// 잃는 건 시간뿐. 끝은 도주 시간이 다 됐을 때 (Bounty.cs)
+        /// </summary>
+        IEnumerator BountyRebound()
+        {
+            crouching = true; held = true;   // held: 중력 0, 저글링 중력 갱신도 건너뜀
+            SyncScale();
+            rb.linearVelocity = Vector2.zero; rb.angularVelocity = 0f; rb.gravityScale = 0f;
+            transform.position = new Vector3(transform.position.x, Look.DropY + Kind.Height * 0.5f, 0f);
+            transform.rotation = Quaternion.identity;
+            Sfx.Play(Sfx.Drop(), 0.8f, 0.5f); Fx.Dust(new Vector2(transform.position.x, Look.DropY + 0.1f), 6, 1f); Fx.Shake(0.4f);
+            float sx = 1.4f, sy = 0.6f, vx = 0f, vy = 0f;
+            for (float t = 0f; t < 0.5f && crouching; t += Time.deltaTime)
+            {
+                Ease.Spring(ref sx, ref vx, 1.08f, 600f, 18f, Time.deltaTime);   // 웅크린 채 (살짝 납작)
+                Ease.Spring(ref sy, ref vy, 0.92f, 600f, 22f, Time.deltaTime);
+                visual.localScale = new Vector3(sx, sy, 1f);
+                visual.localPosition = new Vector3(0f, -(1f - sy) * Kind.Height * 0.5f, 0f);
+                yield return null;
+            }
+            visual.localScale = Vector3.one; visual.localPosition = Vector3.zero;
+            if (!crouching || Done) yield break;   // 웅크린 사이에 맞았으면 그 한 발로 이미 떴다
+            crouching = false; held = false;
+            float apex = 0.4f;
+            float g = -Physics2D.gravity.y * BaseGravity * Kind.Weight;
+            float v0 = Mathf.Sqrt(2f * g * Mathf.Max(0.5f, apex - transform.position.y));
+            rb.gravityScale = Gravity;
+            rb.linearVelocity = new Vector2(Random.Range(-0.6f, 0.6f), v0) * Scale;
+            StartCoroutine(Squash());
+            Sfx.Play(Sfx.Twirl(), 0.5f, 0.7f);
+        }
+
+        /// <summary>도주: 쌓인 돈만 정산하고 위로 휙 달아나 화면 밖으로 (현상금은 놓친다)</summary>
+        public void RunAway()
+        {
+            if (Done) return;
+            Done = true; crouching = false;
+            rb.simulated = false;
+            DropAllProps(transform.position, 1f);
+            Game.I?.CanLanded(this);   // 쌓인 돈 정산 + ESCAPED 도장
+            StopAllCoroutines();
+            StartCoroutine(RunAwayCo());
+        }
+        IEnumerator RunAwayCo()
+        {
+            Sfx.Play(Sfx.Whoosh(), 0.7f, 0.8f); Fx.Cloud(transform.position, 1.2f);
+            var p = transform.position; float v = 2f;
+            for (float t = 0f; t < 1.2f && p.y < Look.CeilingY + 3f; t += Time.deltaTime) { v += 30f * Time.deltaTime; p.y += v * Time.deltaTime; transform.position = p; yield return null; }
+            Destroy(gameObject);
+        }
+
         void OnTriggerEnter2D(Collider2D c)
         {
             if (Done || !Airborne) return;
             if (c.GetComponent<DropZone>() == null) return;
             if (rb != null && rb.linearVelocity.y > 0f) return;   // 올라가는 중엔 바닥 판정 없음 (화면 아래에서 던져진 다이너마이트가 지나간다)
             if (ChainHeld) { SyncScale(); parked = true; rb.linearVelocity = Vector2.zero; rb.gravityScale = 0f; return; }   // 연쇄 차례를 기다리는 중: 바닥에서 멈춰 기다린다
+            if (Kind.IsBounty) { StartCoroutine(BountyRebound()); return; }   // 현상금은 떨어져도 끝이 아니다 (사용자 10-14): 웅크렸다 스스로 튀어 오른다
             if (bouncesLeft < 0) bouncesLeft = IsMenu ? 0 : (Game.I != null ? Game.I.LandBounces : 0);
             if (bouncesLeft > 0)
             {
