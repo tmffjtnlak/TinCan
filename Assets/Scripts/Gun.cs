@@ -236,19 +236,27 @@ namespace TinCan
             SpriteRenderer head = null, tail = null;
             try
             {
-                // 1) 시간이 0.12초 만에 0.12배로 (OutCubic: 확 느려졌다 가라앉음)
-                for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.12f) { SetTime(Mathf.Lerp(1f, 0.12f, Ease.OutCubic(t))); yield return null; }
-                SetTime(0.12f);
+                // 1) 시간이 0.12초 만에 0.18배로 (OutCubic: 확 느려졌다 가라앉음)
+                const float SlowStart = 0.18f, SlowEnd = 0.015f;
+                for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.12f) { SetTime(Mathf.Lerp(1f, SlowStart, Ease.OutCubic(t))); yield return null; }
+                SetTime(SlowStart);
                 Sfx.Play(Sfx.Whoosh(), 0.7f, 0.5f);
-                // 2) 얇은 직선 총알: 밝은 머리(짧은 선) + 그 뒤로 옅어지는 긴 꼬리 선. 카메라가 머리를 따라가며 줌인
+                // 2) 얇은 직선 총알 (10-13 4판: "슈우---------우---우"): 비행 1.2초 동안 시간이 0.18 → 0.015배로 계속 느려진다 (맞기 직전이 가장 느림).
+                //    총알도 그 시간 흐름을 그대로 탄다 = 진행도는 시간 배수의 적분. 출발은 빠르고 갈수록 기어가듯 다가간다. 카메라도 같은 진행도로 따라가며 줌인
                 head = Look.Quad("FinisherHead", Vector2.zero, Vector2.one, new Color(1f, 0.98f, 0.85f, 1f), 46);
                 tail = Look.Quad("FinisherTail", Vector2.zero, Vector2.one, new Color(1f, 0.9f, 0.6f, 0.45f), 45);
                 Vector2 from = view.Muzzle;
-                const float Flight = 0.6f, Thin = 1f / 27f;
+                const float Flight = 1.2f, Thin = 1f / 27f;
+                float Ts(float u) => Mathf.Lerp(SlowStart, SlowEnd, Ease.OutQuad(u));   // 처음에 빨리 느려지고 끝으로 갈수록 더 천천히 바닥에 가라앉는다
+                float total = 0f; for (int i = 0; i < 200; i++) total += Ts((i + 0.5f) / 200f) / 200f;
+                float acc = 0f, prevT = 0f;
                 for (float t = 0f; t < 1f && can != null && !can.Done; t += Time.unscaledDeltaTime / Flight)
                 {
+                    float u = Mathf.Min(1f, t);
+                    SetTime(Ts(u));
+                    acc += Ts((prevT + u) * 0.5f) * (u - prevT); prevT = u;
+                    float k = Mathf.Clamp01(acc / total);
                     Vector2 to = can.transform.position;
-                    float k = Ease.InOutCubic(t) * 0.8f + t * 0.2f;   // 출발·도착이 살짝 느리고 가운데가 빠르다
                     Vector2 p = Vector2.Lerp(from, to, k);
                     var dir = (to - from); float ang = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
                     // 머리: 길이 14도트 / 꼬리: 총구부터 머리까지
@@ -260,8 +268,8 @@ namespace TinCan
                     tail.transform.position = (from + p) * 0.5f; tail.transform.rotation = Quaternion.Euler(0f, 0f, ang);
                     tail.transform.localScale = new Vector3(tailLen, Thin, 1f);
                     tail.color = new Color(1f, 0.9f, 0.6f, 0.45f * (1f - t * 0.6f));
-                    // 카메라: 총알 머리를 따라가며(조금 앞서) 깡통 쪽으로 줌인. 같은 곡선이라 도착할 때 같이 선다
-                    float camK = Ease.InOutCubic(t);
+                    // 카메라: 총알 머리를 따라가며(조금 앞서) 깡통 쪽으로 줌인. 총알과 같은 진행도라 도착할 때 같이 선다
+                    float camK = Ease.InOutCubic(k);
                     SetCam(Vector2.Lerp(camStart, Vector2.Lerp(p, to, 0.35f), camK), Mathf.Lerp(size0, size0 * FinisherZoom, camK));
                     yield return null;
                 }
