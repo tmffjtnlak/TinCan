@@ -116,7 +116,10 @@ namespace TinCan
             Sfx.Play(Sfx.Bang(), 0.6f, 0.5f);
             yield return new WaitForSeconds(0.5f);
             // 깡통이 선반 가운데에 떨어진다
-            can = Can.Spawn(kind, new Vector2(0f, Look.ShelfY + 0.11f + kind.Height * 0.5f));
+            // 선반 가운데가 비어 있으면 가운데, 아니면 빈자리 (10-14: 다른 깡통과 겹치지 않게)
+            float bx = 0f;
+            foreach (var c in Game.I.Cans) if (c != null && !c.Airborne && !c.Done && Mathf.Abs(c.transform.position.x) < (kind.Width + c.Kind.Width) * 0.5f * (1f - Game.MaxOverlap)) { bx = Game.I.FreeX(kind); break; }
+            can = Can.Spawn(kind, new Vector2(bx, Look.ShelfY + 0.11f + kind.Height * 0.5f));
             Game.I.Cans.Add(can);
             Fx.Shake(0.6f);
             Sfx.Play(Sfx.Drop(), 1f, 0.5f);

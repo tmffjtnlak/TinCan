@@ -47,7 +47,8 @@ namespace TinCan
         // 낙하지역: 깡통 아랫면이 여기 닿으면 정산. 사용자 10-13: 총 상점 버튼 아랫선 높이
         // (Hud 버튼 가운데 -386, 높이 72 → 아랫선 -422 / 1080p 기준, 108px = 1 월드 → -3.907)
         public const float DropY = -422f / 108f;
-        public const float ShelfLeft = -2.15f, ShelfRight = 1.74f;  // 그림 속 선반 양 끝 (가운데에서 왼쪽으로 치우침)
+        // 그림 속 선반 양 끝. 10-14 사용자 긴 선반 그림: 윗면 외곽선 103~375열 → x = (103-240)/27 … (376-240)/27 (예전 짧은 선반 -2.15~1.74)
+        public const float ShelfLeft = (103f - 240f) / 27f, ShelfRight = (376f - 240f) / 27f;
         public const float CeilingY = 4.75f;                         // 천장: 화면 위 끝 바로 아래 (위 띠까지 날아간다)
 
         /// <summary>

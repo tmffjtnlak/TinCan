@@ -389,9 +389,9 @@ namespace TinCan
             {
                 if (CansOnShelf >= MaxCans || Money < cost) break;
                 Money -= cost;
-                float x = FreeX();
                 // 깡통 소환 중 20%는 병이 나온다 (사용자 10-13, 설정은 아직 없음. 값은 깡통 소환비 그대로)
                 var kind = SpawnKind == CanKind.Tin && Random.value < BottleChance ? CanKind.Bottle : SpawnKind;
+                float x = FreeX(kind);   // 종류를 먼저 정해야 폭에 맞는 빈자리를 찾는다
                 Cans.Add(Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f)));
                 lastSpawnX = x; n++;
             }
@@ -399,35 +399,56 @@ namespace TinCan
             return n > 0;
         }
 
-        float FreeX()
+        /// <summary>
+        /// 선반 위 빈자리 (10-14 사용자: 소환이 겹친다 → 많아야 폭의 20%만 겹치게).
+        /// 두 깡통 가운데 거리 ≥ (두 폭의 평균) × 0.8. 선반 끝 밖으로 나가지 않게 반폭만큼 안쪽.
+        /// 무작위로 몇 번 찾고, 못 찾으면 선반을 훑어 가장 넉넉한 자리 (그래도 겹침은 그 자리에서 가장 적게)
+        /// </summary>
+        public float FreeX(CanKind kind)
         {
-            float gap = SpawnKind.Width + 0.25f;
+            float half = kind.Width * 0.5f;
+            float lo = Look.ShelfLeft + half + 0.05f, hi = Look.ShelfRight - half - 0.05f;
             if (ClusterSpawn)
             {
                 float anchor = float.NaN;
-                foreach (var c in Cans) if (c != null && !c.Airborne) { anchor = c.transform.position.x; }
+                foreach (var c in Cans) if (c != null && !c.Airborne && !c.Done) { anchor = c.transform.position.x; }
                 if (float.IsNaN(anchor) && !float.IsNaN(lastSpawnX)) anchor = lastSpawnX;
                 if (!float.IsNaN(anchor))
-                    for (int k = 1; k <= 4; k++)
+                {
+                    float gap = kind.Width + 0.1f;
+                    for (int k = 1; k <= 8; k++)
                         foreach (float s in new[] { 1f, -1f })
                         {
                             float x = anchor + s * gap * k;
-                            if (x < Look.ShelfLeft + 0.5f || x > Look.ShelfRight - 0.5f) continue;
-                            if (Clear(x, gap * 0.9f)) return x;
+                            if (x < lo || x > hi) continue;
+                            if (Room(x, kind) >= 0f) return x;
                         }
+                }
             }
-            for (int tries = 0; tries < 20; tries++)
+            for (int tries = 0; tries < 30; tries++)
             {
-                float x = Random.Range(Look.ShelfLeft + 0.8f, Look.ShelfRight - 0.8f);
-                if (Clear(x, 0.9f)) return x;
+                float x = Random.Range(lo, hi);
+                if (Room(x, kind) >= 0f) return x;
             }
-            return Random.Range(Look.ShelfLeft + 0.8f, Look.ShelfRight - 0.8f);
+            // 못 찾음: 선반을 훑어 여유가 가장 큰 자리
+            float best = (lo + hi) * 0.5f, bestRoom = float.MinValue;
+            for (float x = lo; x <= hi; x += 1f / 27f) { float r = Room(x, kind); if (r > bestRoom) { bestRoom = r; best = x; } }
+            return best;
         }
 
-        bool Clear(float x, float minGap)
+        public const float MaxOverlap = 0.2f;
+
+        /// <summary>그 자리의 여유: 선반 위 다른 깡통들과의 (가운데 거리 − 허용 최소 거리) 중 가장 작은 값. 0 이상이면 20% 이하로만 겹친다</summary>
+        float Room(float x, CanKind kind)
         {
-            foreach (var c in Cans) if (c != null && !c.Airborne && Mathf.Abs(c.transform.position.x - x) < minGap) return false;
-            return true;
+            float room = float.MaxValue;
+            foreach (var c in Cans)
+            {
+                if (c == null || c.Airborne || c.Done) continue;
+                float need = (kind.Width + c.Kind.Width) * 0.5f * (1f - MaxOverlap);
+                room = Mathf.Min(room, Mathf.Abs(c.transform.position.x - x) - need);
+            }
+            return room;
         }
 
         /// <summary>동시 공중 배수 (사용자 10-11: 둘을 띄우게 유도): 1개 ×1, 2개 ×3, 3개 ×6, 4개 ×10 — n(n+1)/2</summary>
