@@ -64,7 +64,7 @@ namespace TinCan
             {
                 float k = TimeScale / appliedScale;
                 rb.linearVelocity *= k; rb.angularVelocity *= k;
-                rb.gravityScale = Gravity;
+                rb.gravityScale = held ? 0f : Gravity;
                 appliedScale = TimeScale;
             }
             // 스킬 "바닥 근처 느려짐": 떨어지다 바닥 가까이 오면 속도가 반으로 (한 번만, 다시 맞으면 초기화)
@@ -101,7 +101,8 @@ namespace TinCan
             Kind = kind;
             transform.position = at + Vector2.up * 1.2f;   // 위에서 툭 떨어져 선반에 앉는다
             rb = gameObject.AddComponent<Rigidbody2D>();
-            rb.mass = kind.Mass; rb.linearDamping = 0.1f; rb.angularDamping = 0.6f; appliedScale = TimeScale; rb.gravityScale = Gravity;
+            rb.mass = kind.Mass; rb.linearDamping = 0.1f; rb.angularDamping = 0.6f; appliedScale = TimeScale;
+            held = true; rb.gravityScale = 0f;   // 소환 트윈이 거의 끝날 때까지 공중에 멈춰 있다 (사용자 10-13). PopIn이 풀어 준다
             rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             rb.constraints = RigidbodyConstraints2D.FreezeRotation;   // 선반 위에선 안 넘어진다
             var col = gameObject.AddComponent<BoxCollider2D>();
@@ -167,30 +168,51 @@ namespace TinCan
         /// </summary>
         IEnumerator PopIn()
         {
+            // 사용자 10-13 2판: 뒤에 구름 + 45° 기울어진 채 작게 나타나 → 커지는 용수철 + 회전 용수철(0°로 흔들리며 돌아옴)
+            // → 트윈이 거의 끝나면(0.3초 또는 크기·각도가 자리 잡으면) 그때 중력 → 선반에 쿵(납작 → 용수철)
             if (!IsMenu) Fx.Cloud(transform.position, 1f);
             float sx = 0.15f, sy = 0.15f, vx = 0f, vy = 0f, whiteA = 1f;
-            bool landed = false; float t = 0f;
-            while (t < 1.2f && !Airborne)
+            float rot = (Random.value < 0.5f ? -1f : 1f) * Random.Range(40f, 50f), rv = 0f;
+            bool landed = false; float t = 0f, releasedAt = -1f;
+            while (t < 2f && !Airborne)
             {
                 float dt = Time.deltaTime; t += dt;
-                // 가로가 조금 덜 감쇠: 옆으로 먼저 퍼졌다 자리 (말랑)
+                // 크기: 가로가 조금 덜 감쇠 → 옆으로 먼저 퍼졌다 자리 (말랑)
                 Ease.Spring(ref sx, ref vx, 1f, 420f, 11f, dt);
                 Ease.Spring(ref sy, ref vy, 1f, 420f, 14f, dt);
+                // 회전: 덜 감쇠해서 0°를 한두 번 지나치며 흔들리다 선다
+                Ease.Spring(ref rot, ref rv, 0f, 260f, 8f, dt);
                 if (t > 0.05f) whiteA = Mathf.Max(0f, whiteA - dt / 0.12f);   // 3프레임 흰색 → 0.12초에 제 색
                 if (white != null) white.color = new Color(1f, 1f, 1f, Mathf.Max(whiteA, flashLeft > 0f ? 1f : 0f));
-                // 선반에 닿았다: 떨어지던 속도가 거의 0이 된 첫 순간
-                if (!landed && t > 0.12f && rb != null && Mathf.Abs(rb.linearVelocity.y) < 0.05f)
+                // 중력 풀기: 트윈이 어느 정도 끝났을 때
+                if (releasedAt < 0f && (t > 0.42f || (t > 0.22f && Mathf.Abs(sx - 1f) < 0.06f && Mathf.Abs(rot) < 6f)))
+                {
+                    releasedAt = t; ReleaseHold();
+                }
+                // 선반에 닿았다: 풀린 뒤 떨어지던 속도가 거의 0이 된 첫 순간
+                if (!landed && releasedAt >= 0f && t > releasedAt + 0.06f && rb != null && Mathf.Abs(rb.linearVelocity.y) < 0.05f)
                 {
                     landed = true;
                     if (!IsMenu) { Fx.Dust(new Vector2(transform.position.x, Look.ShelfY + 0.15f), 3, 0.5f); Sfx.Play(Sfx.Drop(), 0.3f, Kind.Pitch * 1.2f); }
                     sx = 1.3f; sy = 0.7f; vx = vy = 0f;
                 }
                 visual.localScale = new Vector3(sx, sy, 1f);
-                if (landed && whiteA <= 0f && Mathf.Abs(sx - 1f) < 0.01f && Mathf.Abs(vx) < 0.05f) break;
+                visual.localRotation = Quaternion.Euler(0f, 0f, rot);
+                if (landed && whiteA <= 0f && Mathf.Abs(sx - 1f) < 0.01f && Mathf.Abs(vx) < 0.05f && Mathf.Abs(rot) < 0.5f) break;
                 yield return null;
             }
+            ReleaseHold();
             visual.localScale = Vector3.one;
+            visual.localRotation = Quaternion.identity;
             if (white != null && flashLeft <= 0f) white.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        bool held;   // 소환 트윈 중: 중력 없이 공중에 멈춰 있다
+        void ReleaseHold()
+        {
+            if (!held) return;
+            held = false;
+            if (rb != null) rb.gravityScale = Gravity;
         }
 
         SpriteRenderer white;   // 그림의 흰 실루엣 (소환·맞을 때 번쩍임)
@@ -220,6 +242,7 @@ namespace TinCan
             if (!Airborne)
             {
                 Airborne = true;
+                ReleaseHold();   // 소환 트윈 중(공중에 멈춰 있을 때) 맞아도 바로 중력
                 rb.constraints = RigidbodyConstraints2D.None;
                 var shelf = Object.FindFirstObjectByType<Shelf>();
                 if (shelf != null) Physics2D.IgnoreCollision(GetComponent<Collider2D>(), shelf.GetComponent<Collider2D>(), true);
