@@ -49,17 +49,46 @@ namespace TinCan
         // 구간은 고정 (사용자 10-10): 자리도 폭도 늘 같다. 어려워지는 건 속도뿐
         const float WindowStart = 0.62f, WindowEnd = 0.74f;
 
+        // ---------- 도트 조준점 ----------
+        const float Dot = 1f / 27f;          // 화면 480×270의 한 도트 (월드)
+        const int ArmLen = 3, ArmGap = 4;    // 팔 길이 3도트, 가운데에서 팔 가운데까지 4도트 (사이 빈칸 2도트)
+        Transform[] arms;
+        static Sprite PixelBar(int w, int h)
+        {
+            // 흰 몸 w×h + 둘레 남색 1도트 (모서리 포함)
+            int W = w + 2, H = h + 2;
+            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            var line = new Color(0.15f, 0.13f, 0.25f, 1f);
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                    tex.SetPixel(x, y, x >= 1 && x <= w && y >= 1 && y <= h ? Color.white : line);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 27f);
+        }
+        /// <summary>팔 자리: 기본 4도트 + 벌림(도트). 0 = N, 1 = S, 2 = E, 3 = W</summary>
+        void PlaceArms(int spreadDots)
+        {
+            float d = (ArmGap + spreadDots) * Dot;
+            arms[0].localPosition = new Vector3(0f, d, 0f); arms[1].localPosition = new Vector3(0f, -d, 0f);
+            arms[2].localPosition = new Vector3(d, 0f, 0f); arms[3].localPosition = new Vector3(-d, 0f, 0f);
+        }
+
         public void Build()
         {
             cam = Camera.main; camHome = cam.transform.position;
             Cursor.visible = false;
             crosshair = new GameObject("Crosshair").transform;
-            var c = new Color(1f, 1f, 1f, 0.9f);
-            Look.Quad("N", new Vector2(0f, 0.22f), new Vector2(0.05f, 0.16f), c, 50, crosshair);
-            Look.Quad("S", new Vector2(0f, -0.22f), new Vector2(0.05f, 0.16f), c, 50, crosshair);
-            Look.Quad("E", new Vector2(0.22f, 0f), new Vector2(0.16f, 0.05f), c, 50, crosshair);
-            Look.Quad("W", new Vector2(-0.22f, 0f), new Vector2(0.16f, 0.05f), c, 50, crosshair);
-            Look.Quad("Dot", Vector2.zero, new Vector2(0.05f, 0.05f), c, 50, crosshair);
+            // 도트 조준점 (사용자 10-13): 흰 점 + 흰 팔 4개(3도트), 남색 1도트 외곽선. 크기를 늘리지 않고 팔을 도트 단위로 밀어 벌린다
+            var center = new GameObject("Dot").AddComponent<SpriteRenderer>(); center.transform.SetParent(crosshair, false);
+            center.sprite = PixelBar(1, 1); center.sortingOrder = 50;
+            arms = new Transform[4];
+            for (int i = 0; i < 4; i++)
+            {
+                var a = new GameObject("Arm" + i).AddComponent<SpriteRenderer>(); a.transform.SetParent(crosshair, false);
+                a.sprite = i < 2 ? PixelBar(1, ArmLen) : PixelBar(ArmLen, 1); a.sortingOrder = 50;
+                arms[i] = a.transform;
+            }
+            PlaceArms(0);
             // 판정 원 테두리 (샷건처럼 넓은 총일 때 보인다): 점 16개
             ring = new GameObject("Ring").transform; ring.SetParent(crosshair, false);
             for (int i = 0; i < 16; i++)
@@ -127,7 +156,7 @@ namespace TinCan
         void Update()
         {
             var aim = MouseWorld();
-            crosshair.position = aim;
+            crosshair.position = new Vector3(Mathf.Round(aim.x / Dot) * Dot, Mathf.Round(aim.y / Dot) * Dot, 0f);   // 보이는 조준점은 도트 칸에 (판정은 aim 그대로)
             crosshair.gameObject.SetActive(Enabled);
             Cursor.visible = !Enabled;
             view.Tick(aim, Enabled);
@@ -159,8 +188,8 @@ namespace TinCan
                 barWindow.color = attempted ? (missed ? new Color(1f, 0.3f, 0.2f, 0.9f) : new Color(0.5f, 1f, 0.6f, 0.9f)) : new Color(1f, 0.9f, 0.3f, 0.9f);
             }
 
-            float spread = 1f + kickLeft * 6f * Mathf.Min(1f, Kind.Kick);
-            crosshair.localScale = Vector3.one * spread;
+            // 쏠 때 벌어짐: 예전엔 전체를 키웠다(도트가 찌그러짐) → 팔만 도트 단위로 밀어낸다 (최대 약 8도트)
+            PlaceArms(Mathf.RoundToInt(kickLeft * 8f * Mathf.Min(1f, Kind.Kick)));
             if (kickLeft > 0f)
             {
                 kickLeft = Mathf.Max(0f, kickLeft - Time.unscaledDeltaTime * 5f);

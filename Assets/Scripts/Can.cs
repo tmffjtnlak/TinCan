@@ -303,6 +303,7 @@ namespace TinCan
             StopAllCoroutines(); StartCoroutine(Squash());
             Sfx.Play(Sfx.Tang(), 0.8f, Kind.Pitch * (1f + Mathf.Min(Combo, 12) * 0.03f));
             Fx.Spark(hitPoint, 5 + Mathf.Min(Combo, 6), 0.8f + Mathf.Min(Combo, 8) * 0.08f);
+            if (!Done) Fx.Cloud(hitPoint, 0.45f);   // 맞은 자리에 작은 흰 구름이 남는다 (사용자 10-13 시험). 터지면 Burst가 큰 구름
             Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f);
             return earned;
         }
@@ -351,6 +352,7 @@ namespace TinCan
             Sfx.Play(Sfx.Tang(), 0.9f, Kind.Pitch * 0.5f);
             Fx.Ring(transform.position, Cursed ? CurseLabel : new Color(1f, 0.95f, 0.7f), 2.2f);
             Fx.Spark(transform.position, 14, 1.4f);
+            Fx.Cloud(transform.position, 1.08f);   // 터진 자리에 소환 때와 같은 구름이 남았다 흩어진다 (사용자 10-13 시험)
             Fx.Shake(0.7f);
             for (int i = 0; i < 10; i++)
             {
