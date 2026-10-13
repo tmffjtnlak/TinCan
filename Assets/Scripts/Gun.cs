@@ -210,7 +210,6 @@ namespace TinCan
         public static bool Cinematic { get; private set; }
         bool IsFinisher(Can can) => !Cinematic && can.Kind.IsBounty && can.HitsLeft <= 1 && !can.Done && !can.IsMenu;
         const float FinisherZoom = 0.5f;      // 깡통에 닿을 때 카메라 크기 (기본의 0.5배 = 2배 확대)
-        const int FinisherCasings = 48;       // 터질 때 쏟아지는 금 탄피 수 (보여주기용: 돈은 세트 정산이 따로 준다)
 
         IEnumerator Finisher(Can can)
         {
@@ -294,14 +293,7 @@ namespace TinCan
                 Fx.Shake(1.5f);
                 StartCoroutine(Flash());
                 Sfx.Play(Sfx.Bang(), 1f, 0.35f);
-                // 금 탄피 한 무더기: 사방으로 후두두둑
-                for (int i = 0; i < FinisherCasings; i++)
-                {
-                    float a = Random.Range(0f, Mathf.PI * 2f);
-                    var v = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.8f + 0.6f) * Random.Range(3f, 9f);
-                    var c = Casing.Drop(at + Random.insideUnitCircle * 0.25f, 0, true, v);
-                    c.OnRest = () => StartCoroutine(FlyWhenDone(c));
-                }
+                // 탄피는 Game.CanBurst가 흘린다 (현상금은 금 탄피 48개, 바닥에 쌓였다가 세트 끝에 정산과 함께 흡수)
                 // 4) 시간은 확(0.12초, OutQuad), 카메라는 조금 늦게 빠르게(0.5초, OutCubic) 원래대로. 레터박스는 0.25초에 빠지기 시작
                 Vector2 camFrom = cam.transform.position; float sizeFrom = cam.orthographicSize;
                 float slowFrom = Time.timeScale;
@@ -324,14 +316,6 @@ namespace TinCan
                 Letterbox.Force = false;
                 Cinematic = false;
             }
-        }
-
-        /// <summary>바닥에 누운 금 탄피: 연출(줌)이 끝난 뒤 점수판으로 빨려 간다 (줌 중엔 점수판 자리가 달라서)</summary>
-        IEnumerator FlyWhenDone(Casing c)
-        {
-            while (Cinematic) yield return null;
-            if (c == null) yield break;
-            yield return c.FlyTo(Game.I.Hud.MoneyWorld(), Random.Range(0.02f, 0.45f), _ => { Game.I.Hud.BumpMoney(); Sfx.Play(Sfx.Click(), 0.18f, Random.Range(1.6f, 2.4f)); });
         }
 
         /// <summary>

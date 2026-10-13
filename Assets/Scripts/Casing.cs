@@ -17,6 +17,9 @@ namespace TinCan
         public System.Action OnRest;
         SpriteRenderer sr, white;
         Vector2 vel; float spin, floorY; bool resting, flying;
+        /// <summary>바닥에 누워 있다 (세트 끝에 판자로 날아갈 수 있다)</summary>
+        public bool Resting => resting;
+        public bool Flying => flying;
         float baseScale = 1f, sx = 1f, sy = 1f, vx, vy, whiteA;
         static readonly Color Brass = new Color(0.72f, 0.56f, 0.28f), GoldC = new Color(1f, 0.85f, 0.35f);
         static Sprite whiteSprite;

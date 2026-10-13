@@ -502,20 +502,25 @@ namespace TinCan
             if (k < 0.2f) lines.Clear();                      // 아주 작으면 합계 한 줄만
             Vector2 totalAt = Vector2.zero;
             yield return hud.Tally(lines, best ? $"${total:N0}  최고!" : $"${total:N0}", k, at => totalAt = at);
-            // 합계 글자에서 탄피가 주르르륵 쏟아진다. 클수록 많이, 천천히. 바닥에 눕는 것부터 판자로 올라간다
-            // 개수는 금액에 비례 (사용자 10-12: $50과 $1,000이 비슷하면 안 된다). $8에 하나, 최대 240. 쏟는 시간은 연출 크기로
-            int count = Mathf.Clamp(Mathf.RoundToInt(total / 8f), 3, 240);
-            float interval = Mathf.Lerp(0.3f, 1.6f, k) / count;
-            long per = total / count, rem = total - per * count;
+            // 정산과 함께 바닥의 탄피가 점수판으로 빨려 들어간다 (사용자 10-13). 이번 세트에 흘린 탄피 전부에 합계를 나눠 싣는다.
+            // 가까운(왼쪽) 것부터 차례로, 쏟는 시간은 연출 크기로. 아직 떨어지는 중인 탄피는 눕는 순간 출발
+            var cs = setCasings.FindAll(c => c != null && !c.Flying);
+            setCasings.Clear();
+            if (cs.Count == 0) { Money += total; hud.BumpMoney(); yield break; }
             var target = hud.MoneyWorld();
+            cs.Sort((a, b) => ((Vector2)a.transform.position - target).sqrMagnitude.CompareTo(((Vector2)b.transform.position - target).sqrMagnitude));
+            int count = cs.Count;
+            long per = total / count, rem = total - per * count;
+            float interval = Mathf.Lerp(0.25f, 1.2f, k) / count;
+            int every = Mathf.Max(1, count / 30);   // 소리는 많아야 30번쯤
             for (int i = 0; i < count; i++)
             {
-                var c = Casing.Drop(totalAt + Vector2.right * Random.Range(0f, 2.5f), per + (i == count - 1 ? rem : 0), k > 0.6f && i % 3 == 0,
-                    new Vector2(Random.Range(-0.5f, 2.5f), Random.Range(1f, 4f)));
+                var c = cs[i];
+                if (c == null) { Money += per + (i == count - 1 ? rem : 0); continue; }
+                c.Value = per + (i == count - 1 ? rem : 0);
                 int idx = i;
-                int every = Mathf.Max(1, count / 30);   // 소리는 많아야 30번쯤
-                c.OnRest = () => StartCoroutine(c.FlyTo(target, Random.Range(0.05f, 0.3f), v => { Money += v; hud.BumpMoney(); if (idx % every == 0) Sfx.Play(Sfx.Click(), 0.25f, 1.4f + Mathf.Min(idx / every, 30) * 0.03f); }));
-                if (idx % every == 0) Sfx.Play(Sfx.Click(), 0.12f, Random.Range(2f, 2.6f));
+                System.Action fly = () => StartCoroutine(c.FlyTo(target, 0f, v => { Money += v; hud.BumpMoney(); if (idx % every == 0) Sfx.Play(Sfx.Click(), 0.25f, 1.4f + Mathf.Min(idx / every, 30) * 0.03f); }));
+                if (c.Resting) fly(); else c.OnRest = fly;
                 if (interval >= 0.01f) yield return new WaitForSecondsRealtime(interval);
                 else if (idx % Mathf.CeilToInt(0.01f / interval) == 0) yield return null;
             }
@@ -538,6 +543,7 @@ namespace TinCan
         /// <summary>떨어졌다: 쌓인 돈 × 정산 배수가 세트에 들어가고, 맞춘 발 수만큼 탄피가 바닥에. 돈은 세트가 끝나야 온다. 저주통이면 뺏긴다</summary>
         public void CanLanded(Can can)
         {
+            SpillCasings(new Vector2(can.transform.position.x, Look.DropY + 0.4f), LandCasings, false, false);   // 떨어진 자리에 탄피를 조금 흘린다
             if (can.Cursed) { CurseLanded(can); return; }
             long pay = (long)Mathf.Round(can.Earned * PayoutMult);
             SetPending += pay;
@@ -556,9 +562,28 @@ namespace TinCan
             StartCoroutine(HitStop(0.1f));
         }
 
-        /// <summary>터뜨렸다: 쌓인 돈 × 정산 배수 × 터짐 배수가 세트에. 금색 탄피. 저주통도 터뜨리면 평소대로</summary>
+        // ---------- 탄피 (사용자 10-13 개정) ----------
+        // 터뜨리면 깡통에서 탄피가 튀어나와 바닥에 떨어지고, 바닥에 떨어진 깡통은 그 자리에 조금 흘린다. 탄피는 바닥에 쌓여 있다가
+        // 세트가 끝나면 정산과 함께 점수판으로 빨려 들어가 돈이 된다 (합계를 탄피 수로 나눠 싣는다). 탄피 단위는 나중에 (지금은 통일)
+        const int BurstCasings = 8, BountyCasings = 48, LandCasings = 3;
+        readonly List<Casing> setCasings = new List<Casing>();
+
+        /// <summary>탄피를 흘린다. burst = 깡통에서 사방으로 튀어나옴 / 아니면 바닥 근처에서 옆으로 조금</summary>
+        public void SpillCasings(Vector2 at, int n, bool burst, bool gold)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                Vector2 v = burst
+                    ? new Vector2(Random.Range(-1f, 1f), Random.Range(0.3f, 1f)).normalized * Random.Range(3f, 8f)
+                    : new Vector2(Random.Range(-1.6f, 1.6f), Random.Range(1f, 2.6f));
+                setCasings.Add(Casing.Drop(at + Random.insideUnitCircle * 0.15f, 0, gold, v));
+            }
+        }
+
+        /// <summary>터뜨렸다: 쌓인 돈 × 정산 배수 × 터짐 배수가 세트에. 탄피가 튀어나와 바닥에. 저주통도 터뜨리면 평소대로</summary>
         public void CanBurst(Can can)
         {
+            SpillCasings(can.transform.position, can.Kind.IsBounty ? BountyCasings : BurstCasings, true, can.Kind.IsBounty);
             long pay = (long)Mathf.Round(can.Earned * PayoutMult * BurstMult);
             SetPending += pay;
             Bursts++;
