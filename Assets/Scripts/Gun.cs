@@ -48,7 +48,10 @@ namespace TinCan
 
         public float ActiveReloadSeconds => Mathf.Max(0.35f, ReloadSeconds * (1f - 0.07f * ReloadStreak));
         // 구간은 고정 (사용자 10-10): 자리도 폭도 늘 같다. 어려워지는 건 속도뿐
-        const float WindowStart = 0.62f, WindowEnd = 0.74f;
+        // 저스트 구간: 10-14 사용자 "쏘면서 맞추기 빡세다" → 폭 50% 넓힘 (0.62~0.74 → 가운데 0.68 그대로 0.59~0.77)
+        const float WindowStart = 0.59f, WindowEnd = 0.77f;
+        /// <summary>장전 앞쪽 30%의 입력은 무시한다 (실패로 치지 않음, 사용자 10-14) — 다 쏘고 계속 누르던 클릭이 실패가 되던 문제</summary>
+        const float IgnoreBefore = 0.3f;
 
         // ---------- 도트 조준점 ----------
         const float Dot = 1f / 27f;          // 화면 480×270의 한 도트 (월드)
@@ -491,6 +494,7 @@ namespace TinCan
         /// <summary>저스트 장전 시도: 슬래시 구간 안이면 즉시 끝, 아니면 실패</summary>
         public void ActiveReload()
         {
+            if (ReloadProgress < IgnoreBefore) return;   // 앞쪽 30%: 아무 일도 없다 (시도 기회도 그대로 남는다)
             attempted = true;
             if (ReloadProgress >= windowStart && ReloadProgress <= windowEnd)
             {
