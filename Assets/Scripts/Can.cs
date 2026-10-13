@@ -108,6 +108,9 @@ namespace TinCan
                 rb.gravityScale = Gravity * (on ? floatMul : 1f);
                 if (on && floatMul <= 0.01f) rb.linearVelocity *= 1f - Mathf.Min(1f, 4f * Time.fixedDeltaTime);
             }
+            // 저글링 낙하 완화: 떨어지는 동안만, 공중 수에 따라 중력을 줄인다 (다이너마이트는 계산 밖이라 제외)
+            else if (Airborne && !held && !parked && !Kind.NotScored)
+                rb.gravityScale = Gravity * (rb.linearVelocity.y < 0f ? JuggleFallMul() : 1f);
             // 스킬 "바닥 근처 느려짐": 떨어지다 바닥 가까이 오면 속도가 반으로 (한 번만, 다시 맞으면 초기화)
             if (Airborne && !floorSlowed && Game.I != null && Game.I.FloorSlow > 0f && rb.linearVelocity.y < 0f && transform.position.y < Look.DropY + 1.6f)
             {
@@ -476,41 +479,23 @@ namespace TinCan
             if (!Done && Kind.Special == CanKind.Trait.Magnet) MagnetPull();
             if (!Done && props.Count > 0 && Random.value < PropDropChance) DropProp(hitPoint);   // 부착물이 일정 확률로 떨어져 나간다
             Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f + (tier - 1) * 0.05f);
-            if (!Kind.NotScored && air >= 2) Resonate(air);
             return earned;
         }
 
         // 공중 깡통 수 단계별: 탱 소리 높이 (도·레·미·솔), 맞은 자리 구름 크기
         static readonly float[] TierPitch = { 1f, 1.122f, 1.26f, 1.5f };
         static readonly float[] TierCloud = { 1f, 1.3f, 1.6f, 2f };
-        /// <summary>공명 튐 세기 (유닛/초). 스킬트리 "공명 강화"로 올릴 자리 (사용자 10-14: 처음엔 약하게)</summary>
-        public static float ResonanceBoost = 1.2f;
-
         /// <summary>
-        /// 공명 튐 (사용자 10-14 "저글링 중일 땐 한 번 튕긴다"): 공중에 둘 이상일 때 하나를 맞히면 나머지 공중 깡통도 살짝 위로 톡.
-        /// 여럿을 돌릴수록 버티기 쉬워진다 (하나만 쏠 땐 혜택 없음). 셋부터는 같이 반짝
+        /// 저글링 낙하 완화 (사용자 10-14: 공명 튐 대신 "저글링 중엔 기본적으로 낙하 속도 감소", 난이도 완화).
+        /// 공중에 동시에 2·3·4+개면 떨어지는 동안만 중력 ×0.8·0.7·0.6. 오를 때는 그대로 → 꼭대기 높이·천장 한계는 안 바뀌고 내려오는 시간만 길어진다.
+        /// 하나만 쏠 땐 혜택 없음. 스킬트리로 강화할 자리
         /// </summary>
-        void Resonate(int air)
+        // 시간은 중력의 제곱근으로 늘어서 0.8/0.7/0.6은 거의 안 느껴졌다 (셋: 체공 0.96 → 1.04초) → 더 내림
+        public static float[] JuggleFall = { 1f, 0.7f, 0.55f, 0.45f };
+        static float JuggleFallMul()
         {
-            if (Game.I == null) return;
-            foreach (var c in Game.I.Cans)
-            {
-                if (c == null || c == this || c.Done || !c.Airborne || c.Kind.NotScored || c.ChainHeld || c.parked || c.held) continue;
-                c.Hop(ResonanceBoost, air >= 3);
-            }
-        }
-
-        void Hop(float boost, bool flash)
-        {
-            SyncScale();
-            var v = rb.linearVelocity / Scale;
-            v.y = (v.y < 0f ? v.y * 0.8f : v.y) + boost;   // 떨어지던 중이면 낙하를 20% 끊고 위로 톡, 오르던 중이면 조금 더 (처음엔 약하게)
-            float top = Look.CeilingY - Kind.Height * 0.5f - transform.position.y;
-            float vmax = top > 0f ? Mathf.Sqrt(2f * (-Physics2D.gravity.y * BaseGravity * Kind.Weight) * top) : 0f;
-            if (v.y > vmax) v.y = vmax;
-            rb.linearVelocity = v * Scale;
-            if (flash) flashLeft = Mathf.Max(flashLeft, 0.04f);
-            Fx.Cloud((Vector2)transform.position + Vector2.down * Kind.Height * 0.45f, 0.25f);   // 발밑에 작은 구름 = 톡 받쳐 준 느낌
+            int air = Game.I != null ? Game.I.Airborne : 1;
+            return JuggleFall[Mathf.Clamp(air, 1, JuggleFall.Length) - 1];
         }
 
         IEnumerator Squash()
