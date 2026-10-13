@@ -272,6 +272,10 @@ namespace TinCan
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
             if (DebugMoney) Money = 999_999_999;
             if (kb.f2Key.wasPressedThisFrame) bounty.Summon();
+            if (kb.f5Key.wasPressedThisFrame) DebugSpawn(CanKind.Dynamite);
+            if (kb.f6Key.wasPressedThisFrame) DebugSpawn(CanKind.Bundle);
+            if (kb.f7Key.wasPressedThisFrame) DebugSpawn(CanKind.Blue);
+            if (kb.f8Key.wasPressedThisFrame) DebugSpawn(CanKind.Magnet);
             if (kb.f4Key.wasPressedThisFrame) bounty.Summon(CanKind.BountyTest);   // 시험용: 체력 3짜리 현상금 깡통 (막타 연출 확인)
             if (kb.digit1Key.wasPressedThisFrame) SelectSlot(0);
             if (kb.digit2Key.wasPressedThisFrame) SelectSlot(1);
@@ -390,6 +394,27 @@ namespace TinCan
 
         /// <summary>돈을 내고 선반에 깡통. 짝 소환이면 여러 개, 붙여 놓기면 마지막 깡통 옆에. 공중에 깡통이 있으면 잠긴다 (세트 중)</summary>
         public const float BottleChance = 0.2f;
+        /// <summary>특성 깡통 각각의 확률 (사용자 10-14 첫 시험: 다이너마이트·묶음·파랑·자석). 설정·해금은 아직 없음</summary>
+        public const float TraitChance = 0.06f;
+
+        /// <summary>깡통 소환 한 번에 나올 종류: 병 20%, 특성 깡통 각 6%, 나머지 깡통</summary>
+        CanKind RollKind()
+        {
+            float r = Random.value;
+            if (r < BottleChance) return CanKind.Bottle;
+            r -= BottleChance;
+            var traits = new[] { CanKind.Dynamite, CanKind.Bundle, CanKind.Blue, CanKind.Magnet };
+            foreach (var t in traits) { if (r < TraitChance) return t; r -= TraitChance; }
+            return CanKind.Tin;
+        }
+
+        /// <summary>시험용: 그 종류를 선반 빈자리에 공짜로 (F5 다이너마이트, F6 묶음, F7 파랑, F8 자석)</summary>
+        public void DebugSpawn(CanKind kind)
+        {
+            if (Airborne > 0) return;
+            float x = FreeX(kind);
+            Cans.Add(Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f)));
+        }
         public bool TrySpawn()
         {
             long cost = SpawnCost(SpawnKind);
@@ -402,7 +427,7 @@ namespace TinCan
                 if (CansOnShelf >= MaxCans || Money < cost) break;
                 Money -= cost;
                 // 깡통 소환 중 20%는 병이 나온다 (사용자 10-13, 설정은 아직 없음. 값은 깡통 소환비 그대로)
-                var kind = SpawnKind == CanKind.Tin && Random.value < BottleChance ? CanKind.Bottle : SpawnKind;
+                var kind = SpawnKind == CanKind.Tin ? RollKind() : SpawnKind;
                 float x = FreeX(kind);   // 종류를 먼저 정해야 폭에 맞는 빈자리를 찾는다
                 Cans.Add(Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f)));
                 lastSpawnX = x; n++;

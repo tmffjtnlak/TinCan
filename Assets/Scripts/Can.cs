@@ -27,6 +27,23 @@ namespace TinCan
         public static readonly CanKind Hat = new CanKind { Id = "hat", Name = "모자", Desc = "값 10. 납작하고 아주 가볍다. 10번이면 찢어진다.", Value = 10, Cost = 30, Price = 400, Hits = 10, Weight = 0.45f, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
         public string Id;
 
+        // ---------- 특성 깡통 (사용자 10-14: "쏘는 행위는 같고 깡통이 일으키는 일이 다양해야") ----------
+        // 10-10의 "깡통은 물성만" 규칙을 사용자가 바꿨다. 특성 = 터질 때/맞을 때 일어나는 일 하나
+        public enum Trait { None, Dynamite, Bundle, Blue, Magnet }
+        public Trait Special;
+        /// <summary>다이너마이트: 3발에 터지며 주변 깡통에 한 발씩 (밀어내며 띄움)</summary>
+        public static readonly CanKind Dynamite = new CanKind { Id = "dynamite", Name = "다이너마이트", Desc = "3발에 터지며 주변 깡통을 친다.", Value = 2, Cost = 2, Hits = 3, Weight = 1.1f, Width = 18f / 27f, Height = 28f / 27f, Mass = 1.1f, Pitch = 0.9f, Body = new Color(0.85f, 0.15f, 0.15f), Rim = new Color(0.5f, 0.1f, 0.1f), Label = Color.white, Special = Trait.Dynamite };
+        /// <summary>깡통 묶음: 3발에 끈이 끊어지며 깡통 셋이 튀어나와 3초 동안 천천히 떨어진다</summary>
+        public static readonly CanKind Bundle = new CanKind { Id = "bundle", Name = "깡통 묶음", Desc = "3발에 풀리며 깡통 셋이 튀어나온다.", Value = 1, Cost = 2, Hits = 3, Weight = 1.3f, Width = 28f / 27f, Height = 37f / 27f, Mass = 1.5f, Pitch = 0.8f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, Special = Trait.Bundle };
+        /// <summary>파란 깡통: 터지면 반투명 깡통이 잠시 떠 있다</summary>
+        public static readonly CanKind Blue = new CanKind { Id = "blue", Name = "파란 깡통", Desc = "터지면 반투명 깡통이 잠시 떠오른다.", Value = 1, Cost = 2, Hits = 4, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.1f, Body = new Color(0.4f, 0.6f, 1f), Rim = new Color(0.25f, 0.35f, 0.7f), Label = Color.white, Special = Trait.Blue };
+        /// <summary>자석 깡통: 맞을 때마다 옆의 옆까지 깡통을 끌어당긴다 (그림은 자석까지 32칸, 몸 간격은 24칸)</summary>
+        public static readonly CanKind Magnet = new CanKind { Id = "magnet", Name = "자석 깡통", Desc = "맞을 때마다 주변 깡통을 끌어당긴다.", Value = 1, Cost = 2, Hits = 5, Weight = 1f, Width = 24f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.2f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, Special = Trait.Magnet };
+        /// <summary>묶음에서 튀어나온 깡통 (깡통 그림, 체력 2)</summary>
+        public static readonly CanKind Loose = new CanKind { Id = "tin", Name = "풀린 깡통", Desc = "", Value = 1, Cost = 0, Hits = 2, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.05f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
+        /// <summary>파란 깡통이 남기는 반투명 깡통 (체력 2)</summary>
+        public static readonly CanKind Ghost = new CanKind { Id = "blue", Name = "반투명 깡통", Desc = "", Value = 1, Cost = 0, Hits = 2, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.4f, Body = new Color(0.4f, 0.6f, 1f), Rim = new Color(0.25f, 0.35f, 0.7f), Label = Color.white };
+
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
         /// <summary>현상수배 깡통: 체력 30, 무겁고, 값 5. 터뜨리면 값×30×31 = 4,650 기본. 가게엔 없다</summary>
         public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 30. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 30, Weight = 1.35f, Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
@@ -77,6 +94,14 @@ namespace TinCan
             if (rb == null || Done) return;
             if (!Mathf.Approximately(localSlow, localSlowTarget)) localSlow = Mathf.MoveTowards(localSlow, localSlowTarget, Time.unscaledDeltaTime / 0.15f);
             SyncScale();
+            // 떠 있기 (묶음에서 튀어나온 깡통 3초 천천히, 반투명 깡통 잠시 정지): 남은 동안 중력에 배수, 정지면 속도도 서서히 죽인다
+            if (floatLeft > 0f && Airborne && !held && !parked)
+            {
+                floatLeft -= Time.fixedDeltaTime * Scale;
+                bool on = floatLeft > 0f;
+                rb.gravityScale = Gravity * (on ? floatMul : 1f);
+                if (on && floatMul <= 0.01f) rb.linearVelocity *= 1f - Mathf.Min(1f, 4f * Time.fixedDeltaTime);
+            }
             // 스킬 "바닥 근처 느려짐": 떨어지다 바닥 가까이 오면 속도가 반으로 (한 번만, 다시 맞으면 초기화)
             if (Airborne && !floorSlowed && Game.I != null && Game.I.FloorSlow > 0f && rb.linearVelocity.y < 0f && transform.position.y < Look.DropY + 1.6f)
             {
@@ -118,6 +143,52 @@ namespace TinCan
             var can = go.AddComponent<Can>();
             can.Build(kind, at);
             return can;
+        }
+
+        float floatLeft, floatMul = 1f;
+
+        /// <summary>
+        /// 공중에 바로 생기는 깡통 (특성 깡통이 터지며 만든 것). 선반 착지 연출 없이 작게 톡 커지며 바로 공중,
+        /// floatSeconds 동안 중력 × floatMul (0이면 그 자리에 둥실), ghost면 반투명. 게임의 깡통 목록에도 넣는다
+        /// </summary>
+        public static Can SpawnAirborne(CanKind kind, Vector2 at, Vector2 vel, float floatSeconds, float floatMul, bool ghost = false)
+        {
+            var c = Spawn(kind, at);
+            c.StopAllCoroutines();
+            c.transform.position = at;
+            c.held = false; c.Airborne = true;
+            c.rb.constraints = RigidbodyConstraints2D.None;
+            var shelf = Object.FindFirstObjectByType<Shelf>();
+            if (shelf != null) Physics2D.IgnoreCollision(c.GetComponent<Collider2D>(), shelf.GetComponent<Collider2D>(), true);
+            c.floatLeft = floatSeconds; c.floatMul = floatMul;
+            c.rb.gravityScale = c.Gravity * (floatSeconds > 0f ? floatMul : 1f);
+            c.rb.linearVelocity = vel * c.Scale;
+            c.rb.angularVelocity = Random.Range(-300f, 300f) * c.Scale;
+            if (ghost) foreach (var sr in c.visual.GetComponentsInChildren<SpriteRenderer>()) if (sr != c.white) { var col = sr.color; col.a = 0.55f; sr.color = col; }   // 사용자: "반투명 캔"
+            if (c.white != null) c.white.color = Color.clear;
+            c.StartCoroutine(c.PopSmall());
+            Game.I?.Cans.Add(c);
+            return c;
+        }
+
+        IEnumerator PopSmall()
+        {
+            float s = 0.3f, v = 0f;
+            for (float t = 0f; t < 0.4f; t += Time.deltaTime) { Ease.Spring(ref s, ref v, 1f, 900f, 16f, Time.deltaTime); visual.localScale = Vector3.one * s; yield return null; }
+            visual.localScale = Vector3.one;
+        }
+
+        /// <summary>자석에 끌려온다: 그쪽으로 속도를 더한다 (선반 위면 선반 따라 미끄러짐)</summary>
+        public void Pull(Vector2 toward, float strength)
+        {
+            if (Done || rb == null) return;
+            SyncScale();
+            var dir = toward - (Vector2)transform.position;
+            if (dir.sqrMagnitude < 0.0001f) return;
+            var v = rb.linearVelocity / Scale;
+            if (Airborne) v += dir.normalized * strength;
+            else v.x += Mathf.Sign(dir.x) * strength * 0.8f;
+            rb.linearVelocity = v * Scale;
         }
 
         void Build(CanKind kind, Vector2 at)
@@ -365,6 +436,7 @@ namespace TinCan
             Sfx.Play(Sfx.Tang(), 0.8f, Kind.Pitch * (1f + Mathf.Min(Combo, 12) * 0.03f));
             Fx.Spark(hitPoint, 5 + Mathf.Min(Combo, 6), 0.8f + Mathf.Min(Combo, 8) * 0.08f);
             if (!Done) Fx.Cloud(hitPoint, 0.45f);
+            if (!Done && Kind.Special == CanKind.Trait.Magnet) MagnetPull();
             if (!Done && props.Count > 0 && Random.value < PropDropChance) DropProp(hitPoint);   // 부착물이 일정 확률로 떨어져 나간다   // 맞은 자리에 작은 흰 구름이 남는다 (사용자 10-13 시험). 터지면 Burst가 큰 구름
             Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f);
             return earned;
@@ -436,6 +508,7 @@ namespace TinCan
                 Destroy(chip.gameObject, Random.Range(0.6f, 1.1f));
             }
             if (IsMenu) OnMenuLanded(); else Game.I?.CanBurst(this);   // 타이틀 깡통은 터지면 바로 시작
+            if (!IsMenu) TraitBurst(transform.position);
             StopAllCoroutines();
             rb.simulated = false;
             DropAllProps(at, 1.4f);   // 남은 부착물은 전부 튀어 나간다 (모자만 바닥에 남았다 사라짐)
@@ -448,6 +521,74 @@ namespace TinCan
             }
             else visual.gameObject.SetActive(false);
             Destroy(gameObject, 0.1f);
+        }
+
+        // ---------- 특성 (사용자 10-14) ----------
+        const float MagnetRange = 2.0f;      // 옆의 옆까지 (깡통 간격 ≈ 0.85 × 2 + 여유)
+        const float DynamiteRange = 2.6f;    // 폭발 구름 크기만큼 (1.9는 공중에서 터지면 선반 깡통에 안 닿았다)
+
+        /// <summary>자석: 맞을 때마다 반경 안의 다른 깡통을 이쪽으로 끌어당긴다 (공중은 그대로 당김, 선반 위는 옆으로 미끄러짐)</summary>
+        void MagnetPull()
+        {
+            if (Game.I == null) return;
+            var at = (Vector2)transform.position;
+            foreach (var c in Game.I.Cans)
+            {
+                if (c == null || c == this || c.Done) continue;
+                float d = Vector2.Distance(c.transform.position, at);
+                if (d > MagnetRange || d < 0.3f) continue;
+                c.Pull(at, 2.2f + (MagnetRange - d) * 1.2f);
+                Fx.Cloud(c.transform.position, 0.3f);
+            }
+            Sfx.Play(Sfx.Click(), 0.5f, 1.6f);
+        }
+
+        /// <summary>터질 때 특성: 다이너마이트 폭발 / 묶음이 풀려 셋 / 파란 깡통이 반투명 깡통 하나</summary>
+        void TraitBurst(Vector2 at)
+        {
+            if (Game.I == null) return;
+            switch (Kind.Special)
+            {
+                case CanKind.Trait.Dynamite:
+                    Game.I.StartCoroutine(Explode(at, this));
+                    break;
+                case CanKind.Trait.Bundle:
+                    // 끈이 끊어지며 셋이 위로 퍼진다. 3초 동안 중력 30%로 천천히
+                    float[] vx = { -2.4f, 0f, 2.4f };
+                    for (int i = 0; i < 3; i++)
+                        SpawnAirborne(CanKind.Loose, at + new Vector2(vx[i] * 0.12f, 0.1f * i), new Vector2(vx[i], 5.5f + (i == 1 ? 1f : 0f)), 3f, 0.3f);
+                    Sfx.Play(Sfx.Drop(), 0.6f, 1.4f);
+                    break;
+                case CanKind.Trait.Blue:
+                    // 반투명 깡통이 떠올라 1.5초 그 자리에 둥실 → 그다음 평소처럼 떨어진다
+                    SpawnAirborne(CanKind.Ghost, at, new Vector2(0f, 1.6f), 1.5f, 0f, ghost: true);
+                    Sfx.Play(Sfx.Twirl(), 0.4f, 1.8f);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 다이너마이트 폭발: 큰 구름·불꽃·흔들림, 0.05초 뒤 반경 안의 깡통마다 한 발 (폭발 반대쪽으로 밀리며 뜬다).
+        /// 선반 위 깡통도 맞아서 공중으로 → 연쇄. 맞은 깡통이 다이너마이트면 또 터진다
+        /// </summary>
+        static IEnumerator Explode(Vector2 at, Can source)
+        {
+            Fx.Cloud(at, 1.8f);
+            Fx.Spark(at, 30, 2f);
+            Fx.Shake(1.0f);
+            Sfx.Play(Sfx.Bang(), 1f, 0.55f);
+            yield return new WaitForSeconds(0.05f);
+            var g = Game.I; if (g == null) yield break;
+            foreach (var c in g.Cans.ToArray())
+            {
+                if (c == null || c == source || c.Done) continue;
+                Vector2 p = c.transform.position;
+                if (Vector2.Distance(p, at) > DynamiteRange) continue;
+                var dir = (p - at).sqrMagnitude > 0.0001f ? (p - at).normalized : Vector2.up;
+                var hitPoint = p - dir * 0.2f;   // 폭발 쪽 면을 맞힌다 → 반대쪽으로 튄다
+                int earned = c.Hit(hitPoint, 1f, 1.1f);
+                g.CanHit(c, earned, hitPoint);
+            }
         }
 
         /// <summary>낙하지역에 떨어졌다: 정산하고 사라진다</summary>
