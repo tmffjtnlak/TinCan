@@ -12,10 +12,11 @@ namespace TinCan
     /// </summary>
     public class Bounty : MonoBehaviour
     {
-        public int EveryBursts = 5;
+        /// <summary>지난 현상금이 끝난 뒤 터뜨린 수가 이만큼 차면 부른다 (10-14: 5 → 10, 끝난 때부터 다시 센다. 전엔 싸움 중 박치기도 세져서 끝나자마자 또 떴다)</summary>
+        public int EveryBursts = 10;
         /// <summary>도주 시간 (초, 선반에 내려앉은 때부터). 떨어져도 안 끝나고 이 시간이 다 되면 도망간다 (사용자 10-14, 첫 시험값)</summary>
         public float EscapeSeconds = 35f;   // 10-14: 부하를 잡아야만 깎이니 25 → 35
-        int lastTrigger;
+        int nextAt;
         Can can;
         Image poster; Text title, amount, hp, stamp, timer;
         Image[] pips;
@@ -83,7 +84,8 @@ namespace TinCan
         public void Tick()
         {
             if (busy || Game.I == null || Game.I.State != GameState.Play) return;
-            if (Game.I.Bursts > 0 && Game.I.Bursts / EveryBursts > lastTrigger) { lastTrigger = Game.I.Bursts / EveryBursts; Summon(); }
+            if (nextAt == 0) nextAt = Game.I.Bursts + EveryBursts;
+            if (Game.I.Bursts >= nextAt) Summon();
         }
 
         /// <summary>현상금 등장: 보스 종류 중 하나 (10-14: 보통 / 구르는 무법자 반반)</summary>
@@ -153,6 +155,7 @@ namespace TinCan
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 3f) { rt.anchoredPosition = Vector2.Lerp(new Vector2(-720f, 180f), new Vector2(-1300f, 700f), t * t); yield return null; }
             poster.gameObject.SetActive(false);
             can = null; busy = false;
+            nextAt = Game.I.Bursts + EveryBursts;   // 끝난 때부터 다시 센다
         }
 
         /// <summary>부하가 터졌다: delay초 뒤 현상금 옆 공중에 새 부하를 불러낸다 (현상금이 살아 있을 때만)</summary>

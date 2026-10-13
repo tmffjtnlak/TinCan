@@ -678,7 +678,7 @@ namespace TinCan
         }
 
         /// <summary>
-        /// 부하 박치기 정산 (사용자 10-14): 부하는 터지지 않지만 터뜨린 것과 같게 — 쌓인 돈 × 정산 × 터짐 배수가 세트에, 탄피, 터뜨림 수.
+        /// 부하 박치기 정산 (사용자 10-14): 부하는 터지지 않지만 보상은 세트에 쌓이고 탄피가 나온다. 세트 배율·터뜨림 수에는 안 들어간다 (10-14: 박치기 5번이 배율 +2.5·다음 현상금 카운트까지 올려 과했다).
         /// 피해는 박치기가 현상금에 닿을 때 (Can.Ram)
         /// </summary>
         public void MinionScored(Can can)
@@ -686,9 +686,7 @@ namespace TinCan
             SpillCasings(can.transform.position, BurstCasings, true, false);
             long pay = BurstPay(can.Kind);
             SetPending += pay;
-            AddSetBurst();
-            Bursts++;
-            hud.Float($"+${pay:N0}{MultTag()}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+            hud.Float($"+${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(0.05f));
         }
         /// <summary>현상금이 살아 있나 (선반·공중 상관없이). 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14)</summary>

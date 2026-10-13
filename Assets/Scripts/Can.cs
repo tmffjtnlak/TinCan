@@ -53,9 +53,9 @@ namespace TinCan
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
         /// <summary>현상수배 깡통: 체력 15 (10-14: 30 → 15), 무겁고, 값 5. 터뜨리면 값×15×16 = 1,200 기본. 가게엔 없다</summary>
-        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 500 };
+        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 200 };
         /// <summary>구르는 무법자 (사용자 10-14 첫 보스 행동): 박치기 두 번마다 좌우로 빠르게 구른다</summary>
-        public static readonly CanKind BountyRoller = new CanKind { Id = "bounty", Name = "구르는 무법자", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 500, Trick = BossTrick.Roll };
+        public static readonly CanKind BountyRoller = new CanKind { Id = "bounty", Name = "구르는 무법자", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 200, Trick = BossTrick.Roll };
         public bool IsBounty;
         /// <summary>현상금의 부하 (사용자 10-14): 콧수염 단 깡통. 현상금이 살아 있는 동안 바닥에서 무한히 다시 뛰어오르고, 터지면 현상금이 새로 불러낸다</summary>
         public bool IsMinion;
@@ -64,7 +64,7 @@ namespace TinCan
         public BossTrick Trick;
         public static readonly CanKind Minion = new CanKind { Id = "tin", Name = "부하 깡통", Desc = "현상금의 부하.", Value = 1, Cost = 0, Reward = 5, Price = 0, Hits = 3, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.15f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, IsMinion = true };
         /// <summary>시험용 현상수배 깡통 (사용자 10-13): 체력 3. F4로 부른다 (막타 연출 확인용)</summary>
-        public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 500 };
+        public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 200 };
         public static readonly System.Collections.Generic.List<CanKind> ForSale = new System.Collections.Generic.List<CanKind> { Tin, Bottle, Rubber, Hat };
         /// <summary>터뜨리면 기본 얼마: 값 × H(H+1). (n번 맞추면 값 × n(n+1)/2 쌓이고, 터뜨리면 ×2) — 예측 가능한 점수</summary>
         public long BurstBase => (long)Value * Hits * (Hits + 1);
