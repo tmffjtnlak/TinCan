@@ -22,7 +22,7 @@ namespace TinCan
         public float Weight = 1f;
 
         public static readonly CanKind Tin = new CanKind { Id = "tin", Name = "깡통", Desc = "값 1. 6번 맞으면 터진다.", Value = 1, Cost = 2, Price = 0, Hits = 6, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f,   /* 크기 = 사용자 임시 그림 can_tin 16×20 (10-13) */ Pitch = 1f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
-        public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 무겁다. 4번이면 깨진다.", Value = 3, Cost = 8, Price = 60, Hits = 4, Weight = 1.15f, Width = 0.32f, Height = 0.9f, Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
+        public static readonly CanKind Bottle = new CanKind { Id = "bottle", Name = "병", Desc = "값 3. 작고 무겁다. 5번이면 깨진다.", Value = 3, Cost = 8, Price = 60, Hits = 5, Weight = 1.15f, Width = 15f / 27f, Height = 34f / 27f,   /* 크기 = 사용자 그림 can_bottle 15×34, 체력 5 (10-13) */ Mass = 0.8f, Pitch = 1.5f, Body = new Color(0.35f, 0.6f, 0.4f, 0.9f), Rim = new Color(0.25f, 0.4f, 0.28f), Label = new Color(0.9f, 0.85f, 0.7f) };
         public static readonly CanKind Rubber = new CanKind { Id = "rubber", Name = "고무 깡통", Desc = "값 2. 가벼워서 천천히 떨어진다. 8번이면 터진다.", Value = 2, Cost = 6, Price = 200, Hits = 8, Weight = 0.6f, Width = 0.5f, Height = 0.7f, Mass = 0.7f, Pitch = 0.85f, Body = new Color(0.9f, 0.45f, 0.5f), Rim = new Color(0.55f, 0.2f, 0.25f), Label = new Color(1f, 0.9f, 0.5f) };
         public static readonly CanKind Hat = new CanKind { Id = "hat", Name = "모자", Desc = "값 10. 납작하고 아주 가볍다. 10번이면 찢어진다.", Value = 10, Cost = 30, Price = 400, Hits = 10, Weight = 0.45f, Width = 0.7f, Height = 0.36f, Mass = 0.5f, Pitch = 0.7f, Body = new Color(0.35f, 0.22f, 0.14f), Rim = new Color(0.2f, 0.12f, 0.08f), Label = new Color(0.8f, 0.65f, 0.3f) };
         public string Id;
@@ -425,41 +425,51 @@ namespace TinCan
         }
 
         /// <summary>
-        /// 바닥 착지 (사용자 10-13): 소환 때 선반 착지와 같은 문법 — 밑면 기준 납작(1.35×0.65) → 용수철, 기울기는 가까운 90° 자리로 용수철
-        /// (서 있거나 옆으로 눕는다). 그다음 사라질 땐 효과 없이 심심하게 아래로 빠진다 → 터질 때(구름·불꽃)와 대비
+        /// 바닥 착지 (사용자 10-13 2판): 떨어지던 각도로 부딪혀 옆으로 90° 꺾여 눕는다 (기울어진 쪽, 똑바로면 날아가던 쪽으로).
+        /// 닿는 순간 밑면 기준 납작(1.35×0.65) → 용수철 (소환 착지와 같은 값). 누운 뒤 잠깐 있다가 효과 없이 작아지며 사라진다
+        /// (터질 때 구름·불꽃과 대비)
         /// </summary>
         IEnumerator Vanish()
         {
+            float flyX = rb.linearVelocity.x;
             rb.simulated = false;
             if (white != null && flashLeft <= 0f) white.color = new Color(1f, 1f, 1f, 0f);
             foreach (var p in pips) if (p != null) p.gameObject.SetActive(false);   // 체력 점도 같이 끈다 (심심하게)
-            // 지금 기울기 → 가까운 90° 자리. 옆으로 누우면 세로 반높이 = 폭의 반
+            // 떨어지던 각도 → 눕는 쪽(±90°). 거의 똑바로 떨어졌으면 날아가던 방향으로 넘어진다 (오른쪽으로 가면 시계 방향 = -90°)
             float rot = Mathf.DeltaAngle(0f, transform.eulerAngles.z), rv = 0f;
-            float target = Mathf.Round(rot / 90f) * 90f;
-            bool side = Mathf.Abs(Mathf.DeltaAngle(target, 90f)) < 1f || Mathf.Abs(Mathf.DeltaAngle(target, -90f)) < 1f;
-            float half = (side ? Kind.Width : Kind.Height) * 0.5f;
-            transform.rotation = Quaternion.identity;
-            var basePos = new Vector3(transform.position.x, Look.DropY + half, 0f);
-            transform.position = basePos;
-            // 납작 → 용수철 (소환 착지와 같은 값). sx·sy는 화면 기준 가로·세로
+            float target = Mathf.Abs(rot) > 5f ? (rot > 0f ? 90f : -90f) : (flyX > 0f ? -90f : 90f);
+            transform.rotation = Quaternion.identity;   // 회전은 그림(visual)이, 납작은 몸통(transform)이 화면 축으로
+            float x = transform.position.x, hw = Kind.Width * 0.5f, hh = Kind.Height * 0.5f;
             float sx = 1.35f, sy = 0.65f, vx = 0f, vy = 0f;
-            for (float t = 0f; t < 0.7f; t += Time.deltaTime)
+            void Pose()
+            {
+                // 지금 각도에서 화면 세로 반높이 → 밑면이 바닥선에 붙어 있게 (넘어가는 동안 모서리로 짚는 느낌)
+                float r = rot * Mathf.Deg2Rad;
+                float halfNow = Mathf.Abs(Mathf.Cos(r)) * hh + Mathf.Abs(Mathf.Sin(r)) * hw;
+                transform.localScale = new Vector3(sx, sy, 1f);
+                transform.position = new Vector3(x, Look.DropY + halfNow * sy, 0f);
+                visual.localPosition = Vector3.zero; visual.localScale = Vector3.one;
+                visual.localRotation = Quaternion.Euler(0f, 0f, rot);
+            }
+            for (float t = 0f; t < 0.8f; t += Time.deltaTime)
             {
                 float dt = Time.deltaTime;
                 Ease.Spring(ref sx, ref vx, 1f, 1150f, 18f, dt);
                 Ease.Spring(ref sy, ref vy, 1f, 1150f, 23f, dt);
-                Ease.Spring(ref rot, ref rv, target, 720f, 13f, dt);
-                visual.localScale = side ? new Vector3(sy, sx, 1f) : new Vector3(sx, sy, 1f);   // 누웠으면 그림의 가로가 화면 세로
-                visual.localPosition = new Vector3(0f, -(1f - sy) * half, 0f);                     // 밑면이 바닥에 붙어 있게
-                visual.localRotation = Quaternion.Euler(0f, 0f, rot);
-                if (t > 0.25f && Mathf.Abs(sx - 1f) < 0.01f && Mathf.Abs(vx) < 0.05f && Mathf.Abs(rot - target) < 0.5f) break;
+                Ease.Spring(ref rot, ref rv, target, 900f, 16f, dt);   // 탁 꺾여 눕고 한 번 살짝 되튐
+                Pose();
+                if (t > 0.3f && Mathf.Abs(sx - 1f) < 0.01f && Mathf.Abs(vx) < 0.05f && Mathf.Abs(rot - target) < 0.5f) break;
                 yield return null;
             }
-            visual.localScale = Vector3.one; visual.localPosition = Vector3.zero; visual.localRotation = Quaternion.Euler(0f, 0f, target);
+            sx = sy = 1f; rot = target; Pose();
             yield return new WaitForSeconds(0.2f);
-            // 심심하게: 소리·먼지 없이 아래로 쭉 빠져 화면 밖으로
-            float y = 0f, v = 0f, bottom = -(Look.DropY + 5.5f + half * 2f);
-            while (y > bottom) { float dt = Time.deltaTime; v -= 30f * dt; y += v * dt; transform.position = basePos + Vector3.up * y; yield return null; }
+            // 심심하게: 소리·먼지 없이 제자리에서 작아지며 사라진다
+            var s0 = transform.localScale;
+            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.3f)
+            {
+                transform.localScale = s0 * (1f - Ease.InCubic(t));
+                yield return null;
+            }
             Destroy(gameObject);
         }
 

@@ -377,6 +377,7 @@ namespace TinCan
         public int Airborne { get { int n = 0; foreach (var c in Cans) if (c != null && c.Airborne && !c.Done) n++; return n; } }
 
         /// <summary>돈을 내고 선반에 깡통. 짝 소환이면 여러 개, 붙여 놓기면 마지막 깡통 옆에. 공중에 깡통이 있으면 잠긴다 (세트 중)</summary>
+        public const float BottleChance = 0.2f;
         public bool TrySpawn()
         {
             long cost = SpawnCost(SpawnKind);
@@ -389,7 +390,9 @@ namespace TinCan
                 if (CansOnShelf >= MaxCans || Money < cost) break;
                 Money -= cost;
                 float x = FreeX();
-                Cans.Add(Can.Spawn(SpawnKind, new Vector2(x, Look.ShelfY + 0.11f + SpawnKind.Height * 0.5f)));
+                // 깡통 소환 중 20%는 병이 나온다 (사용자 10-13, 설정은 아직 없음. 값은 깡통 소환비 그대로)
+                var kind = SpawnKind == CanKind.Tin && Random.value < BottleChance ? CanKind.Bottle : SpawnKind;
+                Cans.Add(Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f)));
                 lastSpawnX = x; n++;
             }
             Sfx.Play(Sfx.Reload(), 0.4f, 2.2f);
