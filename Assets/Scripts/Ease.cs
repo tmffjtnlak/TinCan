@@ -18,6 +18,13 @@ namespace TinCan
             return Mathf.Pow(2f, -10f * t) * Mathf.Sin((t - p / 4f) * (2f * Mathf.PI) / p) + 1f;
         }
         public static float InQuad(float t) => t * t;
+        public static float InCubic(float t) => t * t * t;
+        /// <summary>천천히 출발해 빨라졌다 천천히 닿는다 (카메라 이동)</summary>
+        public static float InOutCubic(float t) => t < 0.5f ? 4f * t * t * t : 1f - Mathf.Pow(-2f * t + 2f, 3f) / 2f;
+        /// <summary>처음에 살짝 뒤로 물러났다(예비 동작) 나간다</summary>
+        public static float InBack(float t, float s = 1.70158f) => t * t * ((s + 1f) * t - s);
+        /// <summary>줌: 크기는 곱으로 변해야 일정한 속도로 느껴진다 (선형 보간이면 끝에서 확 빨라 보임)</summary>
+        public static float LerpLog(float a, float b, float k) => Mathf.Exp(Mathf.Lerp(Mathf.Log(a), Mathf.Log(b), k));
         /// <summary>갔다 돌아오는 산 모양 (펀치)</summary>
         public static float Punch(float t) => Mathf.Sin(t * Mathf.PI);
         /// <summary>

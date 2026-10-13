@@ -233,41 +233,82 @@ namespace TinCan
             SetButtonsVisible(false);
             if (furniture != null) furniture.SetActive(false);
             var cam = Camera.main;
-            // 문으로 짧게 당긴다 (0.3초, 깊이 2.3배) — 문이 양쪽으로 열리고
+            // 사용자 10-13: 고정 속도 lerp가 부자연스럽다 → 한 시간축 위에 겹치는 트윈으로.
+            //  0.00~0.12 예비 동작: 살짝 물러난다 (크기 ×1.04, OutQuad)
+            //  0.12~0.80 밀고 들어감: 위치 InOutCubic, 크기는 로그 공간 InOutCubic (줌 속도가 일정하게 느껴진다)
+            //  0.48~     문: 용수철로 휙 열렸다 앞뒤로 흔들림 (여닫이문)
+            //  0.62~0.96 원형: 천천히 출발해 빨라지며 닫힘 (InCubic), 그동안 카메라는 계속 아주 조금 더 들어간다
             Vector3 from = cam.transform.position; Vector2 door = DoorCenter;
             Vector3 to = new Vector3(door.x, door.y, from.z);
-            float size0 = cam.orthographicSize, size1 = 2.2f;
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.3f)
-            {
-                float k = Ease.OutQuad(t);
-                cam.transform.position = Vector3.Lerp(from, to, k);
-                cam.orthographicSize = Mathf.Lerp(size0, size1, k);
-                yield return null;
-            }
-            cam.transform.position = to; cam.orthographicSize = size1;
-            Sfx.Play(Sfx.Click(), 0.6f, 0.7f);
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.12f)
-            {
-                float sx = Mathf.Max(0.02f, 1f - t);
-                if (doorL != null) doorL.localScale = new Vector3(sx, 1f, 1f);
-                if (doorR != null) doorR.localScale = new Vector3(sx, 1f, 1f);
-                yield return null;
-            }
-            // 원형: 문 자리(= 카메라 중심)에서 0.2초
+            float size0 = cam.orthographicSize, sizeBack = size0 * 1.04f, size1 = 2.0f, sizeEnd = 1.75f;
+            const float tBack = 0.12f, tPush = 0.80f, tDoor = 0.48f, tIris = 0.62f, irisLen = 0.34f;
+            float dL = 1f, vL = 0f, dR = 1f, vR = 0f;
+            bool doorOpened = false, irisStarted = false, irisDone = false;
             var iris = Iris.Get(); iris.Offset = Vector2.zero;
-            yield return iris.Close(0.2f);
+            float time = 0f;
+            while (!irisDone)
+            {
+                float dt = Time.unscaledDeltaTime; time += dt;
+                // 카메라
+                if (time < tBack)
+                {
+                    float k = Ease.OutQuad(time / tBack);
+                    cam.orthographicSize = Mathf.Lerp(size0, sizeBack, k);
+                }
+                else if (time < tPush)
+                {
+                    float k = Ease.InOutCubic((time - tBack) / (tPush - tBack));
+                    cam.transform.position = Vector3.Lerp(from, to, k);
+                    cam.orthographicSize = Ease.LerpLog(sizeBack, size1, k);
+                }
+                else
+                {
+                    // 멈추지 않고 아주 천천히 더 들어간다 (끝나는 느낌 대신 빨려 들어가는 느낌)
+                    float k = Ease.OutQuad(Mathf.Clamp01((time - tPush) / 0.4f));
+                    cam.transform.position = to;
+                    cam.orthographicSize = Ease.LerpLog(size1, sizeEnd, k);
+                }
+                // 문: 용수철. 목표 0.15(거의 옆면) — 덜 감쇠해서 지나쳐 반대로 넘어갔다(음수 = 반대쪽으로 열림) 돌아오며 흔들린다
+                if (time >= tDoor)
+                {
+                    if (!doorOpened) { doorOpened = true; vL = vR = -14f; Sfx.Play(Sfx.Click(), 0.6f, 0.7f); }
+                    Ease.Spring(ref dL, ref vL, 0.15f, 220f, 7f, dt);
+                    Ease.Spring(ref dR, ref vR, 0.15f, 200f, 6.5f, dt);   // 좌우가 살짝 다르게 (같이 움직이면 기계 같다)
+                    if (doorL != null) doorL.localScale = new Vector3(Snap(dL), 1f, 1f);
+                    if (doorR != null) doorR.localScale = new Vector3(Snap(dR), 1f, 1f);
+                }
+                // 원형
+                if (time >= tIris && !irisStarted)
+                {
+                    irisStarted = true;
+                    StartCoroutine(RunIris(iris, irisLen, () => irisDone = true));
+                }
+                yield return null;
+            }
             onDone?.Invoke();
         }
+
+        IEnumerator RunIris(Iris iris, float len, System.Action done)
+        {
+            yield return iris.Close(len, Ease.InCubic);
+            done();
+        }
+
+        /// <summary>문 폭을 도트 단위로 (11도트 반쪽 문이 1도트씩 줄고 는다) — 형태는 도트, 움직임은 용수철</summary>
+        static float Snap(float s) { float w = Mathf.Round(s * 11f); if (Mathf.Abs(w) < 1f) w = Mathf.Sign(s == 0f ? 1f : s); return w / 11f; }
 
         // ---------- 빛내림 (사용자 10-13): 술집 쪽으로 3줄기, 왼쪽 위 → 오른쪽 아래, 도트 스타일 ----------
         // 도트 스타일 = 가장자리 딱 끊김 + 가운데 심지 한 단 더 밝게 + 길이 방향 밝기 4단 계단 + 숨쉬기도 단으로만 바뀜
         const int RayW = 480, RayH = 270;
         Texture2D rayTex; Color32[] rayPx; SpriteRenderer raySr; float rayClock;
+        readonly float[] rowA = new float[RayW];
         // 술집 = 그림 x 275~405도트(오른쪽 100 밀린 뒤), 아래에서 60~200행.
         // 위 끝 x(rayCx)는 사선(22°)을 거꾸로 따라 올라간 자리: 120행에서 각각 지붕 왼쪽·간판·물탱크 쪽에 닿는다
-        static readonly float[] rayCx = { 240f, 285f, 338f }, rayWd = { 12f, 7f, 16f }, rayA = { 0.14f, 0.1f, 0.16f };   // 위 끝 폭. 술집 높이(120행)에선 약 2배
+        // 줄기마다 기준점(rayHit: RayPivot행에서 닿는 x)을 축으로 각도가 다르다. 각도 = 22° + rayTilt ± 천천히 흔들림
+        static readonly float[] rayHit = { 300f, 345f, 400f }, rayTilt = { -6f, 1f, 6f }, rayWd = { 12f, 7f, 16f }, rayA = { 0.14f, 0.1f, 0.16f };   // 위 끝 폭. 술집 높이(120행)에선 약 2배
         const float RayFoot = 50f, RayFull = 170f;   // 이 행(아래에서) 밑으로는 사라지고, RayFull 위로는 최대 밝기 — 술집 발밑까지만 내리쬔다
-        const float RaySlope = 0.404f;                // tan 22°. 한 줄 내려갈 때 오른쪽으로 가는 도트 수
+        const float RayAngle = 22f, RaySway = 2.5f;  // 기준 각도, 시간에 따라 각 줄기가 ±이만큼 천천히 흔들림
+        const float RayPivot = 120f;                 // 이 행(술집 간판 높이)을 축으로 돌아서, 각도가 바뀌어도 술집은 계속 비춘다
         const float RaySpread = 2.2f;                 // 사다리꼴: 바닥에서 폭이 위 끝의 (1 + 이 값)배
 
         void BuildRays()
@@ -282,39 +323,46 @@ namespace TinCan
 
         void TickRays(float t)
         {
-            if (rayTex == null || t - rayClock < 1f / 8f) return;
+            if (rayTex == null || t - rayClock < 1f / 12f) return;
             rayClock = t;
             DrawRays(t);
         }
 
         void DrawRays(float t)
         {
-            int n = rayCx.Length;
-            var cx = new float[n]; var al = new float[n];
+            int n = rayHit.Length;
+            var hit = new float[n]; var al = new float[n]; var slope = new float[n];
             for (int i = 0; i < n; i++)
             {
                 al[i] = rayA[i] * (0.7f + 0.3f * Mathf.Sin(t * (0.2f + 0.07f * i) + i * 1.7f));
-                cx[i] = Mathf.Round(rayCx[i] + 4f * Mathf.Sin(t * 0.12f + i * 0.85f));   // 떠돌아도 한 도트씩 (형태는 도트)
+                hit[i] = rayHit[i] + 3f * Mathf.Sin(t * 0.12f + i * 0.85f);
+                // 각도: 줄기마다 다르고(±6°), 서로 다른 느린 주기로 흔들린다 (두 사인을 섞어 규칙적으로 안 보이게)
+                float sway = RaySway * (0.65f * Mathf.Sin(t * (0.13f + 0.05f * i) + i * 2.1f) + 0.35f * Mathf.Sin(t * 0.31f + i));
+                slope[i] = Mathf.Tan((RayAngle + rayTilt[i] + sway) * Mathf.Deg2Rad);
             }
             // 사용자 10-13 정정: 형태만 도트(가장자리 딱 끊김·계단), 밝기 변화는 부드럽게, 아래로 갈수록 넓어지는 사다리꼴
             for (int y = 0; y < RayH; y++)
             {
                 float fade = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((y - RayFoot) / (RayFull - RayFoot)));   // 길이 방향 부드럽게
                 float down = (RayH - 1 - y) / (float)RayH;               // 0 = 위 끝, 1 = 바닥
-                float dx = Mathf.Round(down * RayH * RaySlope);          // 내려갈수록 오른쪽. 행마다 정수 도트 → 가장자리가 계단
                 int row = y * RayW;
-                for (int x = 0; x < RayW; x++)
-                {
-                    float a = 0f;
+                System.Array.Clear(rowA, 0, RayW);
+                if (fade > 0f)
                     for (int i = 0; i < n; i++)
                     {
+                        // 이 행에서 줄기 중심: 축(RayPivot행의 hit)에서 내려갈수록 오른쪽. 정수 도트 → 가장자리 계단
+                        float c = Mathf.Round(hit[i] + (RayPivot - y) * slope[i]);
                         float half = Mathf.Round(rayWd[i] * 0.5f * (1f + RaySpread * down));   // 사다리꼴: 반폭이 정수 도트로 커진다
-                        float d = Mathf.Abs(x - (cx[i] + dx)) / half;
-                        if (d < 1f) a += al[i] * (1f - 0.6f * d * d);    // 가장자리는 딱 끊기고, 속은 가운데가 부드럽게 밝다
+                        if (half < 1f) half = 1f;
+                        int x0 = Mathf.Max(0, (int)(c - half)), x1 = Mathf.Min(RayW - 1, (int)(c + half));
+                        for (int x = x0; x <= x1; x++)
+                        {
+                            float d = Mathf.Abs(x - c) / half;
+                            if (d < 1f) rowA[x] += al[i] * (1f - 0.6f * d * d);   // 가장자리는 딱 끊기고, 속은 가운데가 부드럽게 밝다
+                        }
                     }
-                    a *= fade;
-                    rayPx[row + x] = new Color32(255, 248, 215, (byte)(255f * Mathf.Min(0.35f, a)));
-                }
+                for (int x = 0; x < RayW; x++)
+                    rayPx[row + x] = new Color32(255, 248, 215, (byte)(255f * Mathf.Min(0.35f, rowA[x] * fade)));
             }
             rayTex.SetPixels32(rayPx); rayTex.Apply(false);
         }

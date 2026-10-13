@@ -61,11 +61,26 @@ namespace TinCan
             transform.position = new Vector3(c.transform.position.x + Offset.x, c.transform.position.y + Offset.y, 0f);
         }
 
-        public IEnumerator Close(float seconds)
+        public IEnumerator Close(float seconds) => Close(seconds, null);
+
+        /// <summary>곡선을 주면 구멍 크기를 로그 공간에서 그 곡선대로 줄인다 (크기는 곱으로 변해야 일정하게 느껴진다)</summary>
+        public IEnumerator Close(float seconds, System.Func<float, float> ease)
         {
             gameObject.SetActive(true);
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / seconds) { SetOpen(1f - t); yield return null; }
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / seconds)
+            {
+                if (ease == null) SetOpen(1f - t);
+                else SetScale(Ease.LerpLog(OpenScale * 0.5f, ClosedScale * 0.6f, ease(t)));
+                yield return null;
+            }
             SetOpen(0f);
+        }
+
+        void SetScale(float sc)
+        {
+            hole.transform.localScale = Vector3.one * sc;
+            hole.gameObject.SetActive(true);
+            solid.gameObject.SetActive(false);
         }
 
         public IEnumerator Open(float seconds)
