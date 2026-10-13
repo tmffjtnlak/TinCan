@@ -107,7 +107,7 @@ namespace TinCan
             armory.Build(this, hud.Canvas);
             booklet = new GameObject("Booklet").AddComponent<Booklet>();
             booklet.Build(this, hud.Canvas);
-            new GameObject("Markers").AddComponent<OffscreenMarkers>();
+            // 화면 밖 깡통 표식(마름모 + 줄기)은 뺐다 (사용자 10-14: 현상금 줌인 때 엉뚱하게 떴다. 예전 화면용)
             bounty = Bounty.Make(hud.Canvas);
             viewer = GunViewer.Make(hud.Canvas);
             AudioListener.volume = PlayerPrefs.GetFloat("volume", 1f);
