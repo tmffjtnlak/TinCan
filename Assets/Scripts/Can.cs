@@ -29,10 +29,10 @@ namespace TinCan
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
         /// <summary>현상수배 깡통: 체력 30, 무겁고, 값 5. 터뜨리면 값×30×31 = 4,650 기본. 가게엔 없다</summary>
-        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 30. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 30, Weight = 1.35f, Width = 0.8f, Height = 1.1f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
+        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 30. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 30, Weight = 1.35f, Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
         public bool IsBounty;
         /// <summary>시험용 현상수배 깡통 (사용자 10-13): 체력 3. F4로 부른다 (막타 연출 확인용)</summary>
-        public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 1.35f, Width = 0.8f, Height = 1.1f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
+        public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 1.35f, Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
         public static readonly System.Collections.Generic.List<CanKind> ForSale = new System.Collections.Generic.List<CanKind> { Tin, Bottle, Rubber, Hat };
         /// <summary>터뜨리면 기본 얼마: 값 × H(H+1). (n번 맞추면 값 × n(n+1)/2 쌓이고, 터뜨리면 ×2) — 예측 가능한 점수</summary>
         public long BurstBase => (long)Value * Hits * (Hits + 1);
@@ -160,8 +160,44 @@ namespace TinCan
             float pw = kind.Hits > 10 ? 0.06f : 0.08f, gap = 0.03f, total = perRow * pw + (perRow - 1) * gap;
             for (int i = 0; i < kind.Hits; i++)
                 pips[i] = Look.Quad("Pip", new Vector2(-total * 0.5f + pw * 0.5f + (i % perRow) * (pw + gap), kind.Height * 0.5f + 0.14f + (i / perRow) * (pw + gap)), new Vector2(pw, pw), new Color(1f, 1f, 1f, 0.9f), 6, visual);
+            if (kind.IsBounty) AddProps();
             visual.localScale = Vector3.zero;
             StartCoroutine(PopIn());
+        }
+
+        // ---------- 현상금 깡통 부착물 (사용자 10-13) ----------
+        // 자리는 사용자 합성 그림(19×24 깡통 기준)에서 잰 값: 깡통 가운데에서 도트 (위 +).
+        // 모자 하나(갈색/흰색) + 콧수염 하나(물결/일자) + 권총 60%. 권총은 깡통 뒤(총열이 가려짐), 콧수염은 라벨 위, 모자는 맨 위
+        readonly System.Collections.Generic.List<CanProp> props = new System.Collections.Generic.List<CanProp>();
+        const float PropDropChance = 0.2f;   // 맞을 때마다 이 확률로 하나가 떨어져 나간다
+        void AddProps()
+        {
+            bool brown = Random.value < 0.5f;
+            AddProp(brown ? "prop_hat_brown" : "prop_hat_white", brown ? new Vector2(0f, 13f) : new Vector2(0.5f, 19.5f), 5, true, 0.32f);
+            AddProp(Random.value < 0.5f ? "prop_stache_wavy" : "prop_stache_flat", new Vector2(0f, -1.5f), 4, false, 0.18f);
+            if (Random.value < 0.6f) AddProp("prop_gun", new Vector2(-3.5f, -7.5f), 1, false, 0.25f);
+            // 체력 점은 모자 위로 올린다
+            float top = Kind.Height * 0.5f;
+            foreach (var p in props) top = Mathf.Max(top, p.Top);
+            float lift = top - Kind.Height * 0.5f;
+            if (lift > 0f) foreach (var pip in pips) pip.transform.localPosition += Vector3.up * lift;
+        }
+        void AddProp(string art, Vector2 offsetDots, int order, bool fromAbove, float delay)
+        {
+            var p = CanProp.Make(visual, art, offsetDots, order, fromAbove, delay);
+            if (p != null) props.Add(p);
+        }
+        void DropProp(Vector2 from, float power = 1f)
+        {
+            if (props.Count == 0) return;
+            int i = Random.Range(0, props.Count);
+            if (props[i] != null) props[i].Detach(from, power);
+            props.RemoveAt(i);
+        }
+        void DropAllProps(Vector2 from, float power)
+        {
+            foreach (var p in props) if (p != null) p.Detach(from, power);
+            props.Clear();
         }
 
         /// <summary>저주받았다 (저주 총에 맞아서): 보라색으로 변한다. 떨어지면 쌓인 돈을 뺏기고, 터뜨리면 평소대로 최고치</summary>
@@ -328,7 +364,8 @@ namespace TinCan
             StopAllCoroutines(); StartCoroutine(Squash());
             Sfx.Play(Sfx.Tang(), 0.8f, Kind.Pitch * (1f + Mathf.Min(Combo, 12) * 0.03f));
             Fx.Spark(hitPoint, 5 + Mathf.Min(Combo, 6), 0.8f + Mathf.Min(Combo, 8) * 0.08f);
-            if (!Done) Fx.Cloud(hitPoint, 0.45f);   // 맞은 자리에 작은 흰 구름이 남는다 (사용자 10-13 시험). 터지면 Burst가 큰 구름
+            if (!Done) Fx.Cloud(hitPoint, 0.45f);
+            if (!Done && props.Count > 0 && Random.value < PropDropChance) DropProp(hitPoint);   // 부착물이 일정 확률로 떨어져 나간다   // 맞은 자리에 작은 흰 구름이 남는다 (사용자 10-13 시험). 터지면 Burst가 큰 구름
             Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f);
             return earned;
         }
@@ -401,6 +438,7 @@ namespace TinCan
             if (IsMenu) OnMenuLanded(); else Game.I?.CanBurst(this);   // 타이틀 깡통은 터지면 바로 시작
             StopAllCoroutines();
             rb.simulated = false;
+            DropAllProps(at, 1.4f);   // 남은 부착물은 전부 튀어 나간다 (모자만 바닥에 남았다 사라짐)
             if (Kind.IsBounty)
             {
                 // 큰 깡통은 그냥 꺼지지 않는다 (사용자 10-13): 그림을 그 자리에 떼어 두고 흰색으로 번쩍 → 살짝 부풀었다 작아지며 사라짐
@@ -420,6 +458,7 @@ namespace TinCan
             Fx.Dust(new Vector2(transform.position.x, Look.DropY + 0.3f), 6, 1f);
             Fx.Shake(0.2f);
             if (IsMenu) OnMenuLanded(); else Game.I?.CanLanded(this);
+            DropAllProps((Vector2)transform.position + Vector2.down, 0.6f);   // 바닥에 떨어지면 부착물도 벗겨져 나뒹군다
             StopAllCoroutines();
             StartCoroutine(Vanish());
         }
