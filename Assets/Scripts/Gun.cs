@@ -191,7 +191,7 @@ namespace TinCan
 
             // 쏠 때 벌어짐: 예전엔 전체를 키웠다(도트가 찌그러짐) → 팔만 도트 단위로 밀어낸다 (최대 약 8도트)
             PlaceArms(Mathf.RoundToInt(kickLeft * 8f * Mathf.Min(1f, Kind.Kick)));
-            if (kickLeft > 0f)
+            if (kickLeft > 0f && !Cinematic)
             {
                 kickLeft = Mathf.Max(0f, kickLeft - Time.unscaledDeltaTime * 5f);
                 cam.transform.position = camHome + (Vector3)Random.insideUnitCircle * kickLeft * 0.12f * Kind.Kick;
@@ -199,73 +199,134 @@ namespace TinCan
             }
         }
 
-        // ---------- 현상금 막타 연출 (사용자 10-13) ----------
-        // 평소 총알은 즉시 맞는다(히트스캔). 현상금 깡통의 마지막 한 발만: 시간이 크게 느려지고 레터박스가 올라오고,
-        // 눈에 보이는 총알이 총구에서 깡통까지 날아가 닿는 순간 터진다 → 잠깐 멈춘 듯 머물다 → 시간이 천천히 풀린다.
+        // ---------- 현상금 막타 연출 (사용자 10-13, 2판) ----------
+        // 평소 총알은 즉시 맞는다(히트스캔). 현상금 깡통의 마지막 한 발만:
+        //  1) 시간이 크게 느려지고 레터박스가 올라온다
+        //  2) 얇은 직선 섬광 총알이 총구 → 깡통으로 날아가고, 카메라가 그 총알을 따라가며 깡통 쪽으로 줌인
+        //  3) 닿는 순간 거의 멈춤: 흰 번쩍임·고리 둘·불꽃·큰 흔들림·소환 구름(크게)·금 탄피 한 무더기
+        //  4) 슬로우와 줌이 천천히 풀리면서 탄피가 사방으로 후두두둑 떨어지고, 바닥에 눕는 것부터 점수판으로 빨려 간다
         /// <summary>연출 중 (이때는 쏘지 않는다)</summary>
         public static bool Cinematic { get; private set; }
         bool IsFinisher(Can can) => !Cinematic && can.Kind.IsBounty && can.HitsLeft <= 1 && !can.Done && !can.IsMenu;
+        const float FinisherZoom = 0.5f;      // 깡통에 닿을 때 카메라 크기 (기본의 0.5배 = 2배 확대)
+        const int FinisherCasings = 48;       // 터질 때 쏟아지는 금 탄피 수 (보여주기용: 돈은 세트 정산이 따로 준다)
 
         IEnumerator Finisher(Can can)
         {
             Cinematic = true;
             Letterbox.Force = true;
-            float baseFixed = 0.02f;
+            kickLeft = 0f;
+            const float baseFixed = 0.02f;
             void SetTime(float s) { Time.timeScale = s; Time.fixedDeltaTime = baseFixed * Mathf.Max(0.02f, s); }
+            float size0 = cam.orthographicSize;
+            Vector3 camStart = cam.transform.position;
+            // 카메라가 배경 밖을 비추지 않게: 크기 s일 때 가운데가 갈 수 있는 범위
+            Vector3 Clamp(Vector2 p, float s)
+            {
+                float hw = Mathf.Max(0f, size0 * cam.aspect - s * cam.aspect), hh = Mathf.Max(0f, size0 - s);
+                return new Vector3(Mathf.Clamp(p.x, camStart.x - hw, camStart.x + hw), Mathf.Clamp(p.y, camStart.y - hh, camStart.y + hh), camStart.z);
+            }
+            void SetCam(Vector2 center, float s)
+            {
+                cam.orthographicSize = s;
+                var pos = Clamp(center, s);
+                cam.transform.position = pos;
+                Fx.CamFocus = pos;   // 흔들림도 이 자리를 기준으로
+            }
+            SpriteRenderer head = null, tail = null;
             try
             {
                 // 1) 시간이 0.12초 만에 0.12배로 (OutCubic: 확 느려졌다 가라앉음)
                 for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.12f) { SetTime(Mathf.Lerp(1f, 0.12f, Ease.OutCubic(t))); yield return null; }
                 SetTime(0.12f);
                 Sfx.Play(Sfx.Whoosh(), 0.7f, 0.5f);
-                // 2) 눈에 보이는 총알: 총구 → 깡통 (0.5초, 깡통이 느리게 움직여도 따라간다). 지나간 자리에 도트 꼬리
-                var art = GunView.LoadArt(Kind.Id == "shotgun" ? "bullet_shotgun" : "bullet_revolver");
-                var b = new GameObject("FinisherBullet").AddComponent<SpriteRenderer>(); b.sortingOrder = 46;
-                if (art != null) b.sprite = art; else { b.sprite = Look.Square(); b.transform.localScale = new Vector3(0.3f, 0.1f, 1f); b.color = new Color(1f, 0.85f, 0.4f); }
+                // 2) 얇은 직선 총알: 밝은 머리(짧은 선) + 그 뒤로 옅어지는 긴 꼬리 선. 카메라가 머리를 따라가며 줌인
+                head = Look.Quad("FinisherHead", Vector2.zero, Vector2.one, new Color(1f, 0.98f, 0.85f, 1f), 46);
+                tail = Look.Quad("FinisherTail", Vector2.zero, Vector2.one, new Color(1f, 0.9f, 0.6f, 0.45f), 45);
                 Vector2 from = view.Muzzle;
-                float trailClock = 0f;
-                for (float t = 0f; t < 1f && can != null && !can.Done; t += Time.unscaledDeltaTime / 0.5f)
+                const float Flight = 0.6f, Thin = 1f / 27f;
+                for (float t = 0f; t < 1f && can != null && !can.Done; t += Time.unscaledDeltaTime / Flight)
                 {
                     Vector2 to = can.transform.position;
-                    float k = Ease.InOutCubic(t) * 0.85f + t * 0.15f;   // 출발·도착이 살짝 느리고 가운데가 빠르다 (완전히 멈추진 않게 직선 15% 섞음)
+                    float k = Ease.InOutCubic(t) * 0.8f + t * 0.2f;   // 출발·도착이 살짝 느리고 가운데가 빠르다
                     Vector2 p = Vector2.Lerp(from, to, k);
-                    var dir = to - from;
-                    b.transform.position = new Vector3(Mathf.Round(p.x * 27f) / 27f, Mathf.Round(p.y * 27f) / 27f, 0f);
-                    b.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
-                    trailClock += Time.unscaledDeltaTime;
-                    if (trailClock > 0.03f) { trailClock = 0f; StartCoroutine(TrailDot(p)); }
+                    var dir = (to - from); float ang = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                    // 머리: 길이 14도트 / 꼬리: 총구부터 머리까지
+                    var hDir = dir.normalized;
+                    float headLen = 14f * Thin;
+                    head.transform.position = p - hDir * headLen * 0.5f; head.transform.rotation = Quaternion.Euler(0f, 0f, ang);
+                    head.transform.localScale = new Vector3(headLen, Thin, 1f);
+                    float tailLen = Vector2.Distance(from, p);
+                    tail.transform.position = (from + p) * 0.5f; tail.transform.rotation = Quaternion.Euler(0f, 0f, ang);
+                    tail.transform.localScale = new Vector3(tailLen, Thin, 1f);
+                    tail.color = new Color(1f, 0.9f, 0.6f, 0.45f * (1f - t * 0.6f));
+                    // 카메라: 총알 머리를 따라가며(조금 앞서) 깡통 쪽으로 줌인. 같은 곡선이라 도착할 때 같이 선다
+                    float camK = Ease.InOutCubic(t);
+                    SetCam(Vector2.Lerp(camStart, Vector2.Lerp(p, to, 0.35f), camK), Mathf.Lerp(size0, size0 * FinisherZoom, camK));
                     yield return null;
                 }
-                Destroy(b.gameObject);
+                Destroy(head.gameObject); Destroy(tail.gameObject); head = tail = null;
                 if (can == null || can.Done) yield break;
-                // 3) 닿는 순간: 거의 멈춤(0.03배)에서 터진다 → 0.35초 머문다
+                // 3) 닿는 순간: 거의 멈춤(0.03배) + 빵빵한 터짐
                 SetTime(0.03f);
                 Vector2 at = can.transform.position;
+                SetCam(at, size0 * FinisherZoom * 0.92f);   // 맞는 순간 한 번 더 당긴다 (펀치)
                 HitOne(can, at);
                 Fx.HitMark(at);
-                Fx.Shake(1f);
-                yield return new WaitForSecondsRealtime(0.35f);
-                // 4) 천천히 풀린다 (1초, InQuad: 처음엔 거의 그대로 느리다가 점점 원래 속도로). 절반쯤에서 레터박스가 빠지기 시작
-                for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 1f)
+                Fx.Ring(at, new Color(1f, 0.95f, 0.7f), 3.4f);
+                Fx.Ring(at, Color.white, 1.6f);
+                Fx.Spark(at, 26, 1.8f);
+                Fx.Cloud(at, 1.6f);
+                Fx.Shake(1.5f);
+                StartCoroutine(Flash());
+                Sfx.Play(Sfx.Bang(), 1f, 0.35f);
+                // 금 탄피 한 무더기: 사방으로 (슬로우라 처음엔 거의 안 움직이다가, 풀리면서 후두두둑)
+                for (int i = 0; i < FinisherCasings; i++)
+                {
+                    float a = Random.Range(0f, Mathf.PI * 2f);
+                    var v = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.8f + 0.6f) * Random.Range(3f, 9f);
+                    var c = Casing.Drop(at + Random.insideUnitCircle * 0.25f, 0, true, v);
+                    c.OnRest = () => StartCoroutine(FlyWhenDone(c));
+                }
+                yield return new WaitForSecondsRealtime(0.4f);
+                // 4) 천천히 풀린다 (1.4초): 시간 InQuad(처음엔 거의 그대로 느리다가 점점 원래 속도), 줌은 InOutCubic으로 원래 자리
+                Vector2 camFrom = cam.transform.position; float sizeFrom = cam.orthographicSize;
+                for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 1.4f)
                 {
                     SetTime(Mathf.Lerp(0.03f, 1f, Ease.InQuad(t)));
-                    if (t > 0.5f) Letterbox.Force = false;
+                    float z = Ease.InOutCubic(t);
+                    SetCam(Vector2.Lerp(camFrom, camStart, z), Mathf.Lerp(sizeFrom, size0, z));
+                    if (t > 0.6f) Letterbox.Force = false;
                     yield return null;
                 }
             }
             finally
             {
+                if (head != null) Destroy(head.gameObject);
+                if (tail != null) Destroy(tail.gameObject);
                 SetTime(1f);
+                cam.orthographicSize = size0;
+                cam.transform.position = camStart;
+                Fx.CamFocus = null;
                 Letterbox.Force = false;
                 Cinematic = false;
             }
         }
 
-        IEnumerator TrailDot(Vector2 at)
+        /// <summary>바닥에 누운 금 탄피: 연출(줌)이 끝난 뒤 점수판으로 빨려 간다 (줌 중엔 점수판 자리가 달라서)</summary>
+        IEnumerator FlyWhenDone(Casing c)
         {
-            var d = Look.Quad("Trail", new Vector2(Mathf.Round(at.x * 27f) / 27f, Mathf.Round(at.y * 27f) / 27f), Vector2.one * (2f / 27f), new Color(1f, 0.95f, 0.75f, 0.9f), 45);
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.35f) { d.color = new Color(1f, 0.95f, 0.75f, 0.9f * (1f - t)); yield return null; }
-            Destroy(d.gameObject);
+            while (Cinematic) yield return null;
+            if (c == null) yield break;
+            yield return c.FlyTo(Game.I.Hud.MoneyWorld(), Random.Range(0.02f, 0.45f), _ => { Game.I.Hud.BumpMoney(); Sfx.Play(Sfx.Click(), 0.18f, Random.Range(1.6f, 2.4f)); });
+        }
+
+        /// <summary>화면 전체 흰 번쩍임 (0.15초)</summary>
+        IEnumerator Flash()
+        {
+            var f = Look.Quad("Flash", cam.transform.position, new Vector2(40f, 30f), new Color(1f, 1f, 1f, 0.7f), 60);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.15f) { f.transform.position = (Vector2)cam.transform.position; f.color = new Color(1f, 1f, 1f, 0.7f * (1f - t)); yield return null; }
+            Destroy(f.gameObject);
         }
 
         void Fire(Vector2 aim)

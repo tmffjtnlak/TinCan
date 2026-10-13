@@ -54,7 +54,7 @@ namespace TinCan
             // 줌: 집중 중에만. 부드럽게(덜 출렁) 다가가고, 마지막 1초엔 남은 만큼 천천히 풀린다
             float zTarget = slow ? Mathf.Lerp(1f, ZoomIn, tail) : 1f;
             Ease.Spring(ref zoom, ref zoomV, zTarget, 40f, 12f, dt);
-            if (play && !Force)
+            if (play && !Force && !Gun.Cinematic)   // 현상금 막타 연출이 카메라를 쥐고 있을 땐 손대지 않는다
             {
                 var cam = Camera.main;
                 if (cam != null)

@@ -9,6 +9,8 @@ namespace TinCan
         static Fx inst;
         static Fx I => inst != null ? inst : (inst = new GameObject("Fx").AddComponent<Fx>());
         static Vector3 camHome; static float shake, shakeDecay = 6f;
+        /// <summary>흔들림의 기준 위치. 연출(현상금 막타)이 카메라를 옮기는 동안 그 자리를 넣어 둔다. null이면 화면 가운데</summary>
+        public static Vector3? CamFocus;
 
         // ---------- 소환 구름 (사용자 10-13): 흰 도트 원 여러 개가 튕기며 부풀었다 위로 떠오르며 줄어든다 ----------
         // 원은 반지름마다 따로 찍은 도트 원 그림을 갈아 끼운다 → 크기가 변해도 늘 도트 (늘려서 키우지 않는다)
@@ -165,8 +167,9 @@ namespace TinCan
             if (shake <= 0f) return;
             shake = Mathf.Max(0f, shake - Time.unscaledDeltaTime * shakeDecay);
             var off = Random.insideUnitCircle * shake * 0.15f;
-            cam.transform.position = new Vector3(camHome.x + off.x, camHome.y + off.y, camHome.z);
-            if (shake <= 0f) cam.transform.position = camHome;
+            var home = CamFocus ?? camHome;
+            cam.transform.position = new Vector3(home.x + off.x, home.y + off.y, home.z);
+            if (shake <= 0f) cam.transform.position = home;
         }
     }
 }
