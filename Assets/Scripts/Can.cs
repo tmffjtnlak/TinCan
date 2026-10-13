@@ -174,10 +174,10 @@ namespace TinCan
             // 착지 = 선반과 부딪힌 그 프레임(OnCollisionEnter2D), 납작은 밑면 기준(가운데 기준이면 밑이 떠 보였다), 떨어지는 동안 살짝 길쭉
             if (!IsMenu) Fx.Cloud(transform.position, 1f);
             float sx = 0.15f, sy = 0.15f, vx = 0f, vy = 0f, whiteA = 1f;
-            // 회전 (10-13 4판): ±180°에서 시작해 가속 곡선(InCubic)으로 0.22초에 0°까지 돈다.
-            // 도착하는 순간의 빠르기 일부를 용수철에 넘겨, 0°를 살짝 지나쳤다 튕겨 선다
+            // 회전 (10-13 5판): ±180°에서 시작해 '느렸다 빨랐다 느려지는' 곡선(InOutCubic)으로 0.29초에 0°까지 돈다.
+            // 체공 시간은 4판보다 30% 길게 (회전 0.22 → 0.29초, 중력 풀기 0.24~0.3 → 0.31~0.39초)
             float rotStart = (Random.value < 0.5f ? -1f : 1f) * 180f, rot = rotStart, rv = 0f;
-            const float RotDur = 0.22f;
+            const float RotDur = 0.29f;
             bool spun = false;
             bool landed = false; float t = 0f, releasedAt = -1f;
             shelfHit = false;
@@ -191,14 +191,14 @@ namespace TinCan
                 if (!spun)
                 {
                     float k = Mathf.Clamp01(t / RotDur);
-                    rot = rotStart * (1f - Ease.InCubic(k));
-                    if (k >= 1f) { spun = true; rot = 0f; rv = -rotStart * 3f / RotDur * 0.12f; }   // 도착 빠르기(InCubic 끝 기울기 = 3)의 12%를 넘겨 받는다
+                    rot = rotStart * (1f - Ease.InOutCubic(k));
+                    if (k >= 1f) { spun = true; rot = 0f; rv = 0f; }   // 끝에서 이미 느려져 도착하므로 넘겨 받을 빠르기 없음
                 }
                 else Ease.Spring(ref rot, ref rv, 0f, 720f, 13f, dt);   // 덜 감쇠: 0°를 한두 번 지나치며 흔들리다 선다
                 if (t > 0.03f) whiteA = Mathf.Max(0f, whiteA - dt / 0.07f);   // 2프레임 흰색 → 0.07초에 제 색
                 if (white != null) white.color = new Color(1f, 1f, 1f, Mathf.Max(whiteA, flashLeft > 0f ? 1f : 0f));
-                // 중력 풀기: 트윈이 어느 정도 끝났을 때 (늦어도 0.25초). 아래로 살짝 밀어 바로 떨어지기 시작
-                if (releasedAt < 0f && (t > 0.3f || (spun && t > 0.24f && Mathf.Abs(sx - 1f) < 0.08f && Mathf.Abs(rot) < 10f)))
+                // 중력 풀기: 트윈이 어느 정도 끝났을 때 (늦어도 0.39초). 아래로 살짝 밀어 바로 떨어지기 시작
+                if (releasedAt < 0f && (t > 0.39f || (spun && t > 0.31f && Mathf.Abs(sx - 1f) < 0.08f && Mathf.Abs(rot) < 10f)))
                 {
                     releasedAt = t; ReleaseHold();
                     if (rb != null) rb.linearVelocity = new Vector2(0f, -2.5f);
