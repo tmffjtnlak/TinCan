@@ -335,7 +335,7 @@ namespace TinCan
         }
 
         /// <summary>
-        /// 연쇄 터짐 (사용자 10-13): 현상금 깡통이 터지면, 그 순간 공중에 떠 있던 다른 깡통들이 가까운 것부터 0.1초 간격으로
+        /// 연쇄 터짐 (사용자 10-13): 현상금 깡통이 터지고 0.5초 뒤, 그 순간 공중에 떠 있던 다른 깡통들이 가까운 것부터 0.15초 간격으로
         /// 퍼-퍼-퍼-펑 터진다 (한 번에 말고 차례로). 터질 때마다 소리가 조금씩 높아진다. 선반 위(아직 안 쏜) 깡통은 그대로
         /// </summary>
         IEnumerator ChainBursts(Vector2 from)
@@ -343,7 +343,7 @@ namespace TinCan
             var targets = new List<Can>();
             foreach (var c in Game.I.Cans) if (c != null && !c.Done && c.Airborne && !c.Kind.IsBounty) targets.Add(c);
             targets.Sort((a, b) => ((Vector2)a.transform.position - from).sqrMagnitude.CompareTo(((Vector2)b.transform.position - from).sqrMagnitude));
-            yield return new WaitForSecondsRealtime(0.15f);   // 큰 터짐 바로 뒤에서 시작
+            yield return new WaitForSecondsRealtime(0.5f);    // 큰 터짐이 가라앉고 나서 시작 (10-13: 0.15 → 0.5초)
             int n = 0;
             foreach (var c in targets)
             {
@@ -351,7 +351,7 @@ namespace TinCan
                 c.ChainBurst();
                 Sfx.Play(Sfx.Tang(), 0.5f, 1f + n * 0.08f);
                 n++;
-                yield return new WaitForSecondsRealtime(0.1f);
+                yield return new WaitForSecondsRealtime(0.15f);   // 10-13: 0.1 → 0.15초 간격
             }
         }
 
