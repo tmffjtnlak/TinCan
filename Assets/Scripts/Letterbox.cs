@@ -3,7 +3,8 @@ using UnityEngine;
 namespace TinCan
 {
     /// <summary>
-    /// 우클릭 연출 (사용자 10-13): 우클릭을 누르고 있는 동안 위아래에서 남색 띠(레터박스)가 들어오고 UI가 흐려진다. 떼면 돌아간다.
+    /// 우클릭 연출 (사용자 10-13): 우클릭 능력(느려지기)이 실제로 켜져 있는 동안 위아래에서 남색 띠(레터박스)가 들어오고,
+    /// UI는 탄만 남고 전부 사라진다 (탄은 AmmoHud 묶음이 부모 투명도를 무시). 능력이 끝나면 돌아간다.
     /// 평소 화면엔 띠가 없다 (사용자: "기본이 이러니 어색하다, 레터박스는 우클릭 연출로").
     /// 띠는 배경(-2) 위, 탄피(1)·깡통(2) 아래 → 깡통은 띠 위로도 보인다 (서부 영화 느낌).
     /// 띠 두께는 도트 단위(최대 45칸 = 화면 1/6), 움직임은 용수철.
@@ -11,7 +12,7 @@ namespace TinCan
     public class Letterbox : MonoBehaviour
     {
         const float MaxDots = 45f, Ppu = 27f;
-        const float UiDim = 0.18f;          // 띠가 다 들어왔을 때 UI 투명도
+        const float UiDim = 0f;             // 띠가 다 들어왔을 때 UI 투명도 (탄 빼고 전부 사라짐)
         SpriteRenderer top, bottom;
         CanvasGroup ui;
         float k, kv;                        // 0 = 없음 … 1 = 다 들어옴 (용수철)
@@ -30,8 +31,7 @@ namespace TinCan
         void LateUpdate()
         {
             var g = Game.I;
-            var mouse = UnityEngine.InputSystem.Mouse.current;
-            bool on = g != null && g.State == GameState.Play && !g.MenuOpen && mouse != null && mouse.rightButton.isPressed;
+            bool on = g != null && g.State == GameState.Play && !g.MenuOpen && g.SlowActive;   // 게이지가 있어 능력이 켜졌을 때만
             // 들어올 땐 빠르게 살짝 넘쳤다 자리, 나갈 땐 조금 느긋하게
             Ease.Spring(ref k, ref kv, on ? 1f : 0f, on ? 260f : 160f, on ? 16f : 18f, Time.unscaledDeltaTime);
             Apply();

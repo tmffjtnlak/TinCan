@@ -35,7 +35,13 @@ namespace TinCan
         int shownAmmo = -1;
         bool wasReloading;
 
-        public void Build(Transform canvasRoot, Gun g) { canvas = canvasRoot; gun = g; }
+        /// <summary>탄은 자기 묶음에 둔다: 우클릭 레터박스 중 다른 UI는 사라져도 탄만 남게 (사용자 10-13) — 부모 투명도를 무시</summary>
+        public void Build(Transform canvasRoot, Gun g)
+        {
+            var group = Ui.Rect("Ammo", canvasRoot, Vector2.zero, Vector2.zero);
+            var cg = group.gameObject.AddComponent<CanvasGroup>(); cg.ignoreParentGroups = true; cg.blocksRaycasts = false;
+            canvas = group; gun = g;
+        }
 
         static Sprite Load(string name)
         {
