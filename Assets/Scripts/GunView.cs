@@ -111,8 +111,8 @@ namespace TinCan
         public bool UseVoxel = false;   // 복셀은 보류
         Sprite sideSprite; SpriteRenderer sideArt;
         // 그림 기준 자리 (피벗=방아쇠울, 단위=유닛): 총구, 탄피 나오는 곳, 손잡이 중심
-        // 10-14 새 그림(91×46, 피벗 = 방아쇠울 가운데 (35,16)px)에서 잰 값: 총구 (80,38), 실린더 뒤 (29,30), 손잡이 가운데 (11,16)
-        static readonly Vector2 ArtMuzzle = new Vector2(45f, 22f) / 27f, ArtEject = new Vector2(-6f, 14f) / 27f, ArtGrip = new Vector2(-24f, 0f) / 27f;
+        // 10-14 2판 그림(75×54 캔버스, 총은 58×32, 피벗 = 방아쇠울 가운데 (30,21)px)에서 잰 값: 총구 (62,36), 실린더 뒤 (24,32), 손잡이 가운데 (12,22)
+        static readonly Vector2 ArtMuzzle = new Vector2(32f, 15f) / 27f, ArtEject = new Vector2(-6f, 11f) / 27f, ArtGrip = new Vector2(-18f, 1f) / 27f;
 
         public static Sprite LoadArt(string name)
         {
