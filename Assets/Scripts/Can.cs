@@ -45,8 +45,8 @@ namespace TinCan
         public static readonly CanKind Ghost = new CanKind { Id = "blue", Name = "반투명 깡통", Desc = "", Value = 1, Cost = 0, Hits = 2, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.4f, Body = new Color(0.4f, 0.6f, 1f), Rim = new Color(0.25f, 0.35f, 0.7f), Label = Color.white };
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
-        /// <summary>현상수배 깡통: 체력 30, 무겁고, 값 5. 터뜨리면 값×30×31 = 4,650 기본. 가게엔 없다</summary>
-        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 30. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 30, Weight = 1.35f, Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
+        /// <summary>현상수배 깡통: 체력 15 (10-14: 30 → 15), 무겁고, 값 5. 터뜨리면 값×15×16 = 1,200 기본. 가게엔 없다</summary>
+        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 1.35f, Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
         public bool IsBounty;
         /// <summary>시험용 현상수배 깡통 (사용자 10-13): 체력 3. F4로 부른다 (막타 연출 확인용)</summary>
         public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 1.35f, Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
@@ -661,9 +661,11 @@ namespace TinCan
         public static Can ThrowDynamite()
         {
             float startY = -Look.PlayHalfW * 9f / 16f - 0.8f;               // 화면 아래 끝 바로 밖
-            float apexY = Random.Range(-0.3f, 0.6f);                       // 화면 가운데쯤
-            float x0 = Random.Range(-Look.PlayHalfW + 2f, Look.PlayHalfW - 2f);
-            float x1 = Mathf.Clamp(x0 + Random.Range(-3f, 3f), -Look.PlayHalfW + 1.5f, Look.PlayHalfW - 1.5f);
+            // 10-14 2차: 꼭대기 = 화면 높이의 2/3 (아래 끝 -5 → 위 끝 5에서 ≈ 1.67), 좌우는 화면 가운데 부근에서만
+            float halfH = Look.PlayHalfW * 9f / 16f;
+            float apexY = -halfH + halfH * 2f * (2f / 3f) + Random.Range(-0.25f, 0.25f);
+            float x0 = Random.Range(-2.5f, 2.5f);
+            float x1 = Mathf.Clamp(x0 + Random.Range(-1.5f, 1.5f), -2.5f, 2.5f);
             float g = -Physics2D.gravity.y * BaseGravity * CanKind.Dynamite.Weight * 0.35f;
             float vy = Mathf.Sqrt(2f * g * (apexY - startY)) * 1.06f;   // 공기 저항(감쇠 0.1)만큼 보탬: 없으면 꼭대기가 0.5쯤 낮았다
             float tUp = vy / g;
