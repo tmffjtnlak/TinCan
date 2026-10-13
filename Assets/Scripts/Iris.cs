@@ -18,6 +18,9 @@ namespace TinCan
         /// <summary>구멍 중심을 카메라 중심에서 이만큼(월드 단위) 옮긴다. Open이 끝나면 0으로</summary>
         public Vector2 Offset;
 
+        /// <summary>원형 페이드가 화면을 덮고 있는 중 (열림이 끝나기 전). HUD·탄은 이동안 숨는다 — UI는 맨 위에 그려져 검정 위로 떠 보였다 (10-14)</summary>
+        public static bool Covering => inst != null && inst.gameObject.activeSelf;
+
         public static Iris Get()
         {
             if (inst != null) return inst;
@@ -86,7 +89,8 @@ namespace TinCan
         {
             gameObject.SetActive(true);
             float r1 = OpenRadius();
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / seconds)
+            // 한 프레임 시간을 1/30초로 묶는다: 씬을 막 연 첫 프레임은 아주 길어서(로딩) 열림이 한 프레임에 끝나 버렸다 (10-14)
+            for (float t = 0f; t < 1f; t += Mathf.Min(Time.unscaledDeltaTime, 1f / 30f) / seconds)
             {
                 SetRadius(Ease.LerpLog(0.8f, r1, Ease.OutCubic(t)));
                 LateUpdate();

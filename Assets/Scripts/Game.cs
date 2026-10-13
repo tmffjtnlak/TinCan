@@ -208,10 +208,22 @@ namespace TinCan
             State = GameState.Play;
             if (title != null) { Destroy(title.gameObject); title = null; }
             Money = 10;
-            hud.SetPlayVisible(true);
+            hud.SetPlayVisible(false);   // 원형이 다 열린 뒤에 보인다 (OpenAfterLoad)
             if (load) Load();
             Iris.Get().StartClosed();
-            StartCoroutine(Iris.Get().Open(0.2f));   // Shelldiver 분석: 열림도 짧게
+            StartCoroutine(OpenAfterLoad());
+        }
+
+        /// <summary>
+        /// 시작 화면의 원형 닫힘이 플레이 화면에서 이어져 열린다 (사용자 10-14: 전환 뒤엔 효과가 없었다).
+        /// 로딩 프레임이 지나간 뒤(2프레임) 잠깐 검정을 쥐었다가(0.1초) 0.45초에 퍼진다
+        /// </summary>
+        IEnumerator OpenAfterLoad()
+        {
+            yield return null; yield return null;
+            yield return new WaitForSecondsRealtime(0.1f);
+            yield return Iris.Get().Open(0.45f);
+            if (State == GameState.Play) hud.SetPlayVisible(true);
         }
 
         void Load()
