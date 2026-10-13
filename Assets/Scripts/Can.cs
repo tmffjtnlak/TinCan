@@ -169,7 +169,7 @@ namespace TinCan
         // 자리는 사용자 합성 그림(19×24 깡통 기준)에서 잰 값: 깡통 가운데에서 도트 (위 +).
         // 모자 하나(갈색/흰색) + 콧수염 하나(물결/일자) + 권총 60%. 권총은 깡통 뒤(총열이 가려짐), 콧수염은 라벨 위, 모자는 맨 위
         readonly System.Collections.Generic.List<CanProp> props = new System.Collections.Generic.List<CanProp>();
-        const float PropDropChance = 0.2f;   // 맞을 때마다 이 확률로 하나가 떨어져 나간다
+        const float PropDropChance = 0.05f;  // 맞을 때마다 이 확률로 하나가 떨어져 나간다 (10-14: 20%는 체력 30에서 중반에 다 벗겨져서 5%)
         void AddProps()
         {
             bool brown = Random.value < 0.5f;
