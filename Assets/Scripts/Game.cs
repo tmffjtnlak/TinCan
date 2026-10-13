@@ -604,7 +604,7 @@ namespace TinCan
         /// <summary>떨어졌다: 쌓인 돈 × 정산 배수가 세트에 들어가고, 맞춘 발 수만큼 탄피가 바닥에. 돈은 세트가 끝나야 온다. 저주통이면 뺏긴다</summary>
         public void CanLanded(Can can)
         {
-            SpillCasings(new Vector2(can.transform.position.x, Look.DropY + 0.4f), LandCasings, false, false);   // 떨어진 자리에 탄피를 조금 흘린다
+            if (!can.Kind.NoCasings) SpillCasings(new Vector2(can.transform.position.x, Look.DropY + 0.4f), LandCasings, false, false);   // 떨어진 자리에 탄피를 조금 흘린다 (보조 깡통은 안 흘림)
             if (can.Cursed) { CurseLanded(can); return; }
             long pay = (long)Mathf.Round(can.Earned * PayoutMult);
             SetPending += pay;
@@ -644,7 +644,7 @@ namespace TinCan
         /// <summary>터뜨렸다: 쌓인 돈 × 정산 배수 × 터짐 배수가 세트에. 탄피가 튀어나와 바닥에. 저주통도 터뜨리면 평소대로</summary>
         public void CanBurst(Can can)
         {
-            SpillCasings(can.transform.position, can.Kind.IsBounty ? BountyCasings : BurstCasings, true, can.Kind.IsBounty);
+            if (!can.Kind.NoCasings) SpillCasings(can.transform.position, can.Kind.IsBounty ? BountyCasings : BurstCasings, true, can.Kind.IsBounty);   // 보조 깡통(다이너마이트)은 탄피 없음
             long pay = (long)Mathf.Round(can.Earned * PayoutMult * BurstMult);
             SetPending += pay;
             Bursts++;

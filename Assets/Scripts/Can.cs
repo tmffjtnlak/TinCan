@@ -30,9 +30,11 @@ namespace TinCan
         // ---------- 특성 깡통 (사용자 10-14: "쏘는 행위는 같고 깡통이 일으키는 일이 다양해야") ----------
         // 10-10의 "깡통은 물성만" 규칙을 사용자가 바꿨다. 특성 = 터질 때/맞을 때 일어나는 일 하나
         public enum Trait { None, Dynamite, Bundle, Blue, Magnet }
+        /// <summary>보조 성향 깡통: 터지거나 떨어져도 탄피를 흘리지 않는다 (사용자 10-14, 다이너마이트부터). 돈·연속은 그대로</summary>
+        public bool NoCasings;
         public Trait Special;
         /// <summary>다이너마이트: 3발에 터지며 주변 깡통에 한 발씩 (밀어내며 띄움)</summary>
-        public static readonly CanKind Dynamite = new CanKind { Id = "dynamite", Name = "다이너마이트", Desc = "3발에 터지며 주변 깡통을 친다.", Value = 2, Cost = 2, Hits = 3, Weight = 1.1f, Width = 18f / 27f, Height = 28f / 27f, Mass = 1.1f, Pitch = 0.9f, Body = new Color(0.85f, 0.15f, 0.15f), Rim = new Color(0.5f, 0.1f, 0.1f), Label = Color.white, Special = Trait.Dynamite };
+        public static readonly CanKind Dynamite = new CanKind { Id = "dynamite", Name = "다이너마이트", Desc = "3발에 터지며 주변 깡통을 친다.", Value = 2, Cost = 2, Hits = 3, Weight = 1.1f, Width = 18f / 27f, Height = 28f / 27f, Mass = 1.1f, Pitch = 0.9f, Body = new Color(0.85f, 0.15f, 0.15f), Rim = new Color(0.5f, 0.1f, 0.1f), Label = Color.white, Special = Trait.Dynamite, NoCasings = true };
         /// <summary>깡통 묶음: 3발에 끈이 끊어지며 깡통 셋이 튀어나와 3초 동안 천천히 떨어진다</summary>
         public static readonly CanKind Bundle = new CanKind { Id = "bundle", Name = "깡통 묶음", Desc = "3발에 풀리며 깡통 셋이 튀어나온다.", Value = 1, Cost = 2, Hits = 3, Weight = 1.3f, Width = 28f / 27f, Height = 37f / 27f, Mass = 1.5f, Pitch = 0.8f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, Special = Trait.Bundle };
         /// <summary>파란 깡통: 터지면 반투명 깡통이 잠시 떠 있다</summary>
