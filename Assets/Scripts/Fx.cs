@@ -45,10 +45,27 @@ namespace TinCan
             }
         }
 
-        IEnumerator PuffCo(Vector2 at, float maxR, float delay, Vector2 drift)
+        /// <summary>
+        /// 총구 연기 (사용자 10-13): 소환 구름과 같은 도트 원을 회색으로 작게. 총구 앞에서 피었다가 총 방향·위로 흩어진다.
+        /// 총(42)보다 앞(46)
+        /// </summary>
+        public static void Smoke(Vector2 at, Vector2 dir)
+        {
+            var gray = new Color(0.72f, 0.71f, 0.74f, 1f);
+            for (int i = 0; i < 3; i++)
+            {
+                var off = dir * (0.08f * i) + Random.insideUnitCircle * 0.06f;
+                var drift = dir * Random.Range(0.6f, 1f) + Vector2.up * Random.Range(0.4f, 0.8f);
+                I.StartCoroutine(I.PuffCo(at + off, Random.Range(2.5f, 4f) - i * 0.4f, i * 0.025f, drift, gray, 46));
+            }
+        }
+
+        IEnumerator PuffCo(Vector2 at, float maxR, float delay, Vector2 drift) => PuffCo(at, maxR, delay, drift, Color.white, 0);
+
+        IEnumerator PuffCo(Vector2 at, float maxR, float delay, Vector2 drift, Color color, int order)
         {
             if (delay > 0f) yield return new WaitForSeconds(delay);
-            var sr = new GameObject("Puff").AddComponent<SpriteRenderer>(); sr.sortingOrder = 0; sr.color = Color.white;
+            var sr = new GameObject("Puff").AddComponent<SpriteRenderer>(); sr.sortingOrder = order; sr.color = color;
             float r = 0f, v = 0f, t = 0f; Vector2 pos = at;
             while (true)
             {

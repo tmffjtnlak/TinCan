@@ -40,6 +40,8 @@ namespace TinCan
             // 돈만 (사용자 10-12 UI 정리: 기록 글자는 뺐다)
             var board = moneyBoard = Ui.Panel("MoneyBoard", canvas, new Vector2(-760f, 470f), new Vector2(340f, 90f));
             money = Ui.Text("Money", board.transform, new Vector2(10f, 0f), new Vector2(300f, 60f), 48, TextAnchor.MiddleLeft, Ui.Gold);
+            // 왼쪽 정렬 글자: 기준점을 글자 왼쪽 끝으로 (부풀고 기울어도 자리가 안 밀리게)
+            money.rectTransform.pivot = new Vector2(0f, 0.5f); money.rectTransform.anchoredPosition = new Vector2(10f - 150f, 0f);
             stats = Ui.Text("Stats", board.transform, new Vector2(10f, -32f), new Vector2(380f, 34f), 19, TextAnchor.MiddleLeft, Ui.Dim);
             stats.gameObject.SetActive(false);
 
@@ -117,7 +119,16 @@ namespace TinCan
             return w;
         }
         /// <summary>탄피가 닿았다: 돈 글자가 한 번 튄다</summary>
-        public void BumpMoney() => moneyBump = 1f;
+        /// <summary>
+        /// 탄피가 닿았다 (사용자 10-13 "쫀득하게"): 돈 글자에 용수철 힘을 툭 준다. 크기는 부풀었다 출렁이며 돌아오고,
+        /// 기울기는 닿을 때마다 좌우를 번갈아 받아 연달아 들어오면 흔들흔들한다
+        /// </summary>
+        public void BumpMoney()
+        {
+            moneySV += 7f;
+            moneyRotV += bumpSign * 120f; bumpSign = -bumpSign;
+        }
+        float moneyS = 1f, moneySV, moneyRot, moneyRotV, bumpSign = 1f;
 
         /// <summary>깡통 위에 붙는 작은 돈 글자 (깡통이 위치를 갱신한다)</summary>
         public Text CanLabel()
@@ -252,10 +263,16 @@ namespace TinCan
             if (game == null || game.State != GameState.Play) return;
             var gun = game.Gun;
             // 돈: 굴러 올라가고, 오를 때 한 번 튄다
-            if (game.Money != shownTarget) { shownTarget = game.Money; if (shownTarget > shown) moneyBump = 1f; }
+            if (game.Money != shownTarget) { shownTarget = game.Money; }
             shown = Mathf.Abs(shownTarget - shown) < 2 ? shownTarget : (long)Mathf.Lerp(shown, shownTarget, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 10f)) + System.Math.Sign(shownTarget - shown);
-            moneyBump = Mathf.Max(0f, moneyBump - Time.unscaledDeltaTime * 5f);
-            money.transform.localScale = Vector3.one * (1f + moneyBump * 0.18f);
+            // 쫀득한 용수철: 덜 감쇠라 한두 번 출렁이며 선다. 가로로 더 부풀고 세로는 덜 (말랑하게 눌린 느낌)
+            float udt = Time.unscaledDeltaTime;
+            Ease.Spring(ref moneyS, ref moneySV, 1f, 600f, 10f, udt);
+            Ease.Spring(ref moneyRot, ref moneyRotV, 0f, 520f, 9f, udt);
+            moneyS = Mathf.Clamp(moneyS, 0.8f, 1.45f); moneyRot = Mathf.Clamp(moneyRot, -14f, 14f);
+            float sq = moneyS - 1f;
+            money.transform.localScale = new Vector3(1f + sq * 1.15f, 1f + sq * 0.7f, 1f);
+            money.transform.localRotation = Quaternion.Euler(0f, 0f, moneyRot);
             money.text = game.DebugMoney ? "$∞  <size=18><color=#ff8888>디버그</color></size>" : $"${shown:N0}";
             money.supportRichText = true;
             int air = game.Airborne;

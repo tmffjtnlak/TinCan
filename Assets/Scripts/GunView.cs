@@ -190,17 +190,16 @@ namespace TinCan
             var tip = second && vox2 != null ? (Vector2)vox2.Muzzle.position : Muzzle;
             var dir = (aim - tip).normalized;
             float size = 0.4f + kick * 0.25f;
-            var f = Look.Quad("Muzzle", tip + dir * 0.15f, new Vector2(size, size), new Color(1f, 0.95f, 0.6f, 0.95f), 48);
-            f.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
+            // 총구 마름모 번쩍임은 뺐다 (사용자 10-13). 총구 앞 길쭉한 불꽃과 1도트 탄도선만
             var f2 = Look.Quad("Muzzle2", tip + dir * 0.3f, new Vector2(size * 1.6f, size * 0.5f), new Color(1f, 0.8f, 0.3f, 0.8f), 47);
             f2.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
             var d = aim - tip;
-            var tracer = Look.Quad("Tracer", (tip + aim) * 0.5f, new Vector2(d.magnitude, 0.03f), new Color(1f, 0.95f, 0.7f, 0.55f), 47);
+            var tracer = Look.Quad("Tracer", (tip + aim) * 0.5f, new Vector2(d.magnitude, 1f / 27f), new Color(1f, 0.95f, 0.7f, 0.55f), 47);
             tracer.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
-            // 연기: 작은 회색 조각 셋이 위로 흩어지며 사라진다
-            for (int i = 0; i < 3; i++) StartCoroutine(Smoke(tip + dir * 0.2f + Random.insideUnitCircle * 0.08f, dir));
+            // 연기 (사용자 10-13): 소환 구름과 같은 도트 원을 회색으로, 총구 앞에서 피었다 총 방향·위로 흩어진다
+            Fx.Smoke(tip + dir * 0.25f, dir);
             yield return null; yield return null;
-            Destroy(f.gameObject); Destroy(f2.gameObject); Destroy(tracer.gameObject);
+            Destroy(f2.gameObject); Destroy(tracer.gameObject);
         }
 
         IEnumerator Smoke(Vector2 at, Vector2 dir)

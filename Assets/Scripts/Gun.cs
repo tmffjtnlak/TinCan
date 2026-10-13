@@ -66,6 +66,54 @@ namespace TinCan
             tex.Apply();
             return Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 27f);
         }
+        // ---------- 도트 장전 바 부품 ----------
+        const int BarDots = 33;   // 점선 길 길이 (홀수: 가운데가 0)
+        static readonly string[] BracketArt =
+        {
+            "XXXX",
+            "XWWX",
+            "XWXX",
+            "XWX.",
+            "XWX.",
+            "XWX.",
+            "XWXX",
+            "XWWX",
+            "XXXX",
+        };
+        static SpriteRenderer MakeSR(string name, Sprite sp, int order, Transform parent)
+        {
+            var sr = new GameObject(name).AddComponent<SpriteRenderer>(); sr.transform.SetParent(parent, false);
+            sr.sprite = sp; sr.sortingOrder = order; return sr;
+        }
+        /// <summary>글자 그림 → 도트 스프라이트 (W = 흰, X = 남색, . = 빈칸). mirror면 좌우 뒤집기</summary>
+        static Sprite Art(string[] rows, bool mirror)
+        {
+            int h = rows.Length, w = rows[0].Length;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            var line = new Color(0.15f, 0.13f, 0.25f, 1f);
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    char c = rows[h - 1 - y][mirror ? w - 1 - x : x];
+                    tex.SetPixel(x, y, c == 'W' ? Color.white : c == 'X' ? line : Color.clear);
+                }
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 27f);
+        }
+        /// <summary>점선 길: 가운데 줄 = 흰 2칸·빈 1칸 반복, 위아래 줄 = 남색 테</summary>
+        static Sprite DottedTrack(int w)
+        {
+            var tex = new Texture2D(w, 3, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            var line = new Color(0.15f, 0.13f, 0.25f, 1f);
+            for (int x = 0; x < w; x++)
+            {
+                tex.SetPixel(x, 0, line); tex.SetPixel(x, 2, line);
+                tex.SetPixel(x, 1, (x % 3) != 2 ? new Color(1f, 1f, 1f, 0.9f) : line);
+            }
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, w, 3), new Vector2(0.5f, 0.5f), 27f);
+        }
+
         /// <summary>팔 자리: 기본 4도트 + 벌림(도트). 0 = N, 1 = S, 2 = E, 3 = W</summary>
         void PlaceArms(int spreadDots)
         {
@@ -101,10 +149,13 @@ namespace TinCan
             view = new GameObject("GunViewHolder").AddComponent<GunView>();
             view.Build();
             // 장전 칸 (조준점 위)
-            bar = new GameObject("ReloadBar").transform; bar.SetParent(crosshair, false); bar.localPosition = new Vector2(0f, 0.5f);
-            barBg = Look.Quad("Bg", Vector2.zero, new Vector2(1.3f, 0.12f), new Color(0f, 0f, 0f, 0.55f), 51, bar);
-            barWindow = Look.Quad("Window", Vector2.zero, new Vector2(0.2f, 0.16f), new Color(1f, 0.9f, 0.3f, 0.9f), 52, bar);
-            barFill = Look.Quad("Fill", Vector2.zero, new Vector2(0.02f, 0.08f), new Color(1f, 1f, 1f, 0.95f), 53, bar);
+            // 도트 장전 바 (사용자 10-13): [ -- -- --|-- -- ] — 남색 테 두른 점선 길 + 양 끝 꺾쇠 + 저스트 구간(노랑) + 움직이는 세로 막대
+            bar = new GameObject("ReloadBar").transform; bar.SetParent(crosshair, false); bar.localPosition = new Vector2(0f, 14f * Dot);
+            barBg = MakeSR("Track", DottedTrack(BarDots), 51, bar);
+            MakeSR("BracketL", Art(BracketArt, false), 51, bar).transform.localPosition = new Vector2(-(BarDots / 2 + 2) * Dot, 0f);
+            MakeSR("BracketR", Art(BracketArt, true), 51, bar).transform.localPosition = new Vector2((BarDots / 2 + 2) * Dot, 0f);
+            barWindow = Look.Quad("Window", Vector2.zero, new Vector2(Dot, Dot), new Color(1f, 0.85f, 0.25f, 1f), 52, bar);
+            barFill = MakeSR("Cursor", PixelBar(1, 5), 53, bar);
             bar.gameObject.SetActive(false);
             Equip(GunKind.Revolver);
         }
@@ -183,11 +234,14 @@ namespace TinCan
             bar.gameObject.SetActive(Reloading);
             if (Reloading)
             {
-                float w = 1.3f;
-                barFill.transform.localPosition = new Vector2(-w * 0.5f + ReloadProgress * w, 0f);
-                barWindow.transform.localPosition = new Vector2(-w * 0.5f + (windowStart + windowEnd) * 0.5f * w, 0f);
-                barWindow.transform.localScale = new Vector3((windowEnd - windowStart) * w, 0.16f, 1f);
-                barWindow.color = attempted ? (missed ? new Color(1f, 0.3f, 0.2f, 0.9f) : new Color(0.5f, 1f, 0.6f, 0.9f)) : new Color(1f, 0.9f, 0.3f, 0.9f);
+                // 도트 칸 단위: 막대는 한 칸씩 움직이고, 저스트 구간은 점선 가운데 줄을 칸 단위로 덮는다
+                int half = BarDots / 2;
+                int cx = Mathf.Clamp(Mathf.RoundToInt(ReloadProgress * BarDots) - half, -half, half);
+                barFill.transform.localPosition = new Vector2(cx * Dot, 0f);
+                int x0 = Mathf.RoundToInt(windowStart * BarDots) - half, x1 = Mathf.Max(x0 + 1, Mathf.RoundToInt(windowEnd * BarDots) - half);
+                barWindow.transform.localPosition = new Vector2((x0 + x1 - 1) * 0.5f * Dot, 0f);
+                barWindow.transform.localScale = new Vector3((x1 - x0) * Dot, Dot, 1f);
+                barWindow.color = attempted ? (missed ? new Color(1f, 0.3f, 0.2f, 1f) : new Color(0.5f, 1f, 0.6f, 1f)) : new Color(1f, 0.85f, 0.25f, 1f);
             }
 
             // 쏠 때 벌어짐: 예전엔 전체를 키웠다(도트가 찌그러짐) → 팔만 도트 단위로 밀어낸다 (최대 약 8도트)
@@ -361,7 +415,7 @@ namespace TinCan
             firstShotPending = false;
             if (shotValue > 1f) Game.I?.Hud.Float("첫 발 ×2", aim + Vector2.up * 0.5f, 4);
             Sfx.Play(Sfx.Bang(), Kind.Auto ? 0.5f : 0.9f, Kind.Pitch * Random.Range(0.95f, 1.08f));
-            StartCoroutine(MuzzleFlash(aim));
+            // 조준점 마름모 번쩍임은 뺐다 (사용자 10-13: "마름모꼴은 지워봐")
             view.Fire(aim, Kind.Kick);
             // 판정: 원 안의 깡통. 리볼버는 가장 가까운 하나, 샷건은 전부. 쏘는 버튼도 여기서
             Can best = null; float bestD = float.MaxValue; bool any = false;
