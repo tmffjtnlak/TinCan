@@ -69,6 +69,42 @@ namespace TinCan
             tex.Apply();
             return Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 27f);
         }
+        /// <summary>속 빈 막대: 남색 1도트 테만 (빈 탄 표시)</summary>
+        static Sprite PixelHollow(int w, int h)
+        {
+            int W = w + 2, H = h + 2;
+            var tex = new Texture2D(W, H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            var line = new Color(0.15f, 0.13f, 0.25f, 1f);
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                    tex.SetPixel(x, y, x >= 1 && x <= w && y >= 1 && y <= h ? Color.clear : line);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, W, H), new Vector2(0.5f, 0.5f), 27f);
+        }
+
+        // ---------- 조준점 옆 남은 탄 (사용자 10-14): 눈이 있는 자리에서 탄을 읽는다 ----------
+        // 조준점 오른쪽 아래(팔과 안 겹치는 자리)에 탄 하나 = 흰 1×2 도트 (남색 테). 쏜 탄은 속 빈 테만. 6개씩 한 줄, 12개 넘는 총은 안 보인다
+        SpriteRenderer[] pips = new SpriteRenderer[0];
+        Sprite pipFull, pipEmpty;
+        int pipCap = -1;
+        void UpdatePips()
+        {
+            int cap = Capacity <= 12 ? Capacity : 0;
+            if (cap != pipCap)
+            {
+                foreach (var p in pips) if (p != null) Destroy(p.gameObject);
+                if (pipFull == null) { pipFull = PixelBar(1, 2); pipEmpty = PixelHollow(1, 2); }
+                pips = new SpriteRenderer[cap];
+                for (int i = 0; i < cap; i++)
+                {
+                    pips[i] = MakeSR("AmmoPip", pipFull, 50, crosshair);
+                    pips[i].transform.localPosition = new Vector2((6 + 3 * (i % 6)) * Dot, (-7 - 5 * (i / 6)) * Dot);
+                }
+                pipCap = cap;
+            }
+            for (int i = 0; i < pips.Length; i++) pips[i].sprite = i < Ammo && !Reloading ? pipFull : pipEmpty;
+        }
+
         // ---------- 도트 장전 바 부품 ----------
         const int BarDots = 33;   // 점선 길 길이 (홀수: 가운데가 0)
         static readonly string[] BracketArt =
@@ -234,6 +270,7 @@ namespace TinCan
                     if (want && Time.time >= nextFire) { Fire(aim); nextFire = Time.time + Kind.FireInterval; }
                 }
             }
+            UpdatePips();
             // 장전 칸 그리기
             bar.gameObject.SetActive(Reloading);
             if (Reloading)

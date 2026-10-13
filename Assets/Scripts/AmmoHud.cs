@@ -125,7 +125,8 @@ namespace TinCan
         void LateUpdate()
         {
             // 플레이 중에만, 가게(트리)가 열려 있으면 숨긴다 (사용자 10-12)
-            if (gun == null || gun.Kind == null || Game.I == null || Game.I.State != GameState.Play || Game.I.MenuOpen) { foreach (var s in slots) if (s != null) s.Img.gameObject.SetActive(false); return; }
+            // 8발 이하 총은 실린더(CylinderHud)가 맡는다 (10-14)
+            if (gun == null || gun.Kind == null || Game.I == null || Game.I.State != GameState.Play || Game.I.MenuOpen || gun.Capacity <= 8) { foreach (var s in slots) if (s != null) s.Img.gameObject.SetActive(false); return; }
             if (gun.Kind != shownKind || slots.Length != Mathf.Min(gun.Capacity, 30)) Rebuild(gun.Kind);
             foreach (var s in slots) s.Img.gameObject.SetActive(true);
             int ammo = gun.Ammo;
