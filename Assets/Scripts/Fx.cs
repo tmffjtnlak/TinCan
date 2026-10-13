@@ -67,6 +67,42 @@ namespace TinCan
             Destroy(sr.gameObject);
         }
 
+        /// <summary>
+        /// 터진 큰 깡통의 퇴장 (사용자 10-13): 0.06초 흰색으로 번쩍이며 1.12배로 부풀었다가 → 0.32초 동안 빨라지며(InCubic) 0.45배로 작아지고,
+        /// 뒤쪽 60% 동안 흐려져 사라진다. 실제 시간 기준 (슬로우와 상관없이 같은 빠르기)
+        /// </summary>
+        public static void PopOut(Transform visual, SpriteRenderer whiteOverlay = null) => I.StartCoroutine(I.PopOutCo(visual, whiteOverlay));
+
+        IEnumerator PopOutCo(Transform visual, SpriteRenderer whiteOverlay)
+        {
+            if (visual == null) yield break;
+            var srs = visual.GetComponentsInChildren<SpriteRenderer>(true);
+            var orig = new Color[srs.Length];
+            for (int i = 0; i < srs.Length; i++) orig[i] = srs[i].color;
+            visual.localRotation = Quaternion.identity;
+            Vector3 s0 = visual.localScale.x > 0.01f ? visual.localScale : Vector3.one;
+            // 1) 번쩍: 흰색으로, 1.12배
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.06f)
+            {
+                if (visual == null) yield break;
+                float k = Ease.OutQuad(t);
+                visual.localScale = s0 * Mathf.Lerp(1f, 1.12f, k);
+                for (int i = 0; i < srs.Length; i++) if (srs[i] != null && srs[i] != whiteOverlay) srs[i].color = Color.Lerp(orig[i], new Color(1f, 1f, 1f, orig[i].a), k);
+                if (whiteOverlay != null) whiteOverlay.color = new Color(1f, 1f, 1f, k);
+                yield return null;
+            }
+            // 2) 작아지며 흐려짐
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.32f)
+            {
+                if (visual == null) yield break;
+                visual.localScale = s0 * Mathf.Lerp(1.12f, 0.45f, Ease.InCubic(t));
+                float a = 1f - Mathf.Clamp01((t - 0.4f) / 0.6f);
+                foreach (var sr in srs) if (sr != null) { var c = sr.color; c.r = c.g = c.b = 1f; c.a = Mathf.Min(c.a, a); sr.color = c; }
+                yield return null;
+            }
+            if (visual != null) Destroy(visual.gameObject);
+        }
+
         /// <summary>맞은 자리 불꽃: 노란 조각이 사방으로 짧게</summary>
         public static void Spark(Vector2 at, int count = 6, float power = 1f)
         {

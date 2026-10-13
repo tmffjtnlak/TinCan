@@ -379,7 +379,14 @@ namespace TinCan
             if (IsMenu) OnMenuLanded(); else Game.I?.CanBurst(this);   // 타이틀 깡통은 터지면 바로 시작
             StopAllCoroutines();
             rb.simulated = false;
-            visual.gameObject.SetActive(false);
+            if (Kind.IsBounty)
+            {
+                // 큰 깡통은 그냥 꺼지지 않는다 (사용자 10-13): 그림을 그 자리에 떼어 두고 흰색으로 번쩍 → 살짝 부풀었다 작아지며 사라짐
+                foreach (var p in pips) if (p != null) p.gameObject.SetActive(false);
+                visual.SetParent(null, true);
+                Fx.PopOut(visual, white);
+            }
+            else visual.gameObject.SetActive(false);
             Destroy(gameObject, 0.1f);
         }
 

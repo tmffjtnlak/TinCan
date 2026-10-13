@@ -267,8 +267,7 @@ namespace TinCan
                 }
                 Destroy(head.gameObject); Destroy(tail.gameObject); head = tail = null;
                 if (can == null || can.Done) yield break;
-                // 3) 닿는 순간: 거의 멈춤(0.03배) + 빵빵한 터짐
-                SetTime(0.03f);
+                // 3) 닿는 순간 (10-13 3판): 슬로우는 여기까지. 터지면서 시간이 0.12초 만에 확 원래대로 (슬로우가 연출을 드러내지 않게)
                 Vector2 at = can.transform.position;
                 SetCam(at, size0 * FinisherZoom * 0.92f);   // 맞는 순간 한 번 더 당긴다 (펀치)
                 HitOne(can, at);
@@ -280,7 +279,7 @@ namespace TinCan
                 Fx.Shake(1.5f);
                 StartCoroutine(Flash());
                 Sfx.Play(Sfx.Bang(), 1f, 0.35f);
-                // 금 탄피 한 무더기: 사방으로 (슬로우라 처음엔 거의 안 움직이다가, 풀리면서 후두두둑)
+                // 금 탄피 한 무더기: 사방으로 후두두둑
                 for (int i = 0; i < FinisherCasings; i++)
                 {
                     float a = Random.Range(0f, Mathf.PI * 2f);
@@ -288,15 +287,15 @@ namespace TinCan
                     var c = Casing.Drop(at + Random.insideUnitCircle * 0.25f, 0, true, v);
                     c.OnRest = () => StartCoroutine(FlyWhenDone(c));
                 }
-                yield return new WaitForSecondsRealtime(0.4f);
-                // 4) 천천히 풀린다 (1.4초): 시간 InQuad(처음엔 거의 그대로 느리다가 점점 원래 속도), 줌은 InOutCubic으로 원래 자리
+                // 4) 시간은 확(0.12초, OutQuad), 카메라는 조금 늦게 빠르게(0.5초, OutCubic) 원래대로. 레터박스는 0.25초에 빠지기 시작
                 Vector2 camFrom = cam.transform.position; float sizeFrom = cam.orthographicSize;
-                for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 1.4f)
+                float slowFrom = Time.timeScale;
+                for (float t = 0f; t < 0.5f; t += Time.unscaledDeltaTime)
                 {
-                    SetTime(Mathf.Lerp(0.03f, 1f, Ease.InQuad(t)));
-                    float z = Ease.InOutCubic(t);
+                    SetTime(Mathf.Lerp(slowFrom, 1f, Ease.OutQuad(Mathf.Clamp01(t / 0.12f))));
+                    float z = Ease.OutCubic(t / 0.5f);
                     SetCam(Vector2.Lerp(camFrom, camStart, z), Mathf.Lerp(sizeFrom, size0, z));
-                    if (t > 0.6f) Letterbox.Force = false;
+                    if (t > 0.25f) Letterbox.Force = false;
                     yield return null;
                 }
             }
