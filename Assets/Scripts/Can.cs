@@ -176,8 +176,11 @@ namespace TinCan
             float sx = 0.15f, sy = 0.15f, vx = 0f, vy = 0f, whiteA = 1f;
             // 회전 (10-13 5판): ±180°에서 시작해 '느렸다 빨랐다 느려지는' 곡선(InOutCubic)으로 0.29초에 0°까지 돈다.
             // 체공 시간은 4판보다 30% 길게 (회전 0.22 → 0.29초, 중력 풀기 0.24~0.3 → 0.31~0.39초)
-            float rotStart = (Random.value < 0.5f ? -1f : 1f) * 180f, rot = rotStart, rv = 0f;
-            const float RotDur = 0.29f;
+            // 6판 (10-13): 0°가 아니라 비스듬히(±8~14°) 멈춘다 → 선반에 닿는 순간 용수철로 똑바로.
+            // 회전 관성: 도는 빠르기만큼 길쭉해지고(세로 최대 +28%, 가로 그 55%만큼 홀쭉) 느려지면 용수철로 돌아온다
+            float rotStart = (Random.value < 0.5f ? -1f : 1f) * 180f, rot = rotStart, rv = 0f, prevRot = rotStart;
+            float endTilt = (Random.value < 0.5f ? -1f : 1f) * Random.Range(8f, 14f);
+            const float RotDur = 0.29f, OmegaPeak = 930f;   // InOutCubic 최고 빠르기 = 1.5 × 180° / 0.29초 ≈ 930°/초
             bool spun = false;
             bool landed = false; float t = 0f, releasedAt = -1f;
             shelfHit = false;
@@ -185,20 +188,23 @@ namespace TinCan
             {
                 float dt = Time.deltaTime; t += dt;
                 bool falling = releasedAt >= 0f && !landed && rb != null && rb.linearVelocity.y < -1.5f;
-                // 크기: 가로가 조금 덜 감쇠 → 옆으로 먼저 퍼졌다 자리 (말랑). 떨어지는 동안은 살짝 길쭉 (0.92 × 1.1)
-                Ease.Spring(ref sx, ref vx, falling ? 0.92f : 1f, 1150f, 18f, dt);
-                Ease.Spring(ref sy, ref vy, falling ? 1.1f : 1f, 1150f, 23f, dt);
                 if (!spun)
                 {
                     float k = Mathf.Clamp01(t / RotDur);
-                    rot = rotStart * (1f - Ease.InOutCubic(k));
-                    if (k >= 1f) { spun = true; rot = 0f; rv = 0f; }   // 끝에서 이미 느려져 도착하므로 넘겨 받을 빠르기 없음
+                    rot = endTilt + (rotStart - endTilt) * (1f - Ease.InOutCubic(k));
+                    if (k >= 1f) { spun = true; rot = endTilt; rv = 0f; }
                 }
-                else Ease.Spring(ref rot, ref rv, 0f, 720f, 13f, dt);   // 덜 감쇠: 0°를 한두 번 지나치며 흔들리다 선다
+                else Ease.Spring(ref rot, ref rv, landed ? 0f : endTilt, 720f, 13f, dt);   // 공중에선 비스듬히, 선반에 닿으면 똑바로 (덜 감쇠: 한두 번 흔들리며)
+                // 회전 관성 늘어남: 이번 프레임 도는 빠르기 → 목표 크기. 용수철이 따라가서 늦게 늘고 튕기며 돌아온다
+                float omega = dt > 0f ? Mathf.Abs(rot - prevRot) / dt : 0f; prevRot = rot;
+                float stretch = Mathf.Clamp01(omega / OmegaPeak) * 0.28f;
+                // 크기: 가로가 조금 덜 감쇠 → 옆으로 먼저 퍼졌다 자리 (말랑). 떨어지는 동안은 살짝 길쭉 (0.92 × 1.1)
+                Ease.Spring(ref sx, ref vx, (falling ? 0.92f : 1f) - stretch * 0.55f, 1150f, 18f, dt);
+                Ease.Spring(ref sy, ref vy, (falling ? 1.1f : 1f) + stretch, 1150f, 23f, dt);
                 if (t > 0.03f) whiteA = Mathf.Max(0f, whiteA - dt / 0.07f);   // 2프레임 흰색 → 0.07초에 제 색
                 if (white != null) white.color = new Color(1f, 1f, 1f, Mathf.Max(whiteA, flashLeft > 0f ? 1f : 0f));
                 // 중력 풀기: 트윈이 어느 정도 끝났을 때 (늦어도 0.39초). 아래로 살짝 밀어 바로 떨어지기 시작
-                if (releasedAt < 0f && (t > 0.39f || (spun && t > 0.31f && Mathf.Abs(sx - 1f) < 0.08f && Mathf.Abs(rot) < 10f)))
+                if (releasedAt < 0f && (t > 0.39f || (spun && t > 0.31f && Mathf.Abs(sx - 1f) < 0.08f && Mathf.Abs(rot - endTilt) < 4f)))
                 {
                     releasedAt = t; ReleaseHold();
                     if (rb != null) rb.linearVelocity = new Vector2(0f, -2.5f);
