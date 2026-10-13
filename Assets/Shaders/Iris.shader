@@ -1,4 +1,4 @@
-// 원형 페이드 (사용자 10-13: 게임 도트에 맞춰서). 화면을 480×270 도트 칸으로 나누고, 칸의 중심이 원 밖이면 검정.
+// 원형 페이드 (사용자 10-13: 게임 도트에 맞춰서). 화면을 320×180 도트 칸으로 나누고, 칸의 중심이 원 밖이면 검정.
 // 카메라 줌과 상관없이 계단 = 항상 게임 도트 한 칸. 화면을 덮는 사각형의 uv로 화면 좌표를 구한다 (렌더 타깃 뒤집힘과 무관).
 Shader "TinCan/Iris"
 {
@@ -6,7 +6,7 @@ Shader "TinCan/Iris"
     {
         _Center ("Center (0..1 of screen)", Vector) = (0.5, 0.5, 0, 0)
         _Radius ("Radius (dots)", Float) = 1000
-        _Rows ("Dot rows on screen", Float) = 270
+        _Rows ("Dot rows on screen", Float) = 180
         _Color ("Color", Color) = (0,0,0,1)
     }
     SubShader

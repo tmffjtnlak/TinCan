@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace TinCan.EditorTools
 {
-    /// <summary>Assets/Art 아래 PNG는 전부 도트 규칙으로 들어온다 (PPU 36, Point, 압축 없음). 그림을 넣기만 하면 된다.</summary>
+    /// <summary>Assets/Art 아래 PNG는 전부 도트 규칙으로 들어온다 (PPU 18, Point, 압축 없음). 그림을 넣기만 하면 된다.</summary>
     public class PixelImport : AssetPostprocessor
     {
         void OnPreprocessTexture()
@@ -12,7 +12,7 @@ namespace TinCan.EditorTools
             var ti = (TextureImporter)assetImporter;
             ti.textureType = TextureImporterType.Sprite;
             ti.spriteImportMode = SpriteImportMode.Single;
-            ti.spritePixelsPerUnit = 27;   // 화면 480×270 (사용자 10-13): 카메라 세로 10유닛 = 270px → 1그림픽셀 = 1080p에서 4픽셀
+            ti.spritePixelsPerUnit = 18;   // 화면 320×180 (사용자 10-13 2차): 카메라 세로 10유닛 = 180도트 → 1그림픽셀 = 1080p에서 6픽셀
             ti.filterMode = FilterMode.Point;
             ti.textureCompression = TextureImporterCompression.Uncompressed;
             ti.mipmapEnabled = false;

@@ -120,9 +120,9 @@ namespace TinCan
             if (title == null) title = Title.Make(hud.Canvas);
             title.ClearButtons();
             // 로고 자리 = 오른쪽 위 (Shelldiver 분석 10-13). 「깡통」 글자는 가제, 손글씨 워드마크 그림이 오면 교체. 한 문장은 그 아래 작게
-            signTitle = Title.Label("SignTitle", hud.Canvas, new Vector2(300f, 400f), new Vector2(900f, 200f), 144, TextAnchor.MiddleCenter);
+            signTitle = Title.Label("SignTitle", hud.Canvas, new Vector2(-560f, 400f), new Vector2(900f, 200f), 144, TextAnchor.MiddleCenter);
             signTitle.text = "깡통";
-            tagline = Title.Label("Tagline", hud.Canvas, new Vector2(300f, 290f), new Vector2(900f, 50f), 24, TextAnchor.MiddleCenter);
+            tagline = Title.Label("Tagline", hud.Canvas, new Vector2(-560f, 290f), new Vector2(900f, 50f), 24, TextAnchor.MiddleCenter);
             tagline.text = "쏴서 띄우고, 떨어지기 전에 또 쏴라.";
             BuildMainMenu();
         }

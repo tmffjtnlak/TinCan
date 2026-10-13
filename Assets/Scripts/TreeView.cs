@@ -24,9 +24,9 @@ namespace TinCan
         // Shelldiver 치수 (10-12, 스크린샷 측정, 1080p 환산): 마름모 ≈126px · 테두리 ≈7px · 아이콘 ≈56px · 간격 ≈195px · 도트 ≈4~5px.
         // 트리 화면은 도트 4px (본 게임 3px보다 한 단계 굵게. 사용자: "픽셀 한 칸이 커야"). 마름모 30칸=120px, 아이콘 14칸=56px, 간격 190px
         const float Spacing = 190f;
-        public const float Px = 4f;
-        const float NodePx = 30f;
-        const float IconPx = 14f;
+        public const float Px = 6f;          // 320×180 (사용자 10-13 2차): 본 게임과 같은 6px 도트
+        const float NodePx = 20f;            // 20칸 = 120px (화면 크기는 그대로, 칸만 굵게)
+        const float IconPx = 9f;             // 9칸 = 54px
         static float Mult => 100f / (TreeArt.Ppu * Px);
 
         Game game;

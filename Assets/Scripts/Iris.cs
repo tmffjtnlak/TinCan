@@ -5,13 +5,13 @@ namespace TinCan
 {
     /// <summary>
     /// 원형 페이드: 검은 화면 가운데 구멍이 줄어들어 닫히고, 다시 커지며 열린다.
-    /// 2판 (사용자 10-13 "게임 도트에 맞춰서"): 화면을 덮는 사각형 하나 + Iris 셰이더. 화면을 480×270 도트 칸으로 나눠
+    /// 2판 (사용자 10-13 "게임 도트에 맞춰서"): 화면을 덮는 사각형 하나 + Iris 셰이더. 화면을 320×180 도트 칸으로 나눠
     /// 칸 단위로 원 안/밖을 정하므로, 카메라가 줌해도 원의 계단은 늘 게임 도트 한 칸이다. 가장자리는 딱 끊김.
     /// </summary>
     public class Iris : MonoBehaviour
     {
         static Iris inst;
-        const float Rows = 270f;                 // 화면 세로 도트 수 (480×270)
+        const float Rows = 180f;                 // 화면 세로 도트 수 (320×180)
         MeshRenderer quad; Material mat;
         float radius = 9999f;                    // 도트 단위
 
