@@ -119,15 +119,16 @@ namespace TinCan
             hud.SetPlayVisible(false);
             if (title == null) title = Title.Make(hud.Canvas);
             title.ClearButtons();
-            // 왼쪽 모래밭 위에 세로로. 글자 가제 「깡통」은 간판 그림이 오면 교체
-            signTitle = Ui.Text("SignTitle", hud.Canvas, new Vector2(-560f, 60f), new Vector2(600f, 120f), 96, TextAnchor.MiddleCenter, Ui.Gold);
+            // 로고 자리 = 오른쪽 위 (Shelldiver 분석 10-13). 「깡통」 글자는 가제, 손글씨 워드마크 그림이 오면 교체. 한 문장은 그 아래 작게
+            signTitle = Title.Label("SignTitle", hud.Canvas, new Vector2(300f, 400f), new Vector2(900f, 200f), 144, TextAnchor.MiddleCenter);
             signTitle.text = "깡통";
-            tagline = Ui.Text("Tagline", hud.Canvas, new Vector2(-560f, -20f), new Vector2(600f, 50f), 26, TextAnchor.MiddleCenter, Ui.Dim);
+            tagline = Title.Label("Tagline", hud.Canvas, new Vector2(300f, 290f), new Vector2(900f, 50f), 24, TextAnchor.MiddleCenter);
             tagline.text = "쏴서 띄우고, 떨어지기 전에 또 쏴라.";
-            float y = -120f; int i = 0;
-            title.AddButton("시작", new Vector2(-560f, y - 90f * i++), () => StartCoroutine(GoPlay(load: false)));
-            if (Save.Exists) title.AddButton("이어서", new Vector2(-560f, y - 90f * i++), () => StartCoroutine(GoPlay(load: true)));
-            title.AddButton("설정", new Vector2(-560f, y - 90f * i++), OpenSettings);
+            // 메뉴 = 왼쪽 글자 세로. 상자 없음, 위에서 아래로 하나씩 뜬다
+            title.AddButton("시작", () => StartCoroutine(GoPlay(load: false)));
+            if (Save.Exists) title.AddButton("이어서", () => StartCoroutine(GoPlay(load: true)));
+            title.AddButton("설정", OpenSettings);
+            title.ShowButtons();
         }
 
         void MenuCan(string label, Vector2 at, System.Action onLanded)
@@ -211,7 +212,7 @@ namespace TinCan
             hud.SetPlayVisible(true);
             if (load) Load();
             Iris.Get().StartClosed();
-            StartCoroutine(Iris.Get().Open(0.6f));
+            StartCoroutine(Iris.Get().Open(0.2f));   // Shelldiver 분석: 열림도 짧게
         }
 
         void Load()

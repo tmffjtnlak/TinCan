@@ -10,6 +10,9 @@ Shader "TinCan/Haze"
         _Band ("Band (lo, hi)", Vector) = (0.72, 0.88, 0, 0)
         _Amp ("Amplitude (px)", Float) = 1.6
         _Rate ("Steps per second", Float) = 10
+        _Desat ("Desaturate 0..1", Float) = 0
+        _DesatBand ("Desat ramp (from uv.y, to uv.y)", Vector) = (0.6, 0.9, 0, 0)
+        _Tint ("Tint after desat", Color) = (1,1,1,1)
     }
     SubShader
     {
@@ -24,7 +27,7 @@ Shader "TinCan/Haze"
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
-            float4 _Color, _TexSize, _Band; float _Amp, _Rate;
+            float4 _Color, _TexSize, _Band, _Tint, _DesatBand; float _Amp, _Rate, _Desat;
             struct A { float4 pos : POSITION; float2 uv : TEXCOORD0; float4 col : COLOR; };
             struct V { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; float4 col : COLOR; };
             V vert(A a) { V o; o.pos = TransformObjectToHClip(a.pos.xyz); o.uv = a.uv; o.col = a.col * _Color; return o; }
@@ -36,7 +39,15 @@ Shader "TinCan/Haze"
                 float w = sin(row * 0.9 + t * 2.1) * sin(row * 0.37 - t * 1.3 + 0.7);
                 float shift = round(w * _Amp * k);                             // 도트 칸 단위
                 float2 uv = i.uv + float2(shift / _TexSize.x, 0);
-                return SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv) * i.col;
+                half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv);
+                // 먼 층 회색화 (Shelldiver 분석 10-13: 멀리는 회색, 가까이는 원색): 밝기만 남기고 살짝 푸르게
+                // 원본 그림 전체 기준 행(uv.y)으로 경사: 띠를 잘라도 경계에 줄이 안 생긴다. 행 단위로 계단지게
+                float rowUv = (row + 0.5) / _TexSize.y;
+                float dk = _Desat * saturate((rowUv - _DesatBand.x) / max(1e-4, _DesatBand.y - _DesatBand.x));
+                dk = floor(dk * 6) / 6;   // 6단 계단 (도트 그림처럼 띠로 바뀐다)
+                float lum = dot(c.rgb, float3(0.3, 0.59, 0.11));
+                c.rgb = lerp(c.rgb, lum.xxx * _Tint.rgb, dk);
+                return c * i.col;
             }
             ENDHLSL
         }

@@ -23,14 +23,14 @@ namespace TinCan
         {
             // 1024×1024 검정, 가운데 반지름 8px 투명 구멍 (가장자리 부드럽게). PPU 32 → 32유닛 폭, 구멍 0.5유닛
             int s = 1024, r = 8;
-            var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
             var px = new Color32[s * s];
             int cx = s / 2, cy = s / 2;
             for (int y = 0; y < s; y++)
                 for (int x = 0; x < s; x++)
                 {
                     float d = Mathf.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-                    byte a = (byte)(255 * Mathf.Clamp01((d - r + 1f) / 2f));
+                    byte a = (byte)(d < r ? 0 : 255);   // 가장자리 딱딱하게 (Shelldiver 분석 10-13: 페더 없음)
                     px[y * s + x] = new Color32(0, 0, 0, a);
                 }
             tex.SetPixels32(px); tex.Apply(false);
@@ -52,10 +52,13 @@ namespace TinCan
             solid.gameObject.SetActive(k <= 0.02f);
         }
 
+        /// <summary>구멍 중심을 카메라 중심에서 이만큼 옮긴다 (클릭한 자리에서 닫히게). Open/Close가 끝나면 0으로</summary>
+        public Vector2 Offset;
+
         void LateUpdate()
         {
             var c = Camera.main; if (c == null) return;
-            transform.position = new Vector3(c.transform.position.x, c.transform.position.y, 0f);
+            transform.position = new Vector3(c.transform.position.x + Offset.x, c.transform.position.y + Offset.y, 0f);
         }
 
         public IEnumerator Close(float seconds)
@@ -70,6 +73,7 @@ namespace TinCan
             gameObject.SetActive(true);
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / seconds) { SetOpen(t); yield return null; }
             SetOpen(1f);
+            Offset = Vector2.zero;
             gameObject.SetActive(false);
         }
 
