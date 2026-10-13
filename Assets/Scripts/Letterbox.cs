@@ -16,9 +16,12 @@ namespace TinCan
         SpriteRenderer top, bottom;
         CanvasGroup ui;
         float k, kv;                        // 0 = 없음 … 1 = 다 들어옴 (용수철)
+        /// <summary>연출이 띠를 강제로 올린다 (현상금 막타 슬로우모션)</summary>
+        public static bool Force;
 
         public static Letterbox Make(Transform hudCanvas)
         {
+            Force = false;
             var lb = new GameObject("Letterbox").AddComponent<Letterbox>();
             lb.top = Look.Quad("BarTop", Vector2.zero, Vector2.one, Look.Bar, 0, lb.transform);
             lb.bottom = Look.Quad("BarBottom", Vector2.zero, Vector2.one, Look.Bar, 0, lb.transform);
@@ -31,7 +34,7 @@ namespace TinCan
         void LateUpdate()
         {
             var g = Game.I;
-            bool on = g != null && g.State == GameState.Play && !g.MenuOpen && g.SlowActive;   // 꽉 찬 게이지로 능력을 켰을 때만
+            bool on = Force || (g != null && g.State == GameState.Play && !g.MenuOpen && g.SlowActive);   // 꽉 찬 게이지로 능력을 켰을 때, 또는 연출(현상금 막타)
             // 들어올 땐 빠르게 살짝 넘쳤다 자리, 나갈 땐 조금 느긋하게
             Ease.Spring(ref k, ref kv, on ? 1f : 0f, on ? 260f : 160f, on ? 16f : 18f, Time.unscaledDeltaTime);
             // 끝나기 1초 전부터 깜박임 (사용자 10-13): 남은 시간이 줄수록 빨라진다 (0.25초 주기 → 0.07초)

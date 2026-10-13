@@ -76,6 +76,7 @@ namespace TinCan
         public void Build()
         {
             cam = Camera.main; camHome = cam.transform.position;
+            Cinematic = false; Time.timeScale = 1f; Time.fixedDeltaTime = 0.02f;   // 연출 도중 씬이 바뀌었어도 원래대로
             Cursor.visible = false;
             crosshair = new GameObject("Crosshair").transform;
             // 도트 조준점 (사용자 10-13): 흰 점 + 흰 팔 4개(3도트), 남색 1도트 외곽선. 크기를 늘리지 않고 팔을 도트 단위로 밀어 벌린다
@@ -198,9 +199,78 @@ namespace TinCan
             }
         }
 
+        // ---------- 현상금 막타 연출 (사용자 10-13) ----------
+        // 평소 총알은 즉시 맞는다(히트스캔). 현상금 깡통의 마지막 한 발만: 시간이 크게 느려지고 레터박스가 올라오고,
+        // 눈에 보이는 총알이 총구에서 깡통까지 날아가 닿는 순간 터진다 → 잠깐 멈춘 듯 머물다 → 시간이 천천히 풀린다.
+        /// <summary>연출 중 (이때는 쏘지 않는다)</summary>
+        public static bool Cinematic { get; private set; }
+        bool IsFinisher(Can can) => !Cinematic && can.Kind.IsBounty && can.HitsLeft <= 1 && !can.Done && !can.IsMenu;
+
+        IEnumerator Finisher(Can can)
+        {
+            Cinematic = true;
+            Letterbox.Force = true;
+            float baseFixed = 0.02f;
+            void SetTime(float s) { Time.timeScale = s; Time.fixedDeltaTime = baseFixed * Mathf.Max(0.02f, s); }
+            try
+            {
+                // 1) 시간이 0.12초 만에 0.12배로 (OutCubic: 확 느려졌다 가라앉음)
+                for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.12f) { SetTime(Mathf.Lerp(1f, 0.12f, Ease.OutCubic(t))); yield return null; }
+                SetTime(0.12f);
+                Sfx.Play(Sfx.Whoosh(), 0.7f, 0.5f);
+                // 2) 눈에 보이는 총알: 총구 → 깡통 (0.5초, 깡통이 느리게 움직여도 따라간다). 지나간 자리에 도트 꼬리
+                var art = GunView.LoadArt(Kind.Id == "shotgun" ? "bullet_shotgun" : "bullet_revolver");
+                var b = new GameObject("FinisherBullet").AddComponent<SpriteRenderer>(); b.sortingOrder = 46;
+                if (art != null) b.sprite = art; else { b.sprite = Look.Square(); b.transform.localScale = new Vector3(0.3f, 0.1f, 1f); b.color = new Color(1f, 0.85f, 0.4f); }
+                Vector2 from = view.Muzzle;
+                float trailClock = 0f;
+                for (float t = 0f; t < 1f && can != null && !can.Done; t += Time.unscaledDeltaTime / 0.5f)
+                {
+                    Vector2 to = can.transform.position;
+                    float k = Ease.InOutCubic(t) * 0.85f + t * 0.15f;   // 출발·도착이 살짝 느리고 가운데가 빠르다 (완전히 멈추진 않게 직선 15% 섞음)
+                    Vector2 p = Vector2.Lerp(from, to, k);
+                    var dir = to - from;
+                    b.transform.position = new Vector3(Mathf.Round(p.x * 27f) / 27f, Mathf.Round(p.y * 27f) / 27f, 0f);
+                    b.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+                    trailClock += Time.unscaledDeltaTime;
+                    if (trailClock > 0.03f) { trailClock = 0f; StartCoroutine(TrailDot(p)); }
+                    yield return null;
+                }
+                Destroy(b.gameObject);
+                if (can == null || can.Done) yield break;
+                // 3) 닿는 순간: 거의 멈춤(0.03배)에서 터진다 → 0.35초 머문다
+                SetTime(0.03f);
+                Vector2 at = can.transform.position;
+                HitOne(can, at);
+                Fx.HitMark(at);
+                Fx.Shake(1f);
+                yield return new WaitForSecondsRealtime(0.35f);
+                // 4) 천천히 풀린다 (1초, InQuad: 처음엔 거의 그대로 느리다가 점점 원래 속도로). 절반쯤에서 레터박스가 빠지기 시작
+                for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 1f)
+                {
+                    SetTime(Mathf.Lerp(0.03f, 1f, Ease.InQuad(t)));
+                    if (t > 0.5f) Letterbox.Force = false;
+                    yield return null;
+                }
+            }
+            finally
+            {
+                SetTime(1f);
+                Letterbox.Force = false;
+                Cinematic = false;
+            }
+        }
+
+        IEnumerator TrailDot(Vector2 at)
+        {
+            var d = Look.Quad("Trail", new Vector2(Mathf.Round(at.x * 27f) / 27f, Mathf.Round(at.y * 27f) / 27f), Vector2.one * (2f / 27f), new Color(1f, 0.95f, 0.75f, 0.9f), 45);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.35f) { d.color = new Color(1f, 0.95f, 0.75f, 0.9f * (1f - t)); yield return null; }
+            Destroy(d.gameObject);
+        }
+
         void Fire(Vector2 aim)
         {
-            if (Reloading) return;
+            if (Reloading || Cinematic) return;
             if (Ammo <= 0) { if (!Kind.Auto) Sfx.Play(Sfx.Click(), 0.7f, 1f); return; }
             bool wasFull = Ammo == Capacity;
             bool last = Ammo == 1;
@@ -221,6 +291,7 @@ namespace TinCan
                 if (btn != null) { btn.Shot(); any = true; continue; }
                 var can = col.GetComponent<Can>();
                 if (can == null || can.Done) continue;
+                if (IsFinisher(can)) { StartCoroutine(Finisher(can)); any = true; continue; }   // 현상금 막타: 연출로 넘긴다
                 if (Kind.HitAll) { HitOne(can, aim); any = true; continue; }
                 float d = ((Vector2)can.transform.position - aim).sqrMagnitude;
                 if (d < bestD) { bestD = d; best = can; }
