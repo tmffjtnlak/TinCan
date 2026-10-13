@@ -477,7 +477,10 @@ namespace TinCan
             floorSlowed = false;
             int earned = Kind.NotScored ? 0 : Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;   // 계산 밖 물체는 돈 0
             Earned += earned;
-            HitsLeft -= Mathf.Max(1, damage);   // 다이너마이트는 한 번에 2 (스킬로 강화 예정)
+            // 현상금은 직접 맞아도 체력이 안 깎인다 (사용자 10-14: 부하를 터뜨린 파편으로만). 체력 1(막타 차례)일 때만 총이 마무리한다
+            bool armored = Kind.IsBounty && HitsLeft > 1;
+            if (!armored) HitsLeft -= Mathf.Max(1, damage);   // 다이너마이트는 한 번에 2 (스킬로 강화 예정)
+            else Sfx.Play(Sfx.Click(), 0.6f, 0.55f);         // 쇠에 튕기는 소리: 안 먹혔다
             // (10-14 버티기 규칙은 뺐다: "터져야 할 깡통이 안 터지면 이상하다". 대신 현상금전엔 터진 깡통의 파편이 현상금을 깎는다 — Game.CanBurst)
             for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
             if (HitsLeft <= 0) { Burst(hitPoint); return earned; }

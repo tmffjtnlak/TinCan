@@ -660,7 +660,7 @@ namespace TinCan
             if (can.Kind.IsBounty && !Gun.Cinematic) Gun.StartChain(can.transform.position);
             // 현상금전 (사용자 10-14): 다른 깡통이 터지면 파편이 현상금으로 날아가 체력 -2 (1까지만), 현상금 +터진 돈의 절반.
             // 부하가 터지면 현상금이 0.6초 뒤 새 부하를 불러낸다
-            if (!can.Kind.IsBounty && BountyAlive)
+            if (can.Kind.IsMinion && BountyAlive)   // 10-14: 부하가 터질 때만 현상금에 피해 (다른 깡통은 아님)
             {
                 var b = Cans.Find(c => c != null && !c.Done && c.Kind.IsBounty);
                 if (b != null)
@@ -674,7 +674,7 @@ namespace TinCan
 
         /// <summary>현상금이 살아 있나 (선반·공중 상관없이). 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14)</summary>
         /// <summary>파편 피해 (현상금전, 사용자 10-14). 스킬로 키울 자리</summary>
-        public static int ShrapnelDamage = 2;
+        public static int ShrapnelDamage = 3;   // 10-14: 부하 파편만 피해 → 체력 15를 부하 다섯으로 막타 직전까지
 
         public bool BountyAlive { get { foreach (var c in Cans) if (c != null && !c.Done && c.Kind.IsBounty) return true; return false; } }
 

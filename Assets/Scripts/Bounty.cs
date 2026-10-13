@@ -14,7 +14,7 @@ namespace TinCan
     {
         public int EveryBursts = 5;
         /// <summary>도주 시간 (초, 선반에 내려앉은 때부터). 떨어져도 안 끝나고 이 시간이 다 되면 도망간다 (사용자 10-14, 첫 시험값)</summary>
-        public float EscapeSeconds = 25f;
+        public float EscapeSeconds = 35f;   // 10-14: 부하를 잡아야만 깎이니 25 → 35
         int lastTrigger;
         Can can;
         Image poster; Text title, amount, hp, stamp, timer;
