@@ -34,6 +34,7 @@ namespace TinCan
             t.canvas = canvas;
             t.BuildLayers();
             t.BuildDoor();
+            t.BuildRays();
             return t;
         }
 
@@ -56,7 +57,73 @@ namespace TinCan
                 basePos[i] = new Vector2(0f, ((lo + hi) * 0.5f - tex.height * 0.5f) / Ppu);
                 go.transform.localPosition = basePos[i];
                 layer[i] = go.transform;
+                // 아지랑이: 지평선 띠(원본 아래에서 204~236행)가 행마다 한두 도트 흔들린다. 뒤 띠는 아래쪽, 가운데 띠는 위쪽 끝
+                if (i < 2 && hazeShader != null)
+                {
+                    var m = new Material(hazeShader);
+                    m.SetVector("_TexSize", new Vector4(tex.width, tex.height, 0f, 0f));
+                    float bLo = i == 0 ? 204f / tex.height : 196f / tex.height, bHi = i == 0 ? 236f / tex.height : 216f / tex.height;
+                    m.SetVector("_Band", new Vector4(bLo, bHi, 0f, 0f));
+                    m.SetFloat("_Amp", 1.6f); m.SetFloat("_Rate", 10f);
+                    sr.material = m;
+                }
             }
+        }
+        static Shader hazeShader => Shader.Find("TinCan/Haze");
+
+        // ---------- 빛내림: 오른쪽 위에서 사선으로 내려오는 굵은 직선 빛줄기 ----------
+        // 480×270 도트 한 장에 직접 찍는다 (가장자리가 도트 계단, 회전 스프라이트의 매끈한 대각선이 아니라). 초당 12번 다시 그린다.
+        const int RayW = 480, RayH = 270;
+        Texture2D rayTex; Color32[] rayPx; SpriteRenderer raySr; float rayClock;
+        static readonly float[] rayCx = { 150f, 215f, 262f, 330f, 395f, 450f, 520f }, rayWd = { 14f, 4f, 22f, 8f, 18f, 3f, 12f }, rayA = { 0.16f, 0.1f, 0.2f, 0.12f, 0.18f, 0.1f, 0.15f };
+        const float RaySlope = 0.404f;    // tan 22°: 한 줄 내려갈 때 왼쪽으로 가는 도트 수 (위가 오른쪽, 아래가 왼쪽)
+
+        void BuildRays()
+        {
+            rayTex = new Texture2D(RayW, RayH, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            rayPx = new Color32[RayW * RayH];
+            var go = new GameObject("Rays"); go.transform.SetParent(transform, false);
+            raySr = go.AddComponent<SpriteRenderer>(); raySr.sortingOrder = 20;
+            raySr.sprite = Sprite.Create(rayTex, new Rect(0, 0, RayW, RayH), new Vector2(0.5f, 0.5f), Ppu, 0, SpriteMeshType.FullRect);
+            DrawRays(0f);
+        }
+
+        void TickRays(float t)
+        {
+            if (rayTex == null) return;
+            if (t - rayClock < 1f / 12f) return;
+            rayClock = t;
+            DrawRays(t);
+        }
+
+        void DrawRays(float t)
+        {
+            int n = rayCx.Length;
+            var cx = new float[n]; var al = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                al[i] = rayA[i] * (0.6f + 0.4f * Mathf.Sin(t * (0.35f + 0.13f * i) + i * 1.7f));   // 천천히 밝아졌다 어두워진다
+                cx[i] = rayCx[i] + 6f * Mathf.Sin(t * 0.21f + i * 0.85f);                            // 좌우로 조금 떠돈다
+            }
+            for (int y = 0; y < RayH; y++)
+            {
+                float fade = Mathf.Pow((float)y / (RayH - 1), 0.9f);      // 위가 진하고 땅에 닿기 전에 사라진다
+                float dx = (y - RayH) * RaySlope;                          // 이 행에서 줄기 중심이 왼쪽으로 밀린 양
+                int row = y * RayW;
+                for (int x = 0; x < RayW; x++)
+                {
+                    float a = 0f;
+                    for (int i = 0; i < n; i++)
+                    {
+                        float d = x - (cx[i] + dx);
+                        if (d < 0f) d = -d;
+                        if (d < rayWd[i] * 0.5f) a += al[i];
+                    }
+                    a *= fade;
+                    rayPx[row + x] = new Color32(255, 245, 190, (byte)(255f * Mathf.Min(0.45f, a)));
+                }
+            }
+            rayTex.SetPixels32(rayPx); rayTex.Apply(false);
         }
 
         /// <summary>여닫이문 22×14: 반으로 갈라 바깥쪽 경첩에 축을 두고 가운데 층에 붙인다</summary>
@@ -95,6 +162,7 @@ namespace TinCan
             var mouse = UnityEngine.InputSystem.Mouse.current; if (mouse == null) return;
             var mp = mouse.position.ReadValue();
             float dt = Time.unscaledDeltaTime;
+            TickRays(Time.unscaledTime);
             // 시차: 마우스 -1..1 → 층마다 반대쪽으로 도트 몇 칸. 용수철로 따라가고 자리는 도트 칸에 맞춘다
             if (!frozen)
             {
