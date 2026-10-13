@@ -99,6 +99,7 @@ namespace TinCan
             hud = new GameObject("Hud").AddComponent<Hud>();
             hud.Bind(this);
             new GameObject("AmmoHud").AddComponent<AmmoHud>().Build(hud.Canvas, Gun);
+            new GameObject("CanDebug").AddComponent<CanDebug>();   // F9 디버그 표시 (10-14)
             Letterbox.Make(hud.Canvas);   // 우클릭 연출: 위아래 띠 + UI 흐리게 (사용자 10-13)
             tree = new GameObject("Tree").AddComponent<TreeView>();
             tree.Build(this, Nodes, hud.Canvas);

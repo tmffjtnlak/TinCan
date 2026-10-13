@@ -163,6 +163,24 @@ namespace TinCan
         bool slowUntilHit;
         float alpha = 1f;
 
+        /// <summary>
+        /// 디버그 표시 (F9, 사용자 10-14): 속도·중력 배율·무게·질량·체력·상태.
+        /// 중력 배율 = 지금 리지드바디 중력 ÷ (기본 2.2 × 무게 × 시간배수²) → 저글링 낙하 완화·둥실·비행이 걸리면 1보다 작다
+        /// </summary>
+        public string DebugText()
+        {
+            if (rb == null) return Kind.Name;
+            var v = rb.linearVelocity;
+            float gBase = BaseGravity * Kind.Weight * Scale * Scale;
+            float mul = gBase > 0.0001f ? rb.gravityScale / gBase : 0f;
+            string st = Done ? "끝" : !Airborne ? (held ? "소환 중" : "선반") : flyLeft > 0f ? $"비행 {flyLeft:0.0}s" : floatLeft > 0f ? $"둥실 {floatLeft:0.0}s" : slowUntilHit ? "슬로우(맞기 전)" : ChainHeld ? "연쇄 대기" : v.y < 0f ? "낙하" : "상승";
+            if (Kind.NotScored) st += " · 계산 밖";
+            return $"{Kind.Name}  체력 {HitsLeft}/{Kind.Hits}  연속 {Combo}  ${Earned}\n" +
+                   $"속도 ({v.x:0.0}, {v.y:0.0})  |{v.magnitude:0.0}|\n" +
+                   $"중력 ×{mul:0.00}  (2.2 × 무게 {Kind.Weight:0.##} × 시간² {Scale * Scale:0.##} = {gBase:0.00} → 실제 {rb.gravityScale:0.00})\n" +
+                   $"질량 {rb.mass:0.##}  시간 ×{Scale:0.00}  {st}";
+        }
+
         // ---------- 비행 (파란 깡통이 남긴 반투명 깡통, 사용자 10-14): 화면 가운데 줄로 올라가 좌우로 잠시 날다가 떨어진다 ----------
         float flyLeft, flyDir = 1f;
         const float FlyY = 0.4f, FlySpeed = 2.6f;
