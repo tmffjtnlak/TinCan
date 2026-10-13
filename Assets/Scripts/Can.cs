@@ -78,7 +78,9 @@ namespace TinCan
         /// <summary>슬로우(우클릭): 깡통만 시간이 느려진다. 1 = 보통. 속도는 비례, 중력은 제곱으로 줄여야 진짜 시간 느려짐과 같다</summary>
         public static float TimeScale = 1f;
         float appliedScale = 1f;
-        const float BaseGravity = 2.2f;
+        // 기본 중력 (10-14 사용자: 기본 총으로 저글링이 어렵다) 2.2 → 1.6: 한 발 체공(0.94초)이 장전(0.9초)과 거의 같아서
+        // 장전하는 동안 깡통이 다 떨어졌다. 튀는 속도는 그대로 → 조금 더 높이, 더 오래 뜬다
+        const float BaseGravity = 1.6f;
         /// <summary>이 깡통만의 시간 배수 (연쇄 대기 중 0.08). 실제로 쓰는 배수 = 전체(TimeScale) × 이것</summary>
         float localSlow = 1f, localSlowTarget = 1f;
         float Scale => TimeScale * localSlow;
