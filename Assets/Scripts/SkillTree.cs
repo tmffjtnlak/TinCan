@@ -228,7 +228,7 @@ namespace TinCan
             N("auto_shotgun", "자동 샷건", "샷", new Vector2(-3.0f, -1.0f), Green, 600, "아래에 샷건이 합류. 느리게 쫓지만 원 안을 전부 띄운다", g => g.AddAutoGun(GunKind.Shotgun)),
 
             // 시간 (보라) — 오른쪽 아래. 우클릭 슬로우
-            N("slow1", "긴 숨", "숨", new Vector2(1.7f, -0.5f), Purple, 60, "슬로우 게이지 2초 → 3초", g => g.SlowGaugeMax += 0.5f, "slow2", "slow3", "floor"),
+            N("slow1", "긴 숨", "숨", new Vector2(1.7f, -0.5f), Purple, 60, "슬로우 3초 → 4.5초 (꽉 채워야 쓸 수 있다)", g => g.SlowGaugeMax += 0.5f, "slow2", "slow3", "floor"),
             N("slow2", "깊은 숨", "깊", new Vector2(3.1f, -0.9f), Purple, 200, "슬로우 중 깡통이 더 느리게 (×0.3 → ×0.18)", g => g.SlowStrength = 0.18f),
             N("slow3", "빠른 숨", "빠", new Vector2(2.6f, -1.9f), Purple, 180, "맞출 때 게이지 +0.1 → +0.2", g => g.SlowFillPerHit = 0.2f),
             N("floor", "바닥 바람", "바", new Vector2(3.3f, 0.3f), Purple, 220, "바닥 가까이 온 깡통은 낙하 속도 -40%", g => g.FloorSlow = 0.4f),

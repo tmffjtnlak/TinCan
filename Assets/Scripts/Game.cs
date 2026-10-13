@@ -39,26 +39,37 @@ namespace TinCan
 
         // ---------- 슬로우 (우클릭) ----------
         public float SlowGauge { get; private set; }          // 0..1
-        public float SlowGaugeMax { get; set; } = 1f;         // 스킬: 게이지 크기 (초 단위로 생각: 1 = 2초)
+        public float SlowGaugeMax { get; set; } = 1f;         // 스킬: 게이지 크기 (1 = 3초)
         public float SlowStrength { get; set; } = 0.3f;       // 스킬: 깡통 시간 배수 (작을수록 느림)
         public float SlowFillPerHit { get; set; } = 0.1f;     // 스킬: 맞출 때 차는 양
         public bool SlowActive { get; private set; }
-        const float SlowDrainPerSec = 0.5f;
+        /// <summary>게이지 1칸(1.0)이 버티는 초 (사용자 10-13: 2 → 3초. 꽉 차야 쓸 수 있으니 덜 자주 쓰는 대신 길게)</summary>
+        public const float SlowSecondsPerGauge = 3f;
+        /// <summary>남은 초 (켜져 있을 때만). 1초 아래로 내려가면 레터박스가 깜박여 끝을 알린다</summary>
+        public float SlowLeft => SlowActive ? SlowGauge * SlowSecondsPerGauge : 0f;
+        public bool SlowReady => SlowGauge >= SlowGaugeMax - 0.001f;
 
+        /// <summary>
+        /// 우클릭 능력 (사용자 10-13 개정): 게이지가 꽉 찼을 때만 우클릭으로 켠다. 누르는 동안만 쓰고, 떼거나 바닥나면 꺼진다.
+        /// 다시 켜려면 또 꽉 채워야 한다. 켜져 있는 동안은 맞혀도 게이지가 차지 않는다 (끝없이 늘어나지 않게).
+        /// </summary>
         void UpdateSlow(Keyboard kb)
         {
             var mouse = Mouse.current;
-            bool want = mouse != null && mouse.rightButton.isPressed && SlowGauge > 0.02f;
-            if (want)
+            bool held = mouse != null && mouse.rightButton.isPressed;
+            if (!SlowActive && SlowReady && mouse != null && mouse.rightButton.wasPressedThisFrame)
             {
-                SlowGauge = Mathf.Max(0f, SlowGauge - SlowDrainPerSec * Time.deltaTime);
-                if (!SlowActive) { SlowActive = true; Sfx.Play(Sfx.Whoosh(), 0.5f, 0.6f); }
+                SlowActive = true; Sfx.Play(Sfx.Whoosh(), 0.5f, 0.6f);
             }
-            else if (SlowActive) { SlowActive = false; Sfx.Play(Sfx.Whoosh(), 0.4f, 1.4f); }
+            if (SlowActive)
+            {
+                SlowGauge = Mathf.Max(0f, SlowGauge - Time.deltaTime / SlowSecondsPerGauge);
+                if (SlowGauge <= 0f || !held) { SlowActive = false; Sfx.Play(Sfx.Whoosh(), 0.4f, 1.4f); }
+            }
             Can.TimeScale = SlowActive ? SlowStrength : 1f;
         }
 
-        public void FillSlow() => SlowGauge = Mathf.Min(SlowGaugeMax, SlowGauge + SlowFillPerHit);
+        public void FillSlow() { if (SlowActive) return; SlowGauge = Mathf.Min(SlowGaugeMax, SlowGauge + SlowFillPerHit); }
         public Gun Gun { get; private set; }
         public List<Can> Cans { get; } = new List<Can>();
         public List<SkillNode> Nodes { get; private set; }

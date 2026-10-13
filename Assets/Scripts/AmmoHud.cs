@@ -35,12 +35,17 @@ namespace TinCan
         int shownAmmo = -1;
         bool wasReloading;
 
-        /// <summary>탄은 자기 묶음에 둔다: 우클릭 레터박스 중 다른 UI는 사라져도 탄만 남게 (사용자 10-13) — 부모 투명도를 무시</summary>
-        public void Build(Transform canvasRoot, Gun g)
+        /// <summary>
+        /// 탄은 자기 캔버스에 둔다: 우클릭 레터박스 중 HUD 캔버스가 투명도 0이 되어도 탄만 남게 (사용자 10-13).
+        /// (HUD 캔버스 안의 묶음으로는 안 된다: 캔버스 투명도가 0이면 유니티가 캔버스를 통째로 건너뛴다.)
+        /// 크기·배율 설정은 HUD 캔버스와 같다 (1920×1080 기준, 픽셀 고정). HUD 위에 그린다.
+        /// </summary>
+        public void Build(Transform hudCanvas, Gun g)
         {
-            var group = Ui.Rect("Ammo", canvasRoot, Vector2.zero, Vector2.zero);
-            var cg = group.gameObject.AddComponent<CanvasGroup>(); cg.ignoreParentGroups = true; cg.blocksRaycasts = false;
-            canvas = group; gun = g;
+            var go = new GameObject("AmmoCanvas", typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler));
+            var c = go.GetComponent<Canvas>(); c.renderMode = RenderMode.ScreenSpaceOverlay; c.pixelPerfect = true; c.sortingOrder = 1;
+            var s = go.GetComponent<UnityEngine.UI.CanvasScaler>(); s.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize; s.referenceResolution = new Vector2(1920f, 1080f);
+            canvas = go.transform; gun = g;
         }
 
         static Sprite Load(string name)
