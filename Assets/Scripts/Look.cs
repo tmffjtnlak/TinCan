@@ -44,7 +44,9 @@ namespace TinCan
         public const float PlayHalfW = 240f / 27f, PlayHalfH = 90f / 27f;   // 그림 반폭 8.89(= 화면 반폭), 반높이 3.33
         public static readonly Color Bar = new Color(0.15f, 0.13f, 0.25f);   // 우클릭 레터박스 띠 색 = 도트 외곽선 남색
         public const float ShelfY = -1.26f;     // 소환지역: 깡통이 올라가는 선반 (충돌 상자 가운데. 윗면 = +0.11 = 그림 121행 = -1.15)
-        public const float DropY = -2.4f;       // 낙하지역: 여기 닿으면 정산 (바닥선 147행 = -2.11 아래 벽돌 속)
+        // 낙하지역: 깡통 아랫면이 여기 닿으면 정산. 사용자 10-13: 총 상점 버튼 아랫선 높이
+        // (Hud 버튼 가운데 -386, 높이 72 → 아랫선 -422 / 1080p 기준, 108px = 1 월드 → -3.907)
+        public const float DropY = -422f / 108f;
         public const float ShelfLeft = -2.15f, ShelfRight = 1.74f;  // 그림 속 선반 양 끝 (가운데에서 왼쪽으로 치우침)
         public const float CeilingY = 4.75f;                         // 천장: 화면 위 끝 바로 아래 (위 띠까지 날아간다)
 
