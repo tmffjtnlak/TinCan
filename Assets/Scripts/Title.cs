@@ -259,11 +259,16 @@ namespace TinCan
             onDone?.Invoke();
         }
 
-        // ---------- 빛내림: 분석대로 적게·넓게·부드럽게·희미하게 (3줄기, 밝기 ≤ 8%) ----------
+        // ---------- 빛내림 (사용자 10-13): 술집 쪽으로 3줄기, 왼쪽 위 → 오른쪽 아래, 도트 스타일 ----------
+        // 도트 스타일 = 가장자리 딱 끊김 + 가운데 심지 한 단 더 밝게 + 길이 방향 밝기 4단 계단 + 숨쉬기도 단으로만 바뀜
         const int RayW = 480, RayH = 270;
         Texture2D rayTex; Color32[] rayPx; SpriteRenderer raySr; float rayClock;
-        static readonly float[] rayCx = { 250f, 360f, 470f }, rayWd = { 44f, 26f, 60f }, rayA = { 0.07f, 0.05f, 0.08f };
-        const float RaySlope = 0.404f;
+        // 술집 = 그림 x 275~405도트(오른쪽 100 밀린 뒤), 아래에서 60~200행.
+        // 위 끝 x(rayCx)는 사선(22°)을 거꾸로 따라 올라간 자리: 120행에서 각각 지붕 왼쪽·간판·물탱크 쪽에 닿는다
+        static readonly float[] rayCx = { 240f, 285f, 338f }, rayWd = { 22f, 12f, 28f }, rayA = { 0.14f, 0.1f, 0.16f };
+        const float RayFoot = 50f, RayFull = 170f;   // 이 행(아래에서) 밑으로는 사라지고, RayFull 위로는 최대 밝기 — 술집 발밑까지만 내리쬔다
+        const float RaySlope = 0.404f;                // tan 22°. 한 줄 내려갈 때 오른쪽으로 가는 도트 수
+        const float RayStep = 0.05f;                  // 밝기 단 (도트 그림의 색 단계처럼)
 
         void BuildRays()
         {
@@ -289,12 +294,13 @@ namespace TinCan
             for (int i = 0; i < n; i++)
             {
                 al[i] = rayA[i] * (0.7f + 0.3f * Mathf.Sin(t * (0.2f + 0.07f * i) + i * 1.7f));
-                cx[i] = rayCx[i] + 5f * Mathf.Sin(t * 0.12f + i * 0.85f);
+                cx[i] = Mathf.Round(rayCx[i] + 4f * Mathf.Sin(t * 0.12f + i * 0.85f));   // 떠돌아도 한 도트씩
             }
             for (int y = 0; y < RayH; y++)
             {
-                float fade = Mathf.Pow((float)y / (RayH - 1), 1.2f);
-                float dx = (y - RayH) * RaySlope;
+                float fade = Mathf.Clamp01((y - RayFoot) / (RayFull - RayFoot));
+                fade = Mathf.Ceil(fade * 4f) / 4f;                       // 길이 방향 4단 계단
+                float dx = Mathf.Round((RayH - 1 - y) * RaySlope);       // 내려갈수록 오른쪽. 행마다 정수 도트 → 가장자리가 계단
                 int row = y * RayW;
                 for (int x = 0; x < RayW; x++)
                 {
@@ -302,10 +308,11 @@ namespace TinCan
                     for (int i = 0; i < n; i++)
                     {
                         float d = Mathf.Abs(x - (cx[i] + dx)) / (rayWd[i] * 0.5f);
-                        if (d < 1f) a += al[i] * (1f - d * d);      // 가장자리 부드럽게
+                        if (d < 1f) a += al[i] * (d < 0.35f ? 1.6f : 1f); // 딱 끊긴 가장자리 + 밝은 심지
                     }
                     a *= fade;
-                    rayPx[row + x] = new Color32(255, 248, 215, (byte)(255f * Mathf.Min(0.2f, a)));
+                    a = Mathf.Floor(a / RayStep) * RayStep;              // 밝기도 단으로만
+                    rayPx[row + x] = new Color32(255, 248, 215, (byte)(255f * Mathf.Min(0.35f, a)));
                 }
             }
             rayTex.SetPixels32(rayPx); rayTex.Apply(false);
