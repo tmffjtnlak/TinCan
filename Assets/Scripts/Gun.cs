@@ -380,6 +380,9 @@ namespace TinCan
         /// 연쇄 터짐 (사용자 10-13): 현상금 깡통이 터지고 0.5초 뒤, 그 순간 공중에 떠 있던 다른 깡통들이 가까운 것부터 0.15초 간격으로
         /// 퍼-퍼-퍼-펑 터진다 (한 번에 말고 차례로). 터질 때마다 소리가 조금씩 높아진다. 선반 위(아직 안 쏜) 깡통은 그대로
         /// </summary>
+        /// <summary>현상금이 막타 연출 밖에서(다이너마이트 등) 터졌을 때도 연쇄를 건다 (10-14)</summary>
+        public void StartChain(Vector2 from) => StartCoroutine(ChainBursts(from));
+
         IEnumerator ChainBursts(Vector2 from)
         {
             var targets = new List<Can>();

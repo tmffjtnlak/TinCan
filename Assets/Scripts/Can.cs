@@ -473,7 +473,11 @@ namespace TinCan
             int earned = Kind.NotScored ? 0 : Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;   // 계산 밖 물체는 돈 0
             Earned += earned;
             HitsLeft -= Mathf.Max(1, damage);   // 다이너마이트는 한 번에 2 (스킬로 강화 예정)
-            for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
+            // 현상금이 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14): 체력 1에서 버티며 계속 돈·연속을 쌓고,
+            // 현상금이 터지는 순간 연쇄로 한꺼번에 터진다 (Gun.ChainBursts). 버티는 중엔 마지막 점이 금색
+            bool hold = !Kind.IsBounty && !Kind.NotScored && !IsMenu && HitsLeft < 1 && Game.I != null && Game.I.BountyAlive;
+            if (hold) HitsLeft = 1;
+            for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? (hold ? new Color(1f, 0.82f, 0.25f, 1f) : new Color(1f, 1f, 1f, 0.9f)) : new Color(1f, 0.4f, 0.3f, 0.35f);
             if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);

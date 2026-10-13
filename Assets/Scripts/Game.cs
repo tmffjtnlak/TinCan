@@ -656,7 +656,11 @@ namespace TinCan
             hud.Float($"터짐!  +${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));
             if (can.Kind.IsBounty) bounty.Busted(can);
+            if (can.Kind.IsBounty && !Gun.Cinematic) Gun.StartChain(can.transform.position);   // 막타 연출이 아니었어도 버텨 온 깡통들을 차례로 터뜨린다
         }
+
+        /// <summary>현상금이 살아 있나 (선반·공중 상관없이). 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14)</summary>
+        public bool BountyAlive { get { foreach (var c in Cans) if (c != null && !c.Done && c.Kind.IsBounty) return true; return false; } }
 
         public void BuyNode(SkillNode n)
         {
