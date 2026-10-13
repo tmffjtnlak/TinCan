@@ -260,6 +260,7 @@ namespace TinCan
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
             if (DebugMoney) Money = 999_999_999;
             if (kb.f2Key.wasPressedThisFrame) bounty.Summon();
+            if (kb.f4Key.wasPressedThisFrame) bounty.Summon(CanKind.BountyTest);   // 시험용: 체력 3짜리 현상금 깡통 (막타 연출 확인)
             if (kb.digit1Key.wasPressedThisFrame) SelectSlot(0);
             if (kb.digit2Key.wasPressedThisFrame) SelectSlot(1);
             if (kb.digit3Key.wasPressedThisFrame) hud.Float("3: 투척류 — 아직 없다", new Vector2(0f, 1.5f), 0);

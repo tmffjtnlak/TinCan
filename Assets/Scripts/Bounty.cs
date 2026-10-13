@@ -58,16 +58,18 @@ namespace TinCan
             if (Game.I.Bursts > 0 && Game.I.Bursts / EveryBursts > lastTrigger) { lastTrigger = Game.I.Bursts / EveryBursts; Summon(); }
         }
 
-        public void Summon()
+        public void Summon() => Summon(CanKind.Bounty);
+
+        /// <summary>종류를 골라 부른다 (F4 = 체력 3 시험용)</summary>
+        public void Summon(CanKind kind)
         {
             if (busy) return;
-            StartCoroutine(SummonCo());
+            StartCoroutine(SummonCo(kind));
         }
 
-        IEnumerator SummonCo()
+        IEnumerator SummonCo(CanKind kind)
         {
             busy = true;
-            var kind = CanKind.Bounty;
             long bounty = (long)Mathf.Round(kind.BurstBase * Game.I.ValueMult * Game.I.PayoutMult * Game.I.BurstMult * 0.5f);
             amount.text = $"${bounty:N0}";
             stamp.text = "";
