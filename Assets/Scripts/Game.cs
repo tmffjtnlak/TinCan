@@ -684,7 +684,7 @@ namespace TinCan
             SetPending += pay;
             SetBurstMult += BurstMultStep;
             Bursts++;
-            hud.Float($"박치기!  +${pay:N0}  ×{SetBurstMult:0.#}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+            hud.Float($"+${pay:N0}  ×{SetBurstMult:0.#}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(0.05f));
         }
         /// <summary>현상금이 살아 있나 (선반·공중 상관없이). 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14)</summary>
