@@ -178,9 +178,11 @@ namespace TinCan
             // 체공 시간은 4판보다 30% 길게 (회전 0.22 → 0.29초, 중력 풀기 0.24~0.3 → 0.31~0.39초)
             // 6판 (10-13): 0°가 아니라 비스듬히(±8~14°) 멈춘다 → 선반에 닿는 순간 용수철로 똑바로.
             // 회전 관성: 도는 빠르기만큼 길쭉해지고(세로 최대 +28%, 가로 그 55%만큼 홀쭉) 느려지면 용수철로 돌아온다
-            float rotStart = (Random.value < 0.5f ? -1f : 1f) * 180f, rot = rotStart, rv = 0f, prevRot = rotStart;
+            // 7판 (10-13): 한 바퀴(360°)
+            const float SpinDeg = 360f;
+            float rotStart = (Random.value < 0.5f ? -1f : 1f) * SpinDeg, rot = rotStart, rv = 0f, prevRot = rotStart;
             float endTilt = (Random.value < 0.5f ? -1f : 1f) * Random.Range(8f, 14f);
-            const float RotDur = 0.29f, OmegaPeak = 930f;   // InOutCubic 최고 빠르기 = 1.5 × 180° / 0.29초 ≈ 930°/초
+            const float RotDur = 0.29f, OmegaPeak = 1.5f * SpinDeg / RotDur;   // InOutCubic 최고 빠르기 = 1.5 × 각도 / 시간 (360°면 ≈ 1860°/초)
             bool spun = false;
             bool landed = false; float t = 0f, releasedAt = -1f;
             shelfHit = false;
