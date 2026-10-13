@@ -20,12 +20,36 @@ namespace TinCan
         Transform canvas;
         bool busy;
 
-        public static Bounty Make(Transform canvasRoot)
+        CanvasGroup group, hudGroup;
+        float alpha = 1f, alphaV;
+
+        /// <summary>
+        /// 포스터는 HUD(맨 위 오버레이)가 아니라 자기 캔버스에 (사용자 10-14): 카메라 캔버스, 정렬 -1 = 배경(-2) 위·탄피(1)·깡통(2) 아래 → 깡통을 가리지 않는다.
+        /// 가게·스킬트리·설정이 열리면, 그리고 우클릭 연출로 HUD가 사라질 때 같이 사라진다
+        /// </summary>
+        public static Bounty Make(Transform hudCanvas)
         {
             var b = new GameObject("Bounty").AddComponent<Bounty>();
-            b.canvas = canvasRoot;
+            var go = new GameObject("BountyCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(CanvasGroup));
+            var c = go.GetComponent<Canvas>();
+            c.renderMode = RenderMode.ScreenSpaceCamera; c.worldCamera = Camera.main; c.planeDistance = 5f;
+            c.sortingOrder = -1; c.pixelPerfect = true;
+            var s = go.GetComponent<CanvasScaler>(); s.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; s.referenceResolution = new Vector2(1920f, 1080f);
+            b.group = go.GetComponent<CanvasGroup>(); b.group.blocksRaycasts = false; b.group.interactable = false;
+            b.hudGroup = hudCanvas.GetComponent<CanvasGroup>();
+            b.canvas = go.transform;
             b.BuildPoster();
             return b;
+        }
+
+        void LateUpdate()
+        {
+            // 플레이 중이고 메뉴가 닫혀 있을 때만 보인다. 빠르게(0.1초 남짓) 사라지고 나타난다
+            var g = Game.I;
+            bool show = g != null && g.State == GameState.Play && !g.MenuOpen;
+            Ease.Spring(ref alpha, ref alphaV, show ? 1f : 0f, 900f, 60f, Time.unscaledDeltaTime);
+            float hud = hudGroup != null ? hudGroup.alpha : 1f;   // 우클릭 연출(HUD 사라짐)도 따른다
+            group.alpha = Mathf.Clamp01(alpha) * hud;
         }
 
         void BuildPoster()
