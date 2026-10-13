@@ -94,8 +94,9 @@ namespace TinCan
             if (rb == null || Done) return;
             if (!Mathf.Approximately(localSlow, localSlowTarget)) localSlow = Mathf.MoveTowards(localSlow, localSlowTarget, Time.unscaledDeltaTime / 0.15f);
             SyncScale();
-            // 떠 있기 (묶음에서 튀어나온 깡통 3초 천천히, 반투명 깡통 잠시 정지): 남은 동안 중력에 배수, 정지면 속도도 서서히 죽인다
-            if (floatLeft > 0f && Airborne && !held && !parked)
+            if (flyLeft > 0f && Airborne && !held && !parked) FlyStep();
+            // 떠 있기 (다이너마이트 투척 등): 남은 동안 중력에 배수, 정지면 속도도 서서히 죽인다
+            else if (floatLeft > 0f && Airborne && !held && !parked)
             {
                 floatLeft -= Time.fixedDeltaTime * Scale;
                 bool on = floatLeft > 0f;
@@ -152,6 +153,25 @@ namespace TinCan
         /// floatSeconds 동안 중력 × floatMul (0이면 그 자리에 둥실), ghost면 반투명. 게임의 깡통 목록에도 넣는다
         /// </summary>
         bool slowUntilHit;
+        float alpha = 1f;
+
+        // ---------- 비행 (파란 깡통이 남긴 반투명 깡통, 사용자 10-14): 화면 가운데 줄로 올라가 좌우로 잠시 날다가 떨어진다 ----------
+        float flyLeft, flyDir = 1f;
+        const float FlyY = 0.4f, FlySpeed = 2.6f;
+        public void StartFlight(float seconds) { flyLeft = seconds; flyDir = Random.value < 0.5f ? -1f : 1f; }
+
+        void FlyStep()
+        {
+            flyLeft -= Time.fixedDeltaTime * Scale;
+            if (flyLeft <= 0f) { rb.gravityScale = Gravity; return; }
+            var p = (Vector2)transform.position;
+            float edge = Look.PlayHalfW - 1.2f;
+            if (p.x > edge) flyDir = -1f; else if (p.x < -edge) flyDir = 1f;   // 화면 끝에서 돌아선다
+            var v = new Vector2(flyDir * FlySpeed, Mathf.Clamp((FlyY - p.y) * 3f, -4f, 6f) + Mathf.Sin(Time.time * 6f) * 0.4f);
+            rb.gravityScale = 0f;
+            rb.linearVelocity = v * Scale;
+            rb.angularVelocity = Mathf.Lerp(rb.angularVelocity, -flyDir * 120f * Scale, 0.1f);
+        }
 
         /// <summary>selfSlow &lt; 1이면 처음 맞기 전까지 이 깡통만 그 배수로 느리다 (묶음에서 풀린 깡통)</summary>
         public static Can SpawnAirborne(CanKind kind, Vector2 at, Vector2 vel, float floatSeconds, float floatMul, bool ghost = false, float selfSlow = 1f)
@@ -168,7 +188,7 @@ namespace TinCan
             c.rb.gravityScale = c.Gravity * (floatSeconds > 0f ? floatMul : 1f);
             c.rb.linearVelocity = vel * c.Scale;
             c.rb.angularVelocity = Random.Range(-300f, 300f) * c.Scale;
-            if (ghost) foreach (var sr in c.visual.GetComponentsInChildren<SpriteRenderer>()) if (sr != c.white) { var col = sr.color; col.a = 0.55f; sr.color = col; }   // 사용자: "반투명 캔"
+            if (ghost) { c.alpha = 0.5f; foreach (var sr in c.visual.GetComponentsInChildren<SpriteRenderer>()) if (sr != c.white) { var col = sr.color; col.a = 0.5f; sr.color = col; } }   // 사용자: "반투명 캔"
             if (c.white != null) c.white.color = Color.clear;
             c.StartCoroutine(c.PopSmall());
             Game.I?.Cans.Add(c);
@@ -408,6 +428,7 @@ namespace TinCan
             if (Done) return 0;
             // 묶음에서 풀린 깡통: 처음 맞기 전까지 자기만 느려져 있다 → 맞는 순간 제 속도 (사용자 10-14)
             if (slowUntilHit) { slowUntilHit = false; localSlowTarget = 1f; localSlow = 1f; }
+            if (flyLeft > 0f) flyLeft = 0f;   // 날던 깡통은 맞으면 평범하게 튄다 (그다음은 중력)
             SyncScale();   // 속도 계산 전에 배수부터 맞춘다 (느려지기 켜고 끄는 프레임 버그)
             if (!Airborne)
             {
@@ -468,6 +489,7 @@ namespace TinCan
         {
             if (Done || !Airborne) return;
             if (c.GetComponent<DropZone>() == null) return;
+            if (rb != null && rb.linearVelocity.y > 0f) return;   // 올라가는 중엔 바닥 판정 없음 (화면 아래에서 던져진 다이너마이트가 지나간다)
             if (ChainHeld) { SyncScale(); parked = true; rb.linearVelocity = Vector2.zero; rb.gravityScale = 0f; return; }   // 연쇄 차례를 기다리는 중: 바닥에서 멈춰 기다린다
             if (bouncesLeft < 0) bouncesLeft = IsMenu ? 0 : (Game.I != null ? Game.I.LandBounces : 0);
             if (bouncesLeft > 0)
@@ -568,8 +590,8 @@ namespace TinCan
                     Sfx.Play(Sfx.Drop(), 0.6f, 1.4f);
                     break;
                 case CanKind.Trait.Blue:
-                    // 반투명 깡통이 공중으로 날아오른다 (사용자 10-14). 2초 동안 중력 60%로 살짝 둥실
-                    SpawnAirborne(CanKind.Ghost, at, new Vector2(Random.Range(-1f, 1f), 9f), 2f, 0.6f, ghost: true);
+                    // 반투명 깡통이 날아오른다 (사용자 10-14 2판: 특색 = 비행). 화면 가운데 줄로 올라가 3초 동안 좌우로 날다가 떨어진다
+                    SpawnAirborne(CanKind.Ghost, at, new Vector2(0f, 6f), 0f, 1f, ghost: true).StartFlight(3f);
                     Sfx.Play(Sfx.Twirl(), 0.4f, 1.8f);
                     break;
             }
@@ -630,13 +652,23 @@ namespace TinCan
         /// 다이너마이트 투척 (사용자 10-14): 선반에 소환되는 게 아니라, 쏠 때 가끔 총 쪽에서 공중으로 던져진다.
         /// 선반 위 아무 자리 쪽으로 높이 떠서 2.5초 동안 중력 35%로 천천히 → 그사이 3발 맞히면 터진다. 못 맞히면 바닥에 떨어져 불발
         /// </summary>
-        public static Can ThrowDynamite(Vector2 from)
+        public static Can ThrowDynamite(Vector2 from) => ThrowDynamite();
+
+        /// <summary>
+        /// 다이너마이트 투척 2판 (사용자 10-14): 총이 아니라 화면 바닥 밖에서 던져져 화면 가운데 높이(≈y 0)까지 올라온다.
+        /// 꼭대기 근처에서 천천히(중력 35%, 2.5초) → 그사이 3발
+        /// </summary>
+        public static Can ThrowDynamite()
         {
-            float tx = Random.Range(Look.ShelfLeft + 1f, Look.ShelfRight - 1f);
-            var vel = new Vector2(Mathf.Clamp((tx - from.x) * 0.9f, -4f, 4f), 9.5f);
-            var c = SpawnAirborne(CanKind.Dynamite, from, vel, 2.5f, 0.35f);
+            float startY = -Look.PlayHalfW * 9f / 16f - 0.8f;               // 화면 아래 끝 바로 밖
+            float apexY = Random.Range(-0.3f, 0.6f);                       // 화면 가운데쯤
+            float x0 = Random.Range(-Look.PlayHalfW + 2f, Look.PlayHalfW - 2f);
+            float x1 = Mathf.Clamp(x0 + Random.Range(-3f, 3f), -Look.PlayHalfW + 1.5f, Look.PlayHalfW - 1.5f);
+            float g = -Physics2D.gravity.y * BaseGravity * CanKind.Dynamite.Weight * 0.35f;
+            float vy = Mathf.Sqrt(2f * g * (apexY - startY)) * 1.06f;   // 공기 저항(감쇠 0.1)만큼 보탬: 없으면 꼭대기가 0.5쯤 낮았다
+            float tUp = vy / g;
+            var c = SpawnAirborne(CanKind.Dynamite, new Vector2(x0, startY), new Vector2((x1 - x0) / tUp, vy), 2.5f, 0.35f);
             Sfx.Play(Sfx.Twirl(), 0.6f, 1.3f);
-            Fx.Smoke(from, Vector2.up);
             return c;
         }
 
@@ -725,7 +757,7 @@ namespace TinCan
             {
                 // 그림 깡통: 번쩍임 = 흰 실루엣을 겹친다, 저주 = 보라로 물들인다
                 if (flashLeft > 0f) { flashLeft -= Time.deltaTime; if (white != null) white.color = new Color(1f, 1f, 1f, flashLeft > 0f ? 1f : 0f); }
-                body.color = Cursed ? new Color(0.75f, 0.45f, 0.9f) : Color.white;
+                body.color = Cursed ? new Color(0.75f, 0.45f, 0.9f, alpha) : new Color(1f, 1f, 1f, alpha);   // alpha: 반투명 깡통 (매 프레임 덮어써서 불투명해지던 버그, 10-14)
             }
             else if (flashLeft > 0f)
             {
