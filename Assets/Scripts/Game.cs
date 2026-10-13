@@ -277,7 +277,8 @@ namespace TinCan
             if (kb.f6Key.wasPressedThisFrame) DebugSpawn(CanKind.Bundle);
             if (kb.f7Key.wasPressedThisFrame) DebugSpawn(CanKind.Blue);
             if (kb.f8Key.wasPressedThisFrame) DebugSpawn(CanKind.Magnet);
-            if (kb.f4Key.wasPressedThisFrame) bounty.Summon(CanKind.BountyTest);   // 시험용: 체력 3짜리 현상금 깡통 (막타 연출 확인)
+            if (kb.f4Key.wasPressedThisFrame) bounty.Summon(CanKind.BountyTest);
+            if (kb.f10Key.wasPressedThisFrame) CycleDebugTime();   // 시험용: 체력 3짜리 현상금 깡통 (막타 연출 확인)
             if (kb.digit1Key.wasPressedThisFrame) SelectSlot(0);
             if (kb.digit2Key.wasPressedThisFrame) SelectSlot(1);
             if (kb.digit3Key.wasPressedThisFrame) hud.Float("3: 투척류 — 아직 없다", new Vector2(0f, 1.5f), 0);
@@ -668,11 +669,23 @@ namespace TinCan
 
         IEnumerator HitStop(float seconds)
         {
-            if (Time.timeScale < 1f) yield break;
-            Time.timeScale = 0.05f;
+            if (Time.timeScale < DebugTime - 0.001f) yield break;   // 이미 멈춤·연출 중
+            Time.timeScale = 0.05f * DebugTime;
             float t = 0f;
             while (t < seconds) { t += Time.unscaledDeltaTime; yield return null; }
-            Time.timeScale = 1f;
+            Time.timeScale = DebugTime;
+        }
+
+        // ---------- 디버그 슬로우 F10 (사용자 10-14): 누를 때마다 전체 시간 1 → 0.5 → 0.3 → 0.2 → 1 ----------
+        /// <summary>게임 전체 시간 배수 (디버그). 멈춤·현상금 연출은 이 위에 곱한다</summary>
+        public static float DebugTime = 1f;
+        static readonly float[] DebugSteps = { 1f, 0.5f, 0.3f, 0.2f };
+        void CycleDebugTime()
+        {
+            int i = System.Array.IndexOf(DebugSteps, DebugTime);
+            DebugTime = DebugSteps[(i + 1) % DebugSteps.Length];
+            if (!Gun.Cinematic) { Time.timeScale = DebugTime; Time.fixedDeltaTime = 0.02f * DebugTime; }   // 물리 칸도 같이 줄여야 느려도 부드럽다
+            hud.Float($"속도 ×{DebugTime:0.#}", new Vector2(0f, 2.8f), 8);
         }
     }
 }

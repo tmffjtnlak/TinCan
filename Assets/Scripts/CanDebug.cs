@@ -35,7 +35,7 @@ namespace TinCan
             // 전체
             var g = Game.I;
             int air = g.Airborne;
-            string top = $"[디버그 F9]  공중 {air}  저글링 낙하 ×{Can.JuggleFall[Mathf.Clamp(air, 1, Can.JuggleFall.Length) - 1]:0.##}  " +
+            string top = $"[디버그 F9]  전체 속도 ×{Game.DebugTime:0.#} (F10)  공중 {air}  저글링 낙하 ×{Can.JuggleFall[Mathf.Clamp(air, 1, Can.JuggleFall.Length) - 1]:0.##}  " +
                          $"시간 ×{Can.TimeScale:0.00}  튐 보너스 +{Can.BounceBonus:0.##}  기본 중력 {-Physics2D.gravity.y:0.##}×2.2";
             var hs = head.CalcSize(new GUIContent(top));
             GUI.Box(new Rect(10 * k, 120 * k, hs.x, hs.y), top, head);

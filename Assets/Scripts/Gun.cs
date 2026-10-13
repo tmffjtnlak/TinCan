@@ -128,7 +128,7 @@ namespace TinCan
         public void Build()
         {
             cam = Camera.main; camHome = cam.transform.position;
-            Cinematic = false; Time.timeScale = 1f; Time.fixedDeltaTime = 0.02f;   // 연출 도중 씬이 바뀌었어도 원래대로
+            Cinematic = false; Time.timeScale = Game.DebugTime; Time.fixedDeltaTime = 0.02f * Game.DebugTime;   // 연출 도중 씬이 바뀌었어도 원래대로 (디버그 슬로우 F10은 유지)
             Cursor.visible = false;
             crosshair = new GameObject("Crosshair").transform;
             // 도트 조준점 (사용자 10-13): 흰 점 + 흰 팔 4개(3도트), 남색 1도트 외곽선. 크기를 늘리지 않고 팔을 도트 단위로 밀어 벌린다
@@ -278,7 +278,7 @@ namespace TinCan
             Letterbox.Force = true;
             kickLeft = 0f;
             const float baseFixed = 0.02f;
-            void SetTime(float s) { Time.timeScale = s; Time.fixedDeltaTime = baseFixed * Mathf.Max(0.02f, s); }
+            void SetTime(float s) { s *= Game.DebugTime; Time.timeScale = s; Time.fixedDeltaTime = baseFixed * Mathf.Max(0.02f, s); }   // 디버그 슬로우(F10) 위에 곱한다
             float size0 = cam.orthographicSize;
             Vector3 camStart = cam.transform.position;
             // 카메라가 배경 밖을 비추지 않게: 크기 s일 때 가운데가 갈 수 있는 범위
