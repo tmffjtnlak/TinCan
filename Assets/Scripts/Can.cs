@@ -485,7 +485,7 @@ namespace TinCan
             // 현상금은 직접 맞아도 체력이 안 깎인다 (사용자 10-14: 부하를 터뜨린 파편으로만). 체력 1(막타 차례)일 때만 총이 마무리한다
             bool armored = Kind.IsBounty && HitsLeft > 1;
             if (!armored) HitsLeft -= Mathf.Max(1, damage);   // 다이너마이트는 한 번에 2 (스킬로 강화 예정)
-            else Sfx.Play(Sfx.Click(), 0.6f, 0.55f);         // 쇠에 튕기는 소리: 안 먹혔다
+            else { Sfx.Play(Sfx.Ricochet(), 0.9f, Random.Range(0.9f, 1.15f)); Fx.Spark(hitPoint, 6, 1.2f); }   // 도탄: 총알이 튕겨 나갔다 (사용자 10-14)
             // (10-14 버티기 규칙은 뺐다: "터져야 할 깡통이 안 터지면 이상하다". 대신 현상금전엔 터진 깡통의 파편이 현상금을 깎는다 — Game.CanBurst)
             for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
             if (HitsLeft <= 0 && Kind.IsMinion && Game.I != null && Game.I.BountyAlive) { StartCoroutine(Ram()); return earned; }   // 부하는 터지지 않고 현상금에 박치기 (사용자 10-14)
@@ -650,7 +650,6 @@ namespace TinCan
             if (Done || !Airborne) yield break;
             float dir = transform.position.x > 0f ? -1f : 1f;
             if (Random.value < 0.25f) dir = -dir;   // 가끔은 좁은 쪽으로 (예측을 조금 깬다)
-            Game.I?.Hud.Float("구른다!", (Vector2)transform.position + Vector2.up * 0.9f, 5);
             Sfx.Play(Sfx.Whoosh(), 0.8f, 0.7f);
             float dust = 0f;
             for (float t = 0f; t < 0.55f && !Done && !crouching; t += Time.deltaTime)
