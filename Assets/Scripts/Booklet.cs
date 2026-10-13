@@ -220,7 +220,9 @@ namespace TinCan
                 bool afford = game.Money >= g.Price;
                 buyText.text = owned ? "보유" : $"BUY  ${g.Price:N0}";
                 buyPill.color = owned ? new Color(0.75f, 0.9f, 0.7f) : afford ? new Color(1f, 0.92f, 0.6f) : new Color(0.95f, 0.65f, 0.6f);
-                bool overBuy = Inside(buyCard.rectTransform, canvasPt);
+                // 10-13 버그: canvasPt는 0.8배 구성 안쪽 좌표(÷Fit)인데, Inside는 화면에 실제로 그려진(이미 0.8배 된) 모서리로 비교한다
+                // → 보이는 버튼을 눌러도 판정이 어긋났다. 실제 화면 좌표(×Fit 되돌림)로 비교
+                bool overBuy = Inside(buyCard.rectTransform, canvasPt * Fit);
                 Ease.Spring(ref buyS, ref buySV, overBuy && !owned ? 1.08f : 1f, 500f, 16f, dt);
                 Ease.Spring(ref buyRot, ref buyRotV, overBuy && !owned ? 2f : 5f, 300f, 10f, dt);
                 buyCard.rectTransform.localScale = Vector3.one * buyS;
