@@ -33,13 +33,13 @@ namespace TinCan
         /// <summary>흰 구름 한 뭉치: 가운데 큰 원 + 둘레 작은 원 5개. 깡통(2)과 탄피(1)보다 뒤(0)</summary>
         public static void Cloud(Vector2 at, float size = 1f)
         {
-            // 10-13: 깡통 소환과 같이 40% 단축 (부풂 0.16 → 0.1초, 용수철 ×2.8, 떠오름 ×1.65)
+            // 10-13 2차: 지속 시간 2배 (부풂 0.1 → 0.2초, 용수철 세기 ÷4·감쇠 ÷2 = 같은 출렁임을 2배 시간에, 떠오름 ÷2), 크기는 Cloud 호출에서 ×1.2
             I.StartCoroutine(I.PuffCo(at, 9f * size, 0f, Vector2.up * 0.25f));
             for (int i = 0; i < 5; i++)
             {
                 float a = (i * 72f + Random.Range(-18f, 18f)) * Mathf.Deg2Rad;
                 var off = new Vector2(Mathf.Cos(a), Mathf.Sin(a) * 0.75f) * Random.Range(0.28f, 0.4f) * size;
-                I.StartCoroutine(I.PuffCo(at + off, Random.Range(4.5f, 7f) * size, i * 0.015f, off * 0.9f + Vector2.up * 0.2f));
+                I.StartCoroutine(I.PuffCo(at + off, Random.Range(4.5f, 7f) * size, i * 0.03f, off * 0.9f + Vector2.up * 0.2f));
             }
         }
 
@@ -51,15 +51,15 @@ namespace TinCan
             while (true)
             {
                 float dt = Time.deltaTime; t += dt;
-                bool grow = t < 0.1f;
+                bool grow = t < 0.2f;
                 // 부풀 땐 빠르고 살짝 넘치게, 줄 땐 느긋하게 (용수철)
-                Ease.Spring(ref r, ref v, grow ? maxR : 0f, grow ? 1450f : 250f, grow ? 21f : 18f, dt);
-                if (!grow) pos += drift * dt * 2.6f;
+                Ease.Spring(ref r, ref v, grow ? maxR : 0f, grow ? 362f : 62f, grow ? 10.5f : 9f, dt);
+                if (!grow) pos += drift * dt * 1.3f;
                 int ri = Mathf.RoundToInt(r);
                 if (!grow && ri < 1) break;
                 sr.sprite = ri >= 1 ? Disc(ri) : null;
                 sr.transform.position = new Vector3(Mathf.Round(pos.x * 27f) / 27f, Mathf.Round(pos.y * 27f) / 27f, 0f);   // 도트 칸에 붙인다
-                if (t > 0.9f) break;
+                if (t > 1.8f) break;
                 yield return null;
             }
             Destroy(sr.gameObject);
