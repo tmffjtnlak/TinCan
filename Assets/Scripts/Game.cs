@@ -515,16 +515,28 @@ namespace TinCan
         /// <summary>한 발에 쌓이는 기본 돈: 값 × 값배수 × (연속 × 연속배수) × 총 배수. 배율은 세트 끝에</summary>
         public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale));
 
+        // ---------- 돈 시스템 단순화 (사용자 10-14): 맞힐 땐 돈 없음. 떨어지면 소환비보다 조금 더(×1.25), 터뜨리면 보상 + 세트 배율 +0.5 ----------
+        public const float LandRate = 1.25f, BurstMultStep = 0.5f;
+        /// <summary>떨어졌을 때 받는 돈: 소환비 × 1.25 (올림) × 값 배수 × 정산 배수</summary>
+        public long LandPay(CanKind k) => k.Cost <= 0 ? 0 : (long)Mathf.CeilToInt(k.Cost * LandRate * ValueMult * PayoutMult);
+        /// <summary>터뜨렸을 때 보상: 깡통 보상 × 값 배수 × (터짐 배수 / 2 — 스킬로 오르는 몫)</summary>
+        public long BurstPay(CanKind k) => (long)Mathf.Round(k.BurstReward * ValueMult * (BurstMult / 2f));
+        /// <summary>이번 세트의 터뜨림 배율: ×1에서 시작해 터뜨릴 때마다 +0.5. 세트가 끝날 때 합계에 곱한다</summary>
+        public float SetBurstMult { get; private set; } = 1f;
+
         float nudgeTimer; int nudges;
         /// <summary>하나만 떠 있고 선반에 깡통이 있으면 "하나 더 띄우면 ×3" (처음 다섯 번, 10초에 한 번)</summary>
         void Nudge()
         {
+            return;   // 10-14: 저글링 배율(×3)이 없어져서 안내도 끈다
+#pragma warning disable CS0162
             if (nudges >= 5 || MostAirborne >= 2) return;
             nudgeTimer -= Time.deltaTime;
             if (nudgeTimer > 0f) return;
             if (Airborne != 1 || CansOnShelf == 0) return;
             foreach (var c in Cans) if (c != null && !c.Airborne) { hud.Float("하나 더 띄우면 ×3", (Vector2)c.transform.position + Vector2.up * 0.9f, 5); break; }
             nudgeTimer = 10f; nudges++;
+#pragma warning restore CS0162
         }
 
         // ---------- 세트 (사용자 10-12) ----------
@@ -546,9 +558,9 @@ namespace TinCan
             yield return new WaitForSeconds(0.15f);
             if (Airborne > 0) { ending = false; yield break; }   // 그새 또 띄웠으면 세트가 이어진다
             long baseSum = SetPending;
-            int airMult = AirMult(SetMaxAir);
+            float burstMult = SetBurstMult;
             float perfect = missed ? 1f : PerfectMult, just = JustMultOf(SetMaxStreak);
-            long total = (long)Mathf.Round(baseSum * airMult * perfect * just);
+            long total = (long)Mathf.Round(baseSum * burstMult * perfect * just);
             SetPending = 0; SetActive = false; ending = false;
             if (total <= 0) yield break;
             bool best = total > BestPayout;
@@ -558,7 +570,7 @@ namespace TinCan
             var lines = new List<(string, bool)>
             {
                 ($"기본  ${baseSum:N0}", true),
-                ($"저글링  ×{airMult}", airMult > 1),
+                ($"터뜨림  ×{burstMult:0.#}", burstMult > 1f),
                 ($"퍼펙트샷  ×{perfect:0.#}", perfect > 1f),
                 ($"저스트리로드  ×{just:0.#}", just > 1f),
             };
@@ -593,12 +605,11 @@ namespace TinCan
         public void CanHit(Can can, int earned, Vector2 at)
         {
             if (can.Kind.NotScored) { StartCoroutine(HitStop(0.02f)); return; }   // 다이너마이트: 세트·기록·배율·게이지 밖 (맞는 손맛만)
-            if (!SetActive) { SetActive = true; SetPending = 0; missed = false; SetMaxAir = 0; SetMaxStreak = 0; }
+            if (!SetActive) { SetActive = true; SetPending = 0; missed = false; SetMaxAir = 0; SetMaxStreak = 0; SetBurstMult = 1f; }
             int air = Airborne;
             if (air > MostAirborne) MostAirborne = air;
             if (air > SetMaxAir) SetMaxAir = air;
             if (Gun.ReloadStreak > SetMaxStreak) SetMaxStreak = Gun.ReloadStreak;
-            hud.Float($"+{earned}", at, can.Combo + (air - 1) * 3);
             if (can.Combo > BestCombo) BestCombo = can.Combo;
             Gun.OnComboHit(can.Combo);
             FillSlow();
@@ -611,7 +622,7 @@ namespace TinCan
             if (can.Kind.NotScored) return;   // 계산 밖 물체: 떨어져도 정산 없음
             if (!can.Kind.NoCasings) SpillCasings(new Vector2(can.transform.position.x, Look.DropY + 0.4f), LandCasings, false, false);   // 떨어진 자리에 탄피를 조금 흘린다 (보조 깡통은 안 흘림)
             if (can.Cursed) { CurseLanded(can); return; }
-            long pay = (long)Mathf.Round(can.Earned * PayoutMult);
+            long pay = LandPay(can.Kind);   // 소환비보다 조금 더
             SetPending += pay;
             if (pay > 0) hud.Float($"+${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.8f, 2);
             if (can.Kind.IsBounty) bounty.Escaped(can);
@@ -620,7 +631,7 @@ namespace TinCan
         /// <summary>저주통이 떨어졌다: 이번 세트에 쌓인 돈에서 뺏긴다</summary>
         public void CurseLanded(Can can)
         {
-            long lost = System.Math.Min(SetPending, (long)Mathf.Round(can.Earned * PayoutMult));
+            long lost = System.Math.Min(SetPending, LandPay(can.Kind) + can.Kind.Cost);   // 10-14: 떨어진 값 + 소환비만큼
             SetPending -= lost;
             hud.Float($"저주!  -${lost:N0}", (Vector2)can.transform.position + Vector2.up * 0.8f, 10);
             hud.Hurt();
@@ -651,10 +662,11 @@ namespace TinCan
         {
             if (can.Kind.NotScored) { StartCoroutine(HitStop(0.07f)); return; }   // 계산 밖 물체: 터져도 돈·터뜨림 수 없음 (폭발 자체는 Can.TraitBurst)
             if (!can.Kind.NoCasings) SpillCasings(can.transform.position, can.Kind.IsBounty ? BountyCasings : BurstCasings, true, can.Kind.IsBounty);   // 보조 깡통(다이너마이트)은 탄피 없음
-            long pay = (long)Mathf.Round(can.Earned * PayoutMult * BurstMult);
+            long pay = BurstPay(can.Kind);
             SetPending += pay;
+            SetBurstMult += BurstMultStep;   // 터뜨릴 때마다 이번 세트 배율 +0.5
             Bursts++;
-            hud.Float($"터짐!  +${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+            hud.Float($"터짐!  +${pay:N0}  ×{SetBurstMult:0.#}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));
             if (can.Kind.IsBounty) bounty.Busted(can);
             if (can.Kind.IsBounty && !Gun.Cinematic) Gun.StartChain(can.transform.position);   // 막타 연출이 아니었어도 공중 깡통들을 차례로 터뜨린다
@@ -668,10 +680,11 @@ namespace TinCan
         public void MinionScored(Can can)
         {
             SpillCasings(can.transform.position, BurstCasings, true, false);
-            long pay = (long)Mathf.Round(can.Earned * PayoutMult * BurstMult);
+            long pay = BurstPay(can.Kind);
             SetPending += pay;
+            SetBurstMult += BurstMultStep;
             Bursts++;
-            hud.Float($"박치기!  +${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+            hud.Float($"박치기!  +${pay:N0}  ×{SetBurstMult:0.#}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(0.05f));
         }
         /// <summary>현상금이 살아 있나 (선반·공중 상관없이). 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14)</summary>

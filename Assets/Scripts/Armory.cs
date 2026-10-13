@@ -74,7 +74,7 @@ namespace TinCan
                     var k = CanKind.ForSale[i];
                     c.Root.gameObject.SetActive(true);
                     bool owned = game.OwnedCans.Contains(k.Id), current = game.SpawnKind == k;
-                    long burst = (long)Mathf.Round(k.BurstBase * game.ValueMult * game.PayoutMult * game.BurstMult * 0.5f);
+                    long burst = game.BurstPay(k);
                     Fill(c, i, k.Name, Ui.Ink, k.Body, owned, current, k.Price, $"{k.Desc}   ·   소환 ${game.SpawnCost(k)}   ·   <color=#ffd966>터뜨리면 ${burst:N0}</color>", current ? "소환 중" : "보유");
                     if (kb != null && Digit(kb, i + 1)) game.PickCan(k);
                 }

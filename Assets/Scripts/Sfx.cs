@@ -78,24 +78,6 @@ namespace TinCan
             return (click + ring) * (1f - k * 0.3f);
         }));
 
-        static AudioClip ricochet;
-        /// <summary>
-        /// 피융: 도탄음 (사용자 10-14: 현상금은 총알이 튕겨 나간다). 쇠를 때리는 짧은 딱 + 높은 음(3200Hz)이 0.45초 동안
-        /// 낮게(900Hz) 미끄러지며 사라진다. 살짝 떨림
-        /// </summary>
-        public static AudioClip Ricochet() => ricochet != null ? ricochet : (ricochet = Make("ricochet", 0.5f, (t, noise) =>
-        {
-            const float T = 0.45f, f0 = 3200f, f1 = 900f;
-            float r = f1 / f0, lr = Mathf.Log(r);
-            float u = Mathf.Min(t, T);
-            float phase = 2f * Mathf.PI * f0 * T / lr * (Mathf.Pow(r, u / T) - 1f);   // 지수로 내려가는 음높이를 적분한 위상
-            phase += Mathf.Sin(2f * Mathf.PI * 28f * t) * 0.8f;                        // 떨림
-            float env = Mathf.Clamp01(t / 0.004f) * Mathf.Exp(-t * 3.5f) * Mathf.Clamp01((0.5f - t) / 0.08f);
-            float whine = Mathf.Sin(phase) * 0.45f * env;
-            float tick = (noise * 0.6f + Mathf.Sin(2f * Mathf.PI * 5200f * t) * 0.4f) * Mathf.Exp(-t * 220f);
-            return Mathf.Clamp(whine + tick, -1f, 1f);
-        }));
-
         /// <summary>툭: 깡통이 땅에 떨어짐</summary>
         public static AudioClip Drop() => drop != null ? drop : (drop = Make("drop", 0.15f, (t, noise) =>
         {

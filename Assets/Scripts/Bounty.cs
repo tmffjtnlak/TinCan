@@ -99,7 +99,7 @@ namespace TinCan
         IEnumerator SummonCo(CanKind kind)
         {
             busy = true;
-            long bounty = (long)Mathf.Round(kind.BurstBase * Game.I.ValueMult * Game.I.PayoutMult * Game.I.BurstMult * 0.5f);
+            long bounty = Game.I.BurstPay(kind);   // 10-14: 터뜨림 보상 (맞힐 때 돈은 없다)
             amount.text = $"${bounty:N0}";
             stamp.text = "";
             foreach (var p in pips) p.color = new Color(0.25f, 0.15f, 0.08f);

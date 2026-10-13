@@ -47,27 +47,30 @@ namespace TinCan
         /// <summary>자석 깡통: 맞을 때마다 옆의 옆까지 깡통을 끌어당긴다 (그림은 자석까지 32칸, 몸 간격은 24칸)</summary>
         public static readonly CanKind Magnet = new CanKind { Id = "magnet", Name = "자석 깡통", Desc = "맞을 때마다 주변 깡통을 끌어당긴다.", Value = 1, Cost = 2, Hits = 5, Weight = 1f, Width = 24f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.2f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, Special = Trait.Magnet };
         /// <summary>묶음에서 튀어나온 깡통 (깡통 그림, 체력 2)</summary>
-        public static readonly CanKind Loose = new CanKind { Id = "tin", Name = "풀린 깡통", Desc = "", Value = 1, Cost = 0, Hits = 2, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.05f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
+        public static readonly CanKind Loose = new CanKind { Id = "tin", Name = "풀린 깡통", Desc = "", Value = 1, Cost = 0, Reward = 5, Hits = 2, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.05f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label };
         /// <summary>파란 깡통이 남기는 반투명 깡통 (체력 2)</summary>
-        public static readonly CanKind Ghost = new CanKind { Id = "blue", Name = "반투명 깡통", Desc = "", Value = 1, Cost = 0, Hits = 2, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.4f, Body = new Color(0.4f, 0.6f, 1f), Rim = new Color(0.25f, 0.35f, 0.7f), Label = Color.white };
+        public static readonly CanKind Ghost = new CanKind { Id = "blue", Name = "반투명 깡통", Desc = "", Value = 1, Cost = 0, Reward = 5, Hits = 2, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.4f, Body = new Color(0.4f, 0.6f, 1f), Rim = new Color(0.25f, 0.35f, 0.7f), Label = Color.white };
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
         /// <summary>현상수배 깡통: 체력 15 (10-14: 30 → 15), 무겁고, 값 5. 터뜨리면 값×15×16 = 1,200 기본. 가게엔 없다</summary>
-        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
+        public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 500 };
         /// <summary>구르는 무법자 (사용자 10-14 첫 보스 행동): 박치기 두 번마다 좌우로 빠르게 구른다</summary>
-        public static readonly CanKind BountyRoller = new CanKind { Id = "bounty", Name = "구르는 무법자", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Trick = BossTrick.Roll };
+        public static readonly CanKind BountyRoller = new CanKind { Id = "bounty", Name = "구르는 무법자", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 500, Trick = BossTrick.Roll };
         public bool IsBounty;
         /// <summary>현상금의 부하 (사용자 10-14): 콧수염 단 깡통. 현상금이 살아 있는 동안 바닥에서 무한히 다시 뛰어오르고, 터지면 현상금이 새로 불러낸다</summary>
         public bool IsMinion;
         /// <summary>보스(현상금) 행동 양식 (사용자 10-14: 보스마다 점프 패턴·피격 반응을 다르게)</summary>
         public enum BossTrick { None, Roll }
         public BossTrick Trick;
-        public static readonly CanKind Minion = new CanKind { Id = "tin", Name = "부하 깡통", Desc = "현상금의 부하.", Value = 1, Cost = 0, Price = 0, Hits = 3, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.15f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, IsMinion = true };
+        public static readonly CanKind Minion = new CanKind { Id = "tin", Name = "부하 깡통", Desc = "현상금의 부하.", Value = 1, Cost = 0, Reward = 5, Price = 0, Hits = 3, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.15f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, IsMinion = true };
         /// <summary>시험용 현상수배 깡통 (사용자 10-13): 체력 3. F4로 부른다 (막타 연출 확인용)</summary>
-        public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
+        public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 500 };
         public static readonly System.Collections.Generic.List<CanKind> ForSale = new System.Collections.Generic.List<CanKind> { Tin, Bottle, Rubber, Hat };
         /// <summary>터뜨리면 기본 얼마: 값 × H(H+1). (n번 맞추면 값 × n(n+1)/2 쌓이고, 터뜨리면 ×2) — 예측 가능한 점수</summary>
         public long BurstBase => (long)Value * Hits * (Hits + 1);
+        /// <summary>터뜨림 보상 (10-14 돈 시스템). 0이면 소환비 × 5</summary>
+        public long Reward;
+        public long BurstReward => Reward > 0 ? Reward : (long)Cost * 5;
     }
 
     /// <summary>
@@ -480,12 +483,12 @@ namespace TinCan
             }
             Combo++;
             floorSlowed = false;
-            int earned = Kind.NotScored ? 0 : Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;   // 계산 밖 물체는 돈 0
+            int earned = 0;   // 10-14 돈 시스템 단순화: 맞힐 때는 돈이 없다 (떨어지면 소환비보다 조금 더, 터뜨리면 보상 + 세트 배율)
             Earned += earned;
             // 현상금은 직접 맞아도 체력이 안 깎인다 (사용자 10-14: 부하를 터뜨린 파편으로만). 체력 1(막타 차례)일 때만 총이 마무리한다
             bool armored = Kind.IsBounty && HitsLeft > 1;
             if (!armored) HitsLeft -= Mathf.Max(1, damage);   // 다이너마이트는 한 번에 2 (스킬로 강화 예정)
-            else { Sfx.Play(Sfx.Ricochet(), 0.9f, Random.Range(0.9f, 1.15f)); Fx.Spark(hitPoint, 6, 1.2f); }   // 도탄: 총알이 튕겨 나갔다 (사용자 10-14)
+            else Sfx.Play(Sfx.Click(), 0.6f, 0.55f);         // 쇠에 튕기는 소리: 안 먹혔다 (10-14 도탄음은 되돌림)
             // (10-14 버티기 규칙은 뺐다: "터져야 할 깡통이 안 터지면 이상하다". 대신 현상금전엔 터진 깡통의 파편이 현상금을 깎는다 — Game.CanBurst)
             for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
             if (HitsLeft <= 0 && Kind.IsMinion && Game.I != null && Game.I.BountyAlive) { StartCoroutine(Ram()); return earned; }   // 부하는 터지지 않고 현상금에 박치기 (사용자 10-14)
@@ -715,9 +718,29 @@ namespace TinCan
             Done = true; crouching = false;
             rb.simulated = false;
             DropAllProps(transform.position, 1f);
-            Game.I?.CanLanded(this);   // 쌓인 돈 정산 + ESCAPED 도장
+            Game.I?.CanLanded(this);   // ESCAPED 도장
+            // 부하도 같이 사라진다 (사용자 10-14)
+            if (Game.I != null) foreach (var c in Game.I.Cans.ToArray()) if (c != null && !c.Done && c.Kind.IsMinion) c.Dismiss();
             StopAllCoroutines();
             StartCoroutine(RunAwayCo());
+        }
+
+        /// <summary>정산 없이 펑 하고 사라진다 (현상금이 도망칠 때 부하)</summary>
+        public void Dismiss()
+        {
+            if (Done) return;
+            Done = true; ramming = false;
+            if (rb != null) rb.simulated = false;
+            DropAllProps(transform.position, 0.8f);
+            StopAllCoroutines();
+            Fx.Cloud(transform.position, 0.8f);
+            StartCoroutine(DismissCo());
+        }
+        IEnumerator DismissCo()
+        {
+            var s0 = visual.localScale;
+            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.2f) { visual.localScale = s0 * (1f - Ease.InCubic(t)); yield return null; }
+            Destroy(gameObject);
         }
         IEnumerator RunAwayCo()
         {
