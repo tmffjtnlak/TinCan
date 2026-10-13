@@ -108,7 +108,7 @@ namespace TinCan
             for (int x = 0; x < w; x++)
             {
                 tex.SetPixel(x, 0, line); tex.SetPixel(x, 2, line);
-                tex.SetPixel(x, 1, (x % 3) != 2 ? new Color(1f, 1f, 1f, 0.9f) : line);
+                tex.SetPixel(x, 1, new Color(1f, 1f, 1f, 0.9f));   // 끊김 없는 한 줄 (사용자 10-13)
             }
             tex.Apply();
             return Sprite.Create(tex, new Rect(0, 0, w, 3), new Vector2(0.5f, 0.5f), 27f);
@@ -154,7 +154,8 @@ namespace TinCan
             barBg = MakeSR("Track", DottedTrack(BarDots), 51, bar);
             MakeSR("BracketL", Art(BracketArt, false), 51, bar).transform.localPosition = new Vector2(-(BarDots / 2 + 2) * Dot, 0f);
             MakeSR("BracketR", Art(BracketArt, true), 51, bar).transform.localPosition = new Vector2((BarDots / 2 + 2) * Dot, 0f);
-            barWindow = Look.Quad("Window", Vector2.zero, new Vector2(Dot, Dot), new Color(1f, 0.85f, 0.25f, 1f), 52, bar);
+            // 저스트 타이밍 = 노란 세로줄 한 줄 (1×5 도트, 사용자 10-13)
+            barWindow = Look.Quad("Window", Vector2.zero, new Vector2(Dot, 5f * Dot), new Color(1f, 0.85f, 0.25f, 1f), 52, bar);
             barFill = MakeSR("Cursor", PixelBar(1, 5), 53, bar);
             bar.gameObject.SetActive(false);
             Equip(GunKind.Revolver);
@@ -239,8 +240,8 @@ namespace TinCan
                 int cx = Mathf.Clamp(Mathf.RoundToInt(ReloadProgress * BarDots) - half, -half, half);
                 barFill.transform.localPosition = new Vector2(cx * Dot, 0f);
                 int x0 = Mathf.RoundToInt(windowStart * BarDots) - half, x1 = Mathf.Max(x0 + 1, Mathf.RoundToInt(windowEnd * BarDots) - half);
-                barWindow.transform.localPosition = new Vector2((x0 + x1 - 1) * 0.5f * Dot, 0f);
-                barWindow.transform.localScale = new Vector3((x1 - x0) * Dot, Dot, 1f);
+                barWindow.transform.localPosition = new Vector2(Mathf.RoundToInt((x0 + x1 - 1) * 0.5f) * Dot, 0f);
+                barWindow.transform.localScale = new Vector3(Dot, 5f * Dot, 1f);
                 barWindow.color = attempted ? (missed ? new Color(1f, 0.3f, 0.2f, 1f) : new Color(0.5f, 1f, 0.6f, 1f)) : new Color(1f, 0.85f, 0.25f, 1f);
             }
 
