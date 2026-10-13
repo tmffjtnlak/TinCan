@@ -32,9 +32,12 @@ namespace TinCan
         public enum Trait { None, Dynamite, Bundle, Blue, Magnet }
         /// <summary>보조 성향 깡통: 터지거나 떨어져도 탄피를 흘리지 않는다 (사용자 10-14, 다이너마이트부터). 돈·연속은 그대로</summary>
         public bool NoCasings;
+        /// <summary>계산 밖 물체 (사용자 10-14: "다이너마이트는 공격 수단이지 돈 수급처가 아니다"). 깡통처럼 맞고 튀고 터지지만
+        /// 돈·터뜨림 수·연속 기록·공중 수(배율·세트·소환 잠금)에 하나도 안 들어간다</summary>
+        public bool NotScored;
         public Trait Special;
         /// <summary>다이너마이트: 3발에 터지며 주변 깡통에 한 발씩 (밀어내며 띄움)</summary>
-        public static readonly CanKind Dynamite = new CanKind { Id = "dynamite", Name = "다이너마이트", Desc = "3발에 터지며 주변 깡통을 친다.", Value = 2, Cost = 2, Hits = 3, Weight = 1.1f, Width = 18f / 27f, Height = 28f / 27f, Mass = 1.1f, Pitch = 0.9f, Body = new Color(0.85f, 0.15f, 0.15f), Rim = new Color(0.5f, 0.1f, 0.1f), Label = Color.white, Special = Trait.Dynamite, NoCasings = true };
+        public static readonly CanKind Dynamite = new CanKind { Id = "dynamite", Name = "다이너마이트", Desc = "3발에 터지며 주변 깡통을 친다.", Value = 2, Cost = 2, Hits = 3, Weight = 1.1f, Width = 18f / 27f, Height = 28f / 27f, Mass = 1.1f, Pitch = 0.9f, Body = new Color(0.85f, 0.15f, 0.15f), Rim = new Color(0.5f, 0.1f, 0.1f), Label = Color.white, Special = Trait.Dynamite, NoCasings = true, NotScored = true };
         /// <summary>깡통 묶음: 3발에 끈이 끊어지며 깡통 셋이 튀어나와 3초 동안 천천히 떨어진다</summary>
         public static readonly CanKind Bundle = new CanKind { Id = "bundle", Name = "깡통 묶음", Desc = "3발에 풀리며 깡통 셋이 튀어나온다.", Value = 1, Cost = 2, Hits = 3, Weight = 1.3f, Width = 28f / 27f, Height = 37f / 27f, Mass = 1.5f, Pitch = 0.8f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, Special = Trait.Bundle };
         /// <summary>파란 깡통: 터지면 반투명 깡통이 잠시 떠 있다</summary>
@@ -442,7 +445,7 @@ namespace TinCan
             }
             Combo++;
             floorSlowed = false;
-            int earned = Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;
+            int earned = Kind.NotScored ? 0 : Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;   // 계산 밖 물체는 돈 0
             Earned += earned;
             HitsLeft -= Mathf.Max(1, damage);   // 다이너마이트는 한 번에 2 (스킬로 강화 예정)
             for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);

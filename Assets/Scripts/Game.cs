@@ -390,7 +390,7 @@ namespace TinCan
         }
 
         public int CansOnShelf => Cans.FindAll(c => c != null && !c.Airborne).Count;
-        public int Airborne { get { int n = 0; foreach (var c in Cans) if (c != null && c.Airborne && !c.Done) n++; return n; } }
+        public int Airborne { get { int n = 0; foreach (var c in Cans) if (c != null && c.Airborne && !c.Done && !c.Kind.NotScored) n++; return n; } }   // 다이너마이트는 공중 수 밖 (배율·세트 끝·소환 잠금)
 
         /// <summary>돈을 내고 선반에 깡통. 짝 소환이면 여러 개, 붙여 놓기면 마지막 깡통 옆에. 공중에 깡통이 있으면 잠긴다 (세트 중)</summary>
         public const float BottleChance = 0.2f;
@@ -589,6 +589,7 @@ namespace TinCan
 
         public void CanHit(Can can, int earned, Vector2 at)
         {
+            if (can.Kind.NotScored) { StartCoroutine(HitStop(0.02f)); return; }   // 다이너마이트: 세트·기록·배율·게이지 밖 (맞는 손맛만)
             if (!SetActive) { SetActive = true; SetPending = 0; missed = false; SetMaxAir = 0; SetMaxStreak = 0; }
             int air = Airborne;
             if (air > MostAirborne) MostAirborne = air;
@@ -604,6 +605,7 @@ namespace TinCan
         /// <summary>떨어졌다: 쌓인 돈 × 정산 배수가 세트에 들어가고, 맞춘 발 수만큼 탄피가 바닥에. 돈은 세트가 끝나야 온다. 저주통이면 뺏긴다</summary>
         public void CanLanded(Can can)
         {
+            if (can.Kind.NotScored) return;   // 계산 밖 물체: 떨어져도 정산 없음
             if (!can.Kind.NoCasings) SpillCasings(new Vector2(can.transform.position.x, Look.DropY + 0.4f), LandCasings, false, false);   // 떨어진 자리에 탄피를 조금 흘린다 (보조 깡통은 안 흘림)
             if (can.Cursed) { CurseLanded(can); return; }
             long pay = (long)Mathf.Round(can.Earned * PayoutMult);
@@ -644,6 +646,7 @@ namespace TinCan
         /// <summary>터뜨렸다: 쌓인 돈 × 정산 배수 × 터짐 배수가 세트에. 탄피가 튀어나와 바닥에. 저주통도 터뜨리면 평소대로</summary>
         public void CanBurst(Can can)
         {
+            if (can.Kind.NotScored) { StartCoroutine(HitStop(0.07f)); return; }   // 계산 밖 물체: 터져도 돈·터뜨림 수 없음 (폭발 자체는 Can.TraitBurst)
             if (!can.Kind.NoCasings) SpillCasings(can.transform.position, can.Kind.IsBounty ? BountyCasings : BurstCasings, true, can.Kind.IsBounty);   // 보조 깡통(다이너마이트)은 탄피 없음
             long pay = (long)Mathf.Round(can.Earned * PayoutMult * BurstMult);
             SetPending += pay;
