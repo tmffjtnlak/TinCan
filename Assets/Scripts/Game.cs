@@ -420,7 +420,8 @@ namespace TinCan
         public bool TrySpawn()
         {
             long cost = SpawnCost(SpawnKind);
-            if (Airborne > 0) { Sfx.Play(Sfx.Click(), 0.5f, 0.6f); hud.Float("공중 깡통을 다 처리하면 소환", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
+            if (Airborne > 0 && !BountyAlive) { Sfx.Play(Sfx.Click(), 0.5f, 0.6f);   // 현상금전엔 공중에 있어도 소환된다 (사용자 10-14: 터뜨린 깡통의 파편이 현상금을 깎으니 계속 깡통이 필요)
+                hud.Float("공중 깡통을 다 처리하면 소환", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (CansOnShelf >= MaxCans) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("선반이 꽉 찼다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (Money < cost) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("돈이 모자라다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             int n = 0;
@@ -656,10 +657,25 @@ namespace TinCan
             hud.Float($"터짐!  +${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));
             if (can.Kind.IsBounty) bounty.Busted(can);
-            if (can.Kind.IsBounty && !Gun.Cinematic) Gun.StartChain(can.transform.position);   // 막타 연출이 아니었어도 버텨 온 깡통들을 차례로 터뜨린다
+            if (can.Kind.IsBounty && !Gun.Cinematic) Gun.StartChain(can.transform.position);
+            // 현상금전 (사용자 10-14): 다른 깡통이 터지면 파편이 현상금으로 날아가 체력 -2 (1까지만), 현상금 +터진 돈의 절반.
+            // 부하가 터지면 현상금이 0.6초 뒤 새 부하를 불러낸다
+            if (!can.Kind.IsBounty && BountyAlive)
+            {
+                var b = Cans.Find(c => c != null && !c.Done && c.Kind.IsBounty);
+                if (b != null)
+                {
+                    long bonus = pay / 2;
+                    Fx.Shrapnel(can.transform.position, b.transform, () => { if (b != null && !b.Done) b.TakeShrapnel(ShrapnelDamage, bonus); });
+                }
+                if (can.Kind.IsMinion) bounty.CallMinion(0.6f);
+            }   // 막타 연출이 아니었어도 버텨 온 깡통들을 차례로 터뜨린다
         }
 
         /// <summary>현상금이 살아 있나 (선반·공중 상관없이). 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14)</summary>
+        /// <summary>파편 피해 (현상금전, 사용자 10-14). 스킬로 키울 자리</summary>
+        public static int ShrapnelDamage = 2;
+
         public bool BountyAlive { get { foreach (var c in Cans) if (c != null && !c.Done && c.Kind.IsBounty) return true; return false; } }
 
         public void BuyNode(SkillNode n)

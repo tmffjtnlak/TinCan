@@ -125,6 +125,9 @@ namespace TinCan
             foreach (var c in Game.I.Cans) if (c != null && !c.Airborne && !c.Done && Mathf.Abs(c.transform.position.x) < (kind.Width + c.Kind.Width) * 0.5f * (1f - Game.MaxOverlap)) { bx = Game.I.FreeX(kind); break; }
             can = Can.Spawn(kind, new Vector2(bx, Look.ShelfY + 0.11f + kind.Height * 0.5f));
             Game.I.Cans.Add(can);
+            // 부하 하나가 같이 내려온다 (사용자 10-14: 현상금전에도 최소 둘은 돌게). 선반 빈자리에
+            float mx = Game.I.FreeX(CanKind.Minion);
+            Game.I.Cans.Add(Can.Spawn(CanKind.Minion, new Vector2(mx, Look.ShelfY + 0.11f + CanKind.Minion.Height * 0.5f)));
             Fx.Shake(0.6f);
             Sfx.Play(Sfx.Drop(), 1f, 0.5f);
             // 살아 있는 동안 체력·도주 시간 표시. 시간이 다 되면 도망간다 (사용자 10-14). 가게가 열렸거나 막타 연출 중엔 멈춘다
@@ -151,6 +154,17 @@ namespace TinCan
             can = null; busy = false;
         }
 
+        /// <summary>부하가 터졌다: delay초 뒤 현상금 옆 공중에 새 부하를 불러낸다 (현상금이 살아 있을 때만)</summary>
+        public void CallMinion(float delay) => StartCoroutine(CallMinionCo(delay));
+        IEnumerator CallMinionCo(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            if (can == null || can.Done) yield break;
+            var at = (Vector2)can.transform.position + new Vector2(Random.value < 0.5f ? -0.8f : 0.8f, 0.3f);
+            Can.SpawnAirborne(CanKind.Minion, at, new Vector2(Mathf.Sign(at.x - can.transform.position.x) * 1.5f, 4f), 0f, 1f);
+            Fx.Cloud(at, 0.7f);
+            Sfx.Play(Sfx.Twirl(), 0.5f, 1.4f);
+        }
         /// <summary>현상수배 깡통이 터졌다</summary>
         public void Busted(Can c)
         {

@@ -45,6 +45,32 @@ namespace TinCan
             }
         }
 
+        /// <summary>
+        /// 파편 (사용자 10-14 현상금전): 터진 자리에서 목표로 금색 도트 조각이 0.25초에 날아가 꽂힌다 (살짝 휘며, 짧은 꼬리).
+        /// 닿으면 onHit. 목표가 사라졌으면 그냥 사라진다
+        /// </summary>
+        public static void Shrapnel(Vector2 from, Transform target, System.Action onHit) => I.StartCoroutine(I.ShrapnelCo(from, target, onHit));
+        IEnumerator ShrapnelCo(Vector2 from, Transform target, System.Action onHit)
+        {
+            var head = Look.Quad("Shrapnel", from, new Vector2(3f, 3f) / 27f, new Color(1f, 0.85f, 0.3f), 48);
+            var tail = Look.Quad("ShrapTail", from, new Vector2(2f, 2f) / 27f, new Color(1f, 1f, 1f), 47);
+            var side = new Vector2(Random.Range(-1f, 1f), Random.Range(0.6f, 1.2f));
+            Vector2 prev = from;
+            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.25f)
+            {
+                if (target == null) break;
+                Vector2 to = target.position;
+                float e = Ease.InCubic(t);
+                var p = Vector2.Lerp(from, to, e) + side * Mathf.Sin(t * Mathf.PI) * 0.6f;
+                head.transform.position = new Vector3(Mathf.Round(p.x * 27f) / 27f, Mathf.Round(p.y * 27f) / 27f, 0f);
+                tail.transform.position = new Vector3(Mathf.Round(prev.x * 27f) / 27f, Mathf.Round(prev.y * 27f) / 27f, 0f);
+                prev = p;
+                yield return null;
+            }
+            Destroy(head.gameObject); Destroy(tail.gameObject);
+            if (target != null) onHit?.Invoke();
+        }
+
         /// <summary>구름을 delay초 뒤에 (다이너마이트 충격파 고리)</summary>
         public static void CloudLater(Vector2 at, float size, float delay) => I.StartCoroutine(I.CloudLaterCo(at, size, delay));
         IEnumerator CloudLaterCo(Vector2 at, float size, float delay) { yield return new WaitForSeconds(delay); Cloud(at, size); }

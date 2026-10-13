@@ -55,6 +55,9 @@ namespace TinCan
         /// <summary>현상수배 깡통: 체력 15 (10-14: 30 → 15), 무겁고, 값 5. 터뜨리면 값×15×16 = 1,200 기본. 가게엔 없다</summary>
         public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
         public bool IsBounty;
+        /// <summary>현상금의 부하 (사용자 10-14): 콧수염 단 깡통. 현상금이 살아 있는 동안 바닥에서 무한히 다시 뛰어오르고, 터지면 현상금이 새로 불러낸다</summary>
+        public bool IsMinion;
+        public static readonly CanKind Minion = new CanKind { Id = "tin", Name = "부하 깡통", Desc = "현상금의 부하.", Value = 1, Cost = 0, Price = 0, Hits = 3, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.15f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, IsMinion = true };
         /// <summary>시험용 현상수배 깡통 (사용자 10-13): 체력 3. F4로 부른다 (막타 연출 확인용)</summary>
         public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
         public static readonly System.Collections.Generic.List<CanKind> ForSale = new System.Collections.Generic.List<CanKind> { Tin, Bottle, Rubber, Hat };
@@ -286,6 +289,7 @@ namespace TinCan
             for (int i = 0; i < kind.Hits; i++)
                 pips[i] = Look.Quad("Pip", new Vector2(-total * 0.5f + pw * 0.5f + (i % perRow) * (pw + gap), kind.Height * 0.5f + 0.14f + (i / perRow) * (pw + gap)), new Vector2(pw, pw), new Color(1f, 1f, 1f, 0.9f), 6, visual);
             if (kind.IsBounty) AddProps();
+            if (kind.IsMinion) AddProp(Random.value < 0.5f ? "prop_stache_wavy" : "prop_stache_flat", new Vector2(0f, -1f), 4, false, 0.15f);   // 부하: 콧수염만
             visual.localScale = Vector3.zero;
             StartCoroutine(PopIn());
         }
@@ -474,11 +478,8 @@ namespace TinCan
             int earned = Kind.NotScored ? 0 : Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;   // 계산 밖 물체는 돈 0
             Earned += earned;
             HitsLeft -= Mathf.Max(1, damage);   // 다이너마이트는 한 번에 2 (스킬로 강화 예정)
-            // 현상금이 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14): 체력 1에서 버티며 계속 돈·연속을 쌓고,
-            // 현상금이 터지는 순간 연쇄로 한꺼번에 터진다 (Gun.ChainBursts). 버티는 중엔 마지막 점이 금색
-            bool hold = !Kind.IsBounty && !Kind.NotScored && !IsMenu && HitsLeft < 1 && Game.I != null && Game.I.BountyAlive;
-            if (hold) HitsLeft = 1;
-            for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? (hold ? new Color(1f, 0.82f, 0.25f, 1f) : new Color(1f, 1f, 1f, 0.9f)) : new Color(1f, 0.4f, 0.3f, 0.35f);
+            // (10-14 버티기 규칙은 뺐다: "터져야 할 깡통이 안 터지면 이상하다". 대신 현상금전엔 터진 깡통의 파편이 현상금을 깎는다 — Game.CanBurst)
+            for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
             if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
@@ -594,6 +595,21 @@ namespace TinCan
             Sfx.Play(Sfx.Twirl(), 0.5f, 0.7f);
         }
 
+        /// <summary>
+        /// 파편에 맞았다 (현상금전, 사용자 10-14): 다른 깡통이 터진 파편이 날아와 체력을 깎고 현상금이 조금 오른다.
+        /// 튀지는 않고 번쩍 + 찌그러짐만. 체력은 1까지만 — 마지막 한 발은 총으로 (막타 연출)
+        /// </summary>
+        public void TakeShrapnel(int damage, long bonus)
+        {
+            if (Done) return;
+            HitsLeft = Mathf.Max(1, HitsLeft - damage);
+            Earned += bonus;
+            for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
+            flashLeft = 0.08f;
+            StartCoroutine(Squash());
+            Sfx.Play(Sfx.Tang(), 0.6f, Kind.Pitch * 0.8f);
+            Fx.Cloud(transform.position, 0.5f);
+        }
         /// <summary>도주: 쌓인 돈만 정산하고 위로 휙 달아나 화면 밖으로 (현상금은 놓친다)</summary>
         public void RunAway()
         {
@@ -620,6 +636,7 @@ namespace TinCan
             if (rb != null && rb.linearVelocity.y > 0f) return;   // 올라가는 중엔 바닥 판정 없음 (화면 아래에서 던져진 다이너마이트가 지나간다)
             if (ChainHeld) { SyncScale(); parked = true; rb.linearVelocity = Vector2.zero; rb.gravityScale = 0f; return; }   // 연쇄 차례를 기다리는 중: 바닥에서 멈춰 기다린다
             // 현상금은 떨어져도 바로 끝이 아니다 (사용자 10-14): 웅크렸다 스스로 튀어 오른다. 2번까지 — 그다음 바닥에선 도망간다
+            if (Kind.IsMinion && Game.I != null && Game.I.BountyAlive) { StartCoroutine(BountyRebound()); return; }   // 부하: 현상금이 있는 동안 무한히 다시 뛴다
             if (Kind.IsBounty) { if (ReboundsLeft > 0) { ReboundsLeft--; StartCoroutine(BountyRebound()); } else RunAway(); return; }
             if (bouncesLeft < 0) bouncesLeft = IsMenu ? 0 : (Game.I != null ? Game.I.LandBounces : 0);
             if (bouncesLeft > 0)
