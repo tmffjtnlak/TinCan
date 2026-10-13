@@ -190,17 +190,14 @@ namespace TinCan
         {
             var tip = second && vox2 != null ? (Vector2)vox2.Muzzle.position : Muzzle;
             var dir = (aim - tip).normalized;
-            float size = 0.4f + kick * 0.25f;
-            // 총구 마름모 번쩍임은 뺐다 (사용자 10-13). 총구 앞 길쭉한 불꽃과 1도트 탄도선만
-            var f2 = Look.Quad("Muzzle2", tip + dir * 0.3f, new Vector2(size * 1.6f, size * 0.5f), new Color(1f, 0.8f, 0.3f, 0.8f), 47);
-            f2.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
+            // 10-14 통일 (소환 문법): 총구 번쩍 = 흰 도트 원 2프레임, 탄도선 = 흰 불투명 1도트 1프레임, 연기 = 회색 도트 구름(작아지며 사라짐)
+            Fx.MuzzleFlash(tip, dir);
             var d = aim - tip;
-            var tracer = Look.Quad("Tracer", (tip + aim) * 0.5f, new Vector2(d.magnitude, 1f / 27f), new Color(1f, 0.95f, 0.7f, 0.55f), 47);
+            var tracer = Look.Quad("Tracer", (tip + aim) * 0.5f, new Vector2(d.magnitude, 1f / 27f), Color.white, 47);
             tracer.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
-            // 연기 (사용자 10-13): 소환 구름과 같은 도트 원을 회색으로, 총구 앞에서 피었다 총 방향·위로 흩어진다
             Fx.Smoke(tip + dir * 0.25f, dir);
-            yield return null; yield return null;
-            Destroy(f2.gameObject); Destroy(tracer.gameObject);
+            yield return null;
+            Destroy(tracer.gameObject);
         }
 
         IEnumerator Smoke(Vector2 at, Vector2 dir)
@@ -271,7 +268,12 @@ namespace TinCan
         {
             for (int i = 0; i < n; i++)
             {
-                var s = Look.Quad("Shell", Profile ? (Vector2)side.TransformPoint(sideArt != null ? (Vector3)ArtEject : new Vector3(0.08f, 0.28f, 0f)) : vox != null ? (Vector2)vox.transform.position + Vector2.up * 0.4f : (Vector2)cylinder.position, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
+                var at = Profile ? (Vector2)side.TransformPoint(sideArt != null ? (Vector3)ArtEject : new Vector3(0.08f, 0.28f, 0f)) : vox != null ? (Vector2)vox.transform.position + Vector2.up * 0.4f : (Vector2)cylinder.position;
+                // 10-14 통일: 바닥 탄피와 같은 도트 그림 (없으면 예전 노란 네모)
+                SpriteRenderer s;
+                if (casingArt == null) casingArt = LoadArt("casing");
+                if (casingArt != null) { s = new GameObject("Shell").AddComponent<SpriteRenderer>(); s.sprite = casingArt; s.sortingOrder = 46; s.transform.position = at; }
+                else s = Look.Quad("Shell", at, new Vector2(0.06f, 0.13f), new Color(0.85f, 0.7f, 0.3f), 46);
                 var rb = s.gameObject.AddComponent<Rigidbody2D>();
                 rb.gravityScale = 2f;
                 // 돌던 방향으로 튕겨 나간다
@@ -282,10 +284,15 @@ namespace TinCan
             }
         }
 
+        Sprite casingArt;
+
+        /// <summary>장전 탄피: 0.7초 뒤 투명해지지 않고 작아지며 사라진다 (10-14 통일)</summary>
         IEnumerator ShellFade(SpriteRenderer s)
         {
             yield return new WaitForSeconds(0.7f);
-            for (float t = 0f; t < 1f; t += Time.deltaTime * 3f) { if (s == null) yield break; s.color = new Color(0.85f, 0.7f, 0.3f, 1f - t); yield return null; }
+            if (s == null) yield break;
+            var s0 = s.transform.localScale;
+            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.2f) { if (s == null) yield break; s.transform.localScale = s0 * (1f - Ease.InCubic(t)); yield return null; }
             if (s != null) Destroy(s.gameObject);
         }
 

@@ -157,12 +157,10 @@ namespace TinCan
             s.Shift = SpentShift * 1.6f; s.ShiftV = 0f;          // 즉시, 넘치게
             s.Sx = 1.3f; s.Sy = 0.7f; s.Vx = s.Vy = 0f;
             s.Rot = Random.Range(-6f, 6f); s.RotV = 0f;
-            var from = s.Img.color.a < 0.99f ? Color.white : s.Img.color;   // 등장 지연 중(투명)이었으면 흰색부터
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.12f)
-            {
-                s.Img.color = Color.Lerp(from, Spent, t);
-                yield return null;
-            }
+            // 10-14 통일 (소환 문법): 색이 서서히 바뀌지 않고, 흰 실루엣 1프레임 → 바로 빈 탄 색
+            s.Img.color = Color.white; s.White.color = Color.white;
+            yield return null;
+            s.White.color = Color.clear;
             s.Img.color = Spent;
         }
 
@@ -173,12 +171,12 @@ namespace TinCan
             var from = s.Rt.anchoredPosition;
             var vel = new Vector2(Random.Range(-160f, 160f), Random.Range(520f, 680f));
             float spin = Random.Range(450f, 750f) * (Random.value < 0.5f ? -1f : 1f);
-            var c = s.Img.color;
+            // 10-14 통일: 투명해지지 않고(반투명 유령이 남았다) 뒤쪽 절반 동안 작아지며 사라진다
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.0f)
             {
                 s.Rt.anchoredPosition = from + vel * t + new Vector2(0f, -1000f * t * t);
                 s.Rt.localRotation = Quaternion.Euler(0f, 0f, spin * t);
-                s.Img.color = new Color(c.r, c.g, c.b, c.a * (1f - t * t));
+                s.Rt.localScale = Vector3.one * (1f - Ease.InCubic(Mathf.Clamp01((t - 0.5f) / 0.5f)));
                 yield return null;
             }
             s.Img.color = Color.clear; s.Flying = false;
@@ -196,12 +194,7 @@ namespace TinCan
             s.Sx = 0.3f; s.Sy = 0.3f; s.Vx = 9f; s.Vy = 9f;           // 작게 시작해 튀어 오른다
             s.Rot = (order % 2 == 0 ? -1f : 1f) * Random.Range(16f, 24f); s.RotV = 0f;
             yield return null; yield return null;                     // 흰 실루엣 2프레임
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.12f)
-            {
-                s.White.color = new Color(1f, 1f, 1f, 1f - t);
-                yield return null;
-            }
-            s.White.color = Color.clear;
+            s.White.color = Color.clear;                              // 10-14 통일: 서서히 빼지 않고 딱 제 색 (중간 파스텔이 생겼다)
         }
     }
 }

@@ -51,13 +51,38 @@ namespace TinCan
         /// </summary>
         public static void Smoke(Vector2 at, Vector2 dir)
         {
+            // 10-14 통일: 소환 구름의 절반 크기 (가운데 5도트 + 둘레 3~4도트 넷). 투명해지지 않고 작아지며 사라진다 (PuffCo)
             var gray = new Color(0.72f, 0.71f, 0.74f, 1f);
+            I.StartCoroutine(I.PuffCo(at + dir * 0.1f, 5f, 0f, dir * 0.8f + Vector2.up * 0.6f, gray, 46));
+            for (int i = 0; i < 4; i++)
+            {
+                var off = dir * (0.1f + 0.12f * i) + new Vector2(-dir.y, dir.x) * Random.Range(-0.14f, 0.14f);
+                var drift = dir * Random.Range(0.6f, 1.1f) + Vector2.up * Random.Range(0.4f, 0.8f);
+                I.StartCoroutine(I.PuffCo(at + off, Random.Range(3f, 4.2f), 0.02f + i * 0.025f, drift, gray, 46));
+            }
+        }
+
+        /// <summary>
+        /// 총구 번쩍 (10-14 통일): 노란 반투명 막대 대신 소환과 같은 흰 도트 원, 불투명, 2프레임만.
+        /// 첫 프레임 크게(총구 앞 5도트 + 앞쪽 3·2도트), 둘째 프레임 한 칸씩 작게 → 사라지고 연기가 이어받는다
+        /// </summary>
+        public static void MuzzleFlash(Vector2 at, Vector2 dir) => I.StartCoroutine(I.MuzzleCo(at, dir));
+
+        IEnumerator MuzzleCo(Vector2 at, Vector2 dir)
+        {
+            float[] dist = { 0.05f, 0.3f, 0.5f }; int[] rad = { 5, 3, 2 };
+            var srs = new SpriteRenderer[3];
             for (int i = 0; i < 3; i++)
             {
-                var off = dir * (0.08f * i) + Random.insideUnitCircle * 0.06f;
-                var drift = dir * Random.Range(0.6f, 1f) + Vector2.up * Random.Range(0.4f, 0.8f);
-                I.StartCoroutine(I.PuffCo(at + off, Random.Range(2.5f, 4f) - i * 0.4f, i * 0.025f, drift, gray, 46));
+                srs[i] = new GameObject("Muzzle").AddComponent<SpriteRenderer>(); srs[i].sortingOrder = 48; srs[i].color = Color.white;
+                var p = at + dir * dist[i];
+                srs[i].transform.position = new Vector3(Mathf.Round(p.x * 27f) / 27f, Mathf.Round(p.y * 27f) / 27f, 0f);
+                srs[i].sprite = Disc(rad[i]);
             }
+            yield return null;
+            for (int i = 0; i < 3; i++) srs[i].sprite = rad[i] > 1 ? Disc(rad[i] - 2) : null;
+            yield return null;
+            foreach (var s in srs) Destroy(s.gameObject);
         }
 
         IEnumerator PuffCo(Vector2 at, float maxR, float delay, Vector2 drift) => PuffCo(at, maxR, delay, drift, Color.white, 0);
