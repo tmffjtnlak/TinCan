@@ -55,13 +55,27 @@ namespace TinCan
         public static float TimeScale = 1f;
         float appliedScale = 1f;
         const float BaseGravity = 2.2f;
+        /// <summary>이 깡통만의 시간 배수 (연쇄 대기 중 0.08). 실제로 쓰는 배수 = 전체(TimeScale) × 이것</summary>
+        float localSlow = 1f, localSlowTarget = 1f;
+        float Scale => TimeScale * localSlow;
+        /// <summary>현상금 연쇄 차례를 기다리는 중: 거의 멈춰 매달려 있고, 바닥에 닿아도 사라지지 않는다</summary>
+        public bool ChainHeld { get; private set; }
+        bool parked;   // 연쇄 대기 중 바닥에 닿아 멈춰 있다
 
-        float Gravity => BaseGravity * Kind.Weight * TimeScale * TimeScale;
+        /// <summary>연쇄 대상이 됐다 (사용자 10-13): 0.15초에 걸쳐 이 깡통만 0.08배로 느려져 공중에 매달린 채 차례를 기다린다</summary>
+        public void HoldForChain()
+        {
+            if (Done || !Airborne) return;
+            ChainHeld = true; localSlowTarget = 0.08f;
+        }
+
+        float Gravity => BaseGravity * Kind.Weight * Scale * Scale;
         bool floorSlowed;
 
         void FixedUpdate()
         {
             if (rb == null || Done) return;
+            if (!Mathf.Approximately(localSlow, localSlowTarget)) localSlow = Mathf.MoveTowards(localSlow, localSlowTarget, Time.unscaledDeltaTime / 0.15f);
             SyncScale();
             // 스킬 "바닥 근처 느려짐": 떨어지다 바닥 가까이 오면 속도가 반으로 (한 번만, 다시 맞으면 초기화)
             if (Airborne && !floorSlowed && Game.I != null && Game.I.FloorSlow > 0f && rb.linearVelocity.y < 0f && transform.position.y < Look.DropY + 1.6f)
@@ -79,11 +93,11 @@ namespace TinCan
         /// </summary>
         void SyncScale()
         {
-            if (rb == null || Mathf.Approximately(appliedScale, TimeScale)) return;
-            float k = TimeScale / appliedScale;
+            if (rb == null || Mathf.Approximately(appliedScale, Scale)) return;
+            float k = Scale / appliedScale;
             rb.linearVelocity *= k; rb.angularVelocity *= k;
-            rb.gravityScale = held ? 0f : Gravity;
-            appliedScale = TimeScale;
+            rb.gravityScale = held || parked ? 0f : Gravity;
+            appliedScale = Scale;
         }
 
         public int HitsLeft { get; private set; }
@@ -111,7 +125,7 @@ namespace TinCan
             Kind = kind;
             transform.position = at + Vector2.up * 0.8f;   // 위에서 툭 떨어져 선반에 앉는다 (10-13: 1.2 → 0.8, 소환 전체 40% 단축)
             rb = gameObject.AddComponent<Rigidbody2D>();
-            rb.mass = kind.Mass; rb.linearDamping = 0.1f; rb.angularDamping = 0.6f; appliedScale = TimeScale;
+            rb.mass = kind.Mass; rb.linearDamping = 0.1f; rb.angularDamping = 0.6f; appliedScale = Scale;
             held = true; rb.gravityScale = 0f;   // 소환 트윈이 거의 끝날 때까지 공중에 멈춰 있다 (사용자 10-13). PopIn이 풀어 준다
             rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             rb.constraints = RigidbodyConstraints2D.FreezeRotation;   // 선반 위에선 안 넘어진다
@@ -219,7 +233,7 @@ namespace TinCan
                 if (releasedAt < 0f && (t > 0.39f || (spun && t > 0.31f && Mathf.Abs(sx - 1f) < 0.08f && Mathf.Abs(rot - endTilt) < 4f)))
                 {
                     releasedAt = t; ReleaseHold(); SyncScale();
-                    if (rb != null) rb.linearVelocity = new Vector2(0f, -2.5f * TimeScale);
+                    if (rb != null) rb.linearVelocity = new Vector2(0f, -2.5f * Scale);
                 }
                 // 선반에 닿은 그 프레임
                 if (!landed && shelfHit)
@@ -299,7 +313,7 @@ namespace TinCan
             if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
-            var v = rb.linearVelocity / TimeScale;   // 느려진 시간 안에서 계산하고 다시 줄인다
+            var v = rb.linearVelocity / Scale;   // 느려진 시간 안에서 계산하고 다시 줄인다
             // 기본 튐은 보수적으로 (리볼버 한 발 = 선반에서 화면 중간쯤). 총 배수·스킬로 위로 갈라진다. 천장은 안전망
             v.y = (Mathf.Max(0f, v.y * 0.3f) + 7.2f + BounceBonus + Random.Range(-0.4f, 0.6f)) * bounceScale;
             v.x = v.x * 0.4f + side * 2.2f + Random.Range(-0.6f, 0.6f);
@@ -308,8 +322,8 @@ namespace TinCan
             float g = -Physics2D.gravity.y * BaseGravity * Kind.Weight;
             float vmax = top > 0f ? Mathf.Sqrt(2f * g * top) : 0f;
             if (v.y > vmax) v.y = vmax;
-            rb.linearVelocity = v * TimeScale;
-            rb.angularVelocity = (-side * Random.Range(400f, 800f) + Random.Range(-200f, 200f)) * TimeScale;
+            rb.linearVelocity = v * Scale;
+            rb.angularVelocity = (-side * Random.Range(400f, 800f) + Random.Range(-200f, 200f)) * Scale;
             flashLeft = 0.06f;
             StopAllCoroutines(); StartCoroutine(Squash());
             Sfx.Play(Sfx.Tang(), 0.8f, Kind.Pitch * (1f + Mathf.Min(Combo, 12) * 0.03f));
@@ -339,6 +353,7 @@ namespace TinCan
         {
             if (Done || !Airborne) return;
             if (c.GetComponent<DropZone>() == null) return;
+            if (ChainHeld) { SyncScale(); parked = true; rb.linearVelocity = Vector2.zero; rb.gravityScale = 0f; return; }   // 연쇄 차례를 기다리는 중: 바닥에서 멈춰 기다린다
             if (bouncesLeft < 0) bouncesLeft = IsMenu ? 0 : (Game.I != null ? Game.I.LandBounces : 0);
             if (bouncesLeft > 0)
             {
@@ -346,7 +361,7 @@ namespace TinCan
                 bouncesLeft--;
                 floorSlowed = false;
                 SyncScale();
-                var v = rb.linearVelocity; v.y = (11f + BounceBonus) * TimeScale; v.x *= 0.5f; rb.linearVelocity = v;
+                var v = rb.linearVelocity; v.y = (11f + BounceBonus) * Scale; v.x *= 0.5f; rb.linearVelocity = v;
                 transform.position = new Vector3(transform.position.x, Look.DropY + 0.5f, 0f);
                 flashLeft = 0.06f;
                 StartCoroutine(Squash());

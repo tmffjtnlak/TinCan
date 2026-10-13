@@ -343,6 +343,7 @@ namespace TinCan
             var targets = new List<Can>();
             foreach (var c in Game.I.Cans) if (c != null && !c.Done && c.Airborne && !c.Kind.IsBounty) targets.Add(c);
             targets.Sort((a, b) => ((Vector2)a.transform.position - from).sqrMagnitude.CompareTo(((Vector2)b.transform.position - from).sqrMagnitude));
+            foreach (var c in targets) c.HoldForChain();   // 차례가 올 때까지 이 깡통들만 거의 멈춰 매달린다 (그 사이 떨어져 사라지지 않게)
             yield return new WaitForSecondsRealtime(0.5f);    // 큰 터짐이 가라앉고 나서 시작 (10-13: 0.15 → 0.5초)
             int n = 0;
             foreach (var c in targets)
