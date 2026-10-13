@@ -31,39 +31,55 @@ namespace TinCan
             return lb;
         }
 
+        // 집중(우클릭 능력) 카메라 줌 (사용자 10-13): 켜면 0.9배 거리로 부드럽게 다가가고,
+        // 마지막 1초 동안 남은 시간만큼 천천히 풀리고 띠도 조금씩 내려가다가, 끝나면 띠는 확 빠진다. (깜박임은 뺐다)
+        const float ZoomIn = 0.9f, FadeSeconds = 1f, BarAtEnd = 0.5f;
+        float zoom = 1f, zoomV, uiK, uiV, baseSize = -1f;
+
         void LateUpdate()
         {
             var g = Game.I;
-            bool on = Force || (g != null && g.State == GameState.Play && !g.MenuOpen && g.SlowActive);   // 꽉 찬 게이지로 능력을 켰을 때, 또는 연출(현상금 막타)
-            // 들어올 땐 빠르게 살짝 넘쳤다 자리, 나갈 땐 조금 느긋하게
-            Ease.Spring(ref k, ref kv, on ? 1f : 0f, on ? 260f : 160f, on ? 16f : 18f, Time.unscaledDeltaTime);
-            // 끝나기 1초 전부터 깜박임 (사용자 10-13): 남은 시간이 줄수록 빨라진다 (0.25초 주기 → 0.07초)
-            float left = on ? g.SlowLeft : 99f;
-            if (left < 1f)
+            bool play = g != null && g.State == GameState.Play;
+            bool slow = play && !g.MenuOpen && g.SlowActive;
+            bool on = Force || slow;   // 꽉 찬 게이지로 능력을 켰을 때, 또는 연출(현상금 막타)
+            float dt = Time.unscaledDeltaTime;
+            // 남은 시간 비율: 마지막 1초 동안 1 → 0 (그 전엔 1)
+            float tail = slow ? Mathf.Clamp01(g.SlowLeft / FadeSeconds) : 1f;
+            // 띠: 들어올 땐 빠르게 살짝 넘쳤다 자리. 마지막 1초엔 남은 만큼 내려가고(최소 50%), 끝나면 아주 빠르게(확) 빠진다
+            float target = on ? Mathf.Lerp(BarAtEnd, 1f, tail) : 0f;
+            if (on) Ease.Spring(ref k, ref kv, target, tail < 1f ? 120f : 260f, tail < 1f ? 20f : 16f, dt);
+            else Ease.Spring(ref k, ref kv, 0f, 900f, 40f, dt);
+            // UI: 켜져 있는 동안은 계속 숨김 (띠가 조금 내려가도 UI는 안 돌아온다). 끝나면 띠와 같이 돌아온다
+            Ease.Spring(ref uiK, ref uiV, on ? 1f : 0f, on ? 260f : 900f, on ? 16f : 40f, dt);
+            // 줌: 집중 중에만. 부드럽게(덜 출렁) 다가가고, 마지막 1초엔 남은 만큼 천천히 풀린다
+            float zTarget = slow ? Mathf.Lerp(1f, ZoomIn, tail) : 1f;
+            Ease.Spring(ref zoom, ref zoomV, zTarget, 40f, 12f, dt);
+            if (play && !Force)
             {
-                float period = Mathf.Lerp(0.07f, 0.25f, left);
-                blinkPhase += Time.unscaledDeltaTime / period;
-                blinkDim = (blinkPhase % 1f) >= 0.5f;
+                var cam = Camera.main;
+                if (cam != null)
+                {
+                    if (baseSize < 0f) baseSize = cam.orthographicSize;
+                    cam.orthographicSize = baseSize * zoom;
+                }
             }
-            else { blinkPhase = 0f; blinkDim = false; }
-            var col = Look.Bar; if (blinkDim) col.a = 0.3f;
-            top.color = bottom.color = col;
+            top.color = bottom.color = Look.Bar;
             Apply();
         }
-        float blinkPhase; bool blinkDim;
 
         void Apply()
         {
             var cam = Camera.main; if (cam == null) return;
             float halfH = cam.orthographicSize, w = halfH * 2f * cam.aspect + 2f;
-            float dots = Mathf.Round(Mathf.Clamp(k, 0f, 1.15f) * MaxDots);   // 두께는 도트 단위 (넘칠 땐 최대 52칸)
-            float h = dots / Ppu;
+            float dots = Mathf.Round(Mathf.Clamp(k, 0f, 1.15f) * MaxDots);   // 두께는 화면 도트 단위 (넘칠 땐 최대 52칸)
+            float screenDot = halfH * 2f / 270f;                              // 줌해도 띠 두께는 화면 기준 그대로
+            float h = dots * screenDot;
             var c = cam.transform.position;
             top.transform.position = new Vector3(c.x, c.y + halfH - h * 0.5f, 0f);
             bottom.transform.position = new Vector3(c.x, c.y - halfH + h * 0.5f, 0f);
             top.transform.localScale = bottom.transform.localScale = new Vector3(w, Mathf.Max(0.0001f, h), 1f);
             top.enabled = bottom.enabled = dots > 0f;
-            if (ui != null) ui.alpha = Mathf.Lerp(1f, UiDim, Mathf.Clamp01(k));
+            if (ui != null) ui.alpha = Mathf.Lerp(1f, UiDim, Mathf.Clamp01(uiK));
         }
     }
 }
