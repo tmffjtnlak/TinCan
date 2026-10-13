@@ -657,21 +657,23 @@ namespace TinCan
             hud.Float($"터짐!  +${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));
             if (can.Kind.IsBounty) bounty.Busted(can);
-            if (can.Kind.IsBounty && !Gun.Cinematic) Gun.StartChain(can.transform.position);
-            // 현상금전 (사용자 10-14): 다른 깡통이 터지면 파편이 현상금으로 날아가 체력 -2 (1까지만), 현상금 +터진 돈의 절반.
-            // 부하가 터지면 현상금이 0.6초 뒤 새 부하를 불러낸다
-            if (can.Kind.IsMinion && BountyAlive)   // 10-14: 부하가 터질 때만 현상금에 피해 (다른 깡통은 아님)
-            {
-                var b = Cans.Find(c => c != null && !c.Done && c.Kind.IsBounty);
-                if (b != null)
-                {
-                    long bonus = pay / 2;
-                    Fx.Shrapnel(can.transform.position, b.transform, () => { if (b != null && !b.Done) b.TakeShrapnel(ShrapnelDamage, bonus); });
-                }
-                if (can.Kind.IsMinion) bounty.CallMinion(0.6f);
-            }   // 막타 연출이 아니었어도 버텨 온 깡통들을 차례로 터뜨린다
+            if (can.Kind.IsBounty && !Gun.Cinematic) Gun.StartChain(can.transform.position);   // 막타 연출이 아니었어도 공중 깡통들을 차례로 터뜨린다
+            // (현상금전 피해는 부하 박치기가 맡는다 — Can.Ram, MinionScored. 부하는 현상금이 있는 동안 터지지 않는다)
         }
 
+        /// <summary>
+        /// 부하 박치기 정산 (사용자 10-14): 부하는 터지지 않지만 터뜨린 것과 같게 — 쌓인 돈 × 정산 × 터짐 배수가 세트에, 탄피, 터뜨림 수.
+        /// 피해는 박치기가 현상금에 닿을 때 (Can.Ram)
+        /// </summary>
+        public void MinionScored(Can can)
+        {
+            SpillCasings(can.transform.position, BurstCasings, true, false);
+            long pay = (long)Mathf.Round(can.Earned * PayoutMult * BurstMult);
+            SetPending += pay;
+            Bursts++;
+            hud.Float($"박치기!  +${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+            StartCoroutine(HitStop(0.05f));
+        }
         /// <summary>현상금이 살아 있나 (선반·공중 상관없이). 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14)</summary>
         /// <summary>파편 피해 (현상금전, 사용자 10-14). 스킬로 키울 자리</summary>
         public static int ShrapnelDamage = 3;   // 10-14: 부하 파편만 피해 → 체력 15를 부하 다섯으로 막타 직전까지

@@ -459,7 +459,7 @@ namespace TinCan
         /// <summary>총에 맞았다. hitPoint = 맞은 자리(월드). 맞은 쪽 반대로, 위로 튄다. 돌려주는 값 = 이번 한 발로 쌓인 돈</summary>
         public int Hit(Vector2 hitPoint, float scale = 1f, float bounceScale = 1f, int damage = 1)
         {
-            if (Done) return 0;
+            if (Done || ramming) return 0;   // 박치기 중인 부하는 안 맞는다
             // 묶음에서 풀린 깡통: 처음 맞기 전까지 자기만 느려져 있다 → 맞는 순간 제 속도 (사용자 10-14)
             if (slowUntilHit) { slowUntilHit = false; localSlowTarget = 1f; localSlow = 1f; }
             if (flyLeft > 0f) flyLeft = 0f;   // 날던 깡통은 맞으면 평범하게 튄다 (그다음은 중력)
@@ -483,6 +483,7 @@ namespace TinCan
             else Sfx.Play(Sfx.Click(), 0.6f, 0.55f);         // 쇠에 튕기는 소리: 안 먹혔다
             // (10-14 버티기 규칙은 뺐다: "터져야 할 깡통이 안 터지면 이상하다". 대신 현상금전엔 터진 깡통의 파편이 현상금을 깎는다 — Game.CanBurst)
             for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
+            if (HitsLeft <= 0 && Kind.IsMinion && Game.I != null && Game.I.BountyAlive) { StartCoroutine(Ram()); return earned; }   // 부하는 터지지 않고 현상금에 박치기 (사용자 10-14)
             if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
@@ -609,9 +610,69 @@ namespace TinCan
             Earned += bonus;
             for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
             flashLeft = 0.08f;
-            StartCoroutine(Squash());
-            Sfx.Play(Sfx.Tang(), 0.6f, Kind.Pitch * 0.8f);
-            Fx.Cloud(transform.position, 0.5f);
+            // 맞으면 위로 튀어 오른다 (사용자 10-14: 선반에 앉혀 둔 채 피해만 넣을 수 있었다). 총 한 발과 같은 힘 (현상금은 Bounce 0.7)
+            if (!Airborne)
+            {
+                Airborne = true; ReleaseHold();
+                rb.constraints = RigidbodyConstraints2D.None;
+                var shelf = Object.FindFirstObjectByType<Shelf>();
+                if (shelf != null) Physics2D.IgnoreCollision(GetComponent<Collider2D>(), shelf.GetComponent<Collider2D>(), true);
+            }
+            if (crouching) { crouching = false; held = false; }
+            SyncScale();
+            var v = rb.linearVelocity / Scale;
+            v.y = (Mathf.Max(0f, v.y * 0.3f) + 7.2f) * Kind.Bounce * AltitudeFactor(transform.position.y);
+            float top = Look.CeilingY - Kind.Height * 0.5f - transform.position.y;
+            float vmax = top > 0f ? Mathf.Sqrt(2f * (-Physics2D.gravity.y * BaseGravity * Kind.Weight) * top) : 0f;
+            if (v.y > vmax) v.y = vmax;
+            rb.linearVelocity = v * Scale;
+            rb.gravityScale = Gravity;
+            StopAllCoroutines(); StartCoroutine(Squash());
+            Sfx.Play(Sfx.Bang(), 0.7f, 0.6f); Sfx.Play(Sfx.Drop(), 0.6f, 0.55f);
+            Fx.Cloud(transform.position, 0.9f); Fx.Spark(transform.position, 14, 1.4f); Fx.Shake(0.6f);
+        }
+
+        // ---------- 부하 박치기 (사용자 10-14): 체력이 다 닳으면 터지지 않고 → 살짝 작아지며 번쩍 → 현상금에게 날아가 부딪혀 피해 → 튕겨 나와 다시 저글링 ----------
+        bool ramming;
+        IEnumerator Ram()
+        {
+            ramming = true;
+            Game.I?.MinionScored(this);   // 돈·탄피는 터뜨린 것처럼
+            var boss = Game.I != null ? Game.I.Cans.Find(c => c != null && !c.Done && c.Kind.IsBounty) : null;
+            rb.simulated = false;
+            flashLeft = 0.12f;
+            Sfx.Play(Sfx.Tang(), 0.8f, 1.6f);
+            // 1) 살짝 작아짐 (0.12초)
+            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.12f) { visual.localScale = Vector3.one * Mathf.Lerp(1f, 0.72f, Ease.OutCubic(t)); yield return null; }
+            // 2) 현상금에게 빨려 들어가듯 (0.22초, 점점 빨라짐, 돌면서)
+            Vector2 from = transform.position, hit = from;
+            float spin = Random.value < 0.5f ? -900f : 900f;
+            for (float t = 0f; t < 1f; t += Time.deltaTime / 0.22f)
+            {
+                Vector2 to = boss != null ? (Vector2)boss.transform.position : from + Vector2.up;
+                hit = Vector2.Lerp(from, to, Ease.InCubic(t));
+                transform.position = hit;
+                transform.rotation = Quaternion.Euler(0f, 0f, transform.eulerAngles.z + spin * Time.deltaTime);
+                yield return null;
+            }
+            // 3) 부딪힘: 피해 + 큰 반응
+            if (boss != null && !boss.Done) boss.TakeShrapnel(Game.ShrapnelDamage, 0);
+            Fx.Shake(0.8f);
+            // 4) 튕겨 나옴: 체력·연속·돈 새로, 현상금 반대쪽 위로
+            HitsLeft = Kind.Hits; Combo = 0; Earned = 0;
+            for (int i = 0; i < pips.Length; i++) pips[i].color = new Color(1f, 1f, 1f, 0.9f);
+            Vector2 away = boss != null ? hit - (Vector2)boss.transform.position : Vector2.left;
+            if (away.sqrMagnitude < 0.01f) away = Random.value < 0.5f ? Vector2.left : Vector2.right;
+            transform.position = hit + away.normalized * 0.5f;
+            rb.simulated = true;
+            SyncScale();
+            rb.gravityScale = Gravity;
+            rb.linearVelocity = new Vector2(Mathf.Sign(away.x) * 3.5f, 6f) * Scale;
+            rb.angularVelocity = spin * 0.5f * Scale;
+            ramming = false;
+            float s = 0.72f, sv = 0f;
+            for (float t = 0f; t < 0.35f; t += Time.deltaTime) { Ease.Spring(ref s, ref sv, 1f, 700f, 14f, Time.deltaTime); visual.localScale = Vector3.one * s; yield return null; }
+            visual.localScale = Vector3.one;
         }
         /// <summary>도주: 쌓인 돈만 정산하고 위로 휙 달아나 화면 밖으로 (현상금은 놓친다)</summary>
         public void RunAway()
@@ -634,7 +695,7 @@ namespace TinCan
 
         void OnTriggerEnter2D(Collider2D c)
         {
-            if (Done || !Airborne) return;
+            if (Done || !Airborne || ramming) return;
             if (c.GetComponent<DropZone>() == null) return;
             if (rb != null && rb.linearVelocity.y > 0f) return;   // 올라가는 중엔 바닥 판정 없음 (화면 아래에서 던져진 다이너마이트가 지나간다)
             if (ChainHeld) { SyncScale(); parked = true; rb.linearVelocity = Vector2.zero; rb.gravityScale = 0f; return; }   // 연쇄 차례를 기다리는 중: 바닥에서 멈춰 기다린다
