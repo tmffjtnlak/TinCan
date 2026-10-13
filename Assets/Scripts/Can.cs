@@ -465,13 +465,52 @@ namespace TinCan
             rb.angularVelocity = (-side * Random.Range(400f, 800f) + Random.Range(-200f, 200f)) * Scale;
             flashLeft = 0.06f;
             StopAllCoroutines(); StartCoroutine(Squash());
-            Sfx.Play(Sfx.Tang(), 0.8f, Kind.Pitch * (1f + Mathf.Min(Combo, 12) * 0.03f));
-            Fx.Spark(hitPoint, 5 + Mathf.Min(Combo, 6), 0.8f + Mathf.Min(Combo, 8) * 0.08f);
-            if (!Done) Fx.Cloud(hitPoint, 0.45f);
+            // 저글링 감각 (사용자 10-14): 공중에 동시에 뜬 깡통 수(1·2·3·4+)로 소리·구름·불꽃·흔들림이 한 단계씩 커진다.
+            // 숫자 글자는 띄우지 않는다 (10-12: 실시간 배율 글자 대신 세트 끝 점수판으로 정함)
+            int air = Game.I != null ? Mathf.Max(1, Game.I.Airborne) : 1;
+            int tier = Kind.NotScored ? 1 : Mathf.Clamp(air, 1, 4);
+            Sfx.Play(Sfx.Tang(), 0.8f, Kind.Pitch * (1f + Mathf.Min(Combo, 12) * 0.03f) * TierPitch[tier - 1]);
+            if (tier >= 3) Sfx.Play(Sfx.Tang(), 0.35f, Kind.Pitch * TierPitch[tier - 1] * 1.5f);   // 3개부터 5도 위 소리가 겹쳐 화음
+            Fx.Spark(hitPoint, 5 + Mathf.Min(Combo, 6) + (tier - 1) * 3, 0.8f + Mathf.Min(Combo, 8) * 0.08f + (tier - 1) * 0.15f);
+            if (!Done) Fx.Cloud(hitPoint, 0.45f * TierCloud[tier - 1]);   // 맞은 자리에 작은 흰 구름 (저글링일수록 크게)
             if (!Done && Kind.Special == CanKind.Trait.Magnet) MagnetPull();
-            if (!Done && props.Count > 0 && Random.value < PropDropChance) DropProp(hitPoint);   // 부착물이 일정 확률로 떨어져 나간다   // 맞은 자리에 작은 흰 구름이 남는다 (사용자 10-13 시험). 터지면 Burst가 큰 구름
-            Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f);
+            if (!Done && props.Count > 0 && Random.value < PropDropChance) DropProp(hitPoint);   // 부착물이 일정 확률로 떨어져 나간다
+            Fx.Shake(0.15f + Mathf.Min(Combo, 8) * 0.03f + (tier - 1) * 0.05f);
+            if (!Kind.NotScored && air >= 2) Resonate(air);
             return earned;
+        }
+
+        // 공중 깡통 수 단계별: 탱 소리 높이 (도·레·미·솔), 맞은 자리 구름 크기
+        static readonly float[] TierPitch = { 1f, 1.122f, 1.26f, 1.5f };
+        static readonly float[] TierCloud = { 1f, 1.3f, 1.6f, 2f };
+        /// <summary>공명 튐 세기 (유닛/초). 스킬트리 "공명 강화"로 올릴 자리 (사용자 10-14: 처음엔 약하게)</summary>
+        public static float ResonanceBoost = 1.2f;
+
+        /// <summary>
+        /// 공명 튐 (사용자 10-14 "저글링 중일 땐 한 번 튕긴다"): 공중에 둘 이상일 때 하나를 맞히면 나머지 공중 깡통도 살짝 위로 톡.
+        /// 여럿을 돌릴수록 버티기 쉬워진다 (하나만 쏠 땐 혜택 없음). 셋부터는 같이 반짝
+        /// </summary>
+        void Resonate(int air)
+        {
+            if (Game.I == null) return;
+            foreach (var c in Game.I.Cans)
+            {
+                if (c == null || c == this || c.Done || !c.Airborne || c.Kind.NotScored || c.ChainHeld || c.parked || c.held) continue;
+                c.Hop(ResonanceBoost, air >= 3);
+            }
+        }
+
+        void Hop(float boost, bool flash)
+        {
+            SyncScale();
+            var v = rb.linearVelocity / Scale;
+            v.y = (v.y < 0f ? v.y * 0.8f : v.y) + boost;   // 떨어지던 중이면 낙하를 20% 끊고 위로 톡, 오르던 중이면 조금 더 (처음엔 약하게)
+            float top = Look.CeilingY - Kind.Height * 0.5f - transform.position.y;
+            float vmax = top > 0f ? Mathf.Sqrt(2f * (-Physics2D.gravity.y * BaseGravity * Kind.Weight) * top) : 0f;
+            if (v.y > vmax) v.y = vmax;
+            rb.linearVelocity = v * Scale;
+            if (flash) flashLeft = Mathf.Max(flashLeft, 0.04f);
+            Fx.Cloud((Vector2)transform.position + Vector2.down * Kind.Height * 0.45f, 0.25f);   // 발밑에 작은 구름 = 톡 받쳐 준 느낌
         }
 
         IEnumerator Squash()
