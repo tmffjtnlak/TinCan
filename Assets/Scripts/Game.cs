@@ -272,7 +272,7 @@ namespace TinCan
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
             if (DebugMoney) Money = 999_999_999;
             if (kb.f2Key.wasPressedThisFrame) bounty.Summon();
-            if (kb.f5Key.wasPressedThisFrame) DebugSpawn(CanKind.Dynamite);
+            if (kb.f5Key.wasPressedThisFrame) Can.ThrowDynamite(Gun.MuzzlePos);   // 시험: 다이너마이트 투척
             if (kb.f6Key.wasPressedThisFrame) DebugSpawn(CanKind.Bundle);
             if (kb.f7Key.wasPressedThisFrame) DebugSpawn(CanKind.Blue);
             if (kb.f8Key.wasPressedThisFrame) DebugSpawn(CanKind.Magnet);
@@ -394,7 +394,7 @@ namespace TinCan
 
         /// <summary>돈을 내고 선반에 깡통. 짝 소환이면 여러 개, 붙여 놓기면 마지막 깡통 옆에. 공중에 깡통이 있으면 잠긴다 (세트 중)</summary>
         public const float BottleChance = 0.2f;
-        /// <summary>특성 깡통 각각의 확률 (사용자 10-14 첫 시험: 다이너마이트·묶음·파랑·자석). 설정·해금은 아직 없음</summary>
+        /// <summary>특성 깡통 각각의 확률 (사용자 10-14: 묶음·파랑·자석. 다이너마이트는 쏠 때 1% 투척). 설정·해금은 아직 없음</summary>
         public const float TraitChance = 0.06f;
 
         /// <summary>깡통 소환 한 번에 나올 종류: 병 20%, 특성 깡통 각 6%, 나머지 깡통</summary>
@@ -403,12 +403,12 @@ namespace TinCan
             float r = Random.value;
             if (r < BottleChance) return CanKind.Bottle;
             r -= BottleChance;
-            var traits = new[] { CanKind.Dynamite, CanKind.Bundle, CanKind.Blue, CanKind.Magnet };
+            var traits = new[] { CanKind.Bundle, CanKind.Blue, CanKind.Magnet };   // 다이너마이트는 소환이 아니라 쏠 때 1% 투척 (Gun.Fire)
             foreach (var t in traits) { if (r < TraitChance) return t; r -= TraitChance; }
             return CanKind.Tin;
         }
 
-        /// <summary>시험용: 그 종류를 선반 빈자리에 공짜로 (F5 다이너마이트, F6 묶음, F7 파랑, F8 자석)</summary>
+        /// <summary>시험용: 그 종류를 선반 빈자리에 공짜로 (F6 묶음, F7 파랑, F8 자석. F5는 다이너마이트 투척)</summary>
         public void DebugSpawn(CanKind kind)
         {
             if (Airborne > 0) return;

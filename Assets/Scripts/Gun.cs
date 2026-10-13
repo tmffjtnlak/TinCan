@@ -199,6 +199,9 @@ namespace TinCan
             }
         }
 
+        /// <summary>지금 총구 자리 (다이너마이트 투척 시험용)</summary>
+        public Vector2 MuzzlePos => view.Muzzle;
+
         /// <summary>시험용: 마우스 대신 이 자리를 겨눈다</summary>
         public static Vector2? AimOverride;
 
@@ -418,6 +421,8 @@ namespace TinCan
             Sfx.Play(Sfx.Bang(), Kind.Auto ? 0.5f : 0.9f, Kind.Pitch * Random.Range(0.95f, 1.08f));
             // 조준점 마름모 번쩍임은 뺐다 (사용자 10-13: "마름모꼴은 지워봐")
             view.Fire(aim, Kind.Kick);
+            // 쏠 때마다 낮은 확률로 다이너마이트를 공중에 던진다 (사용자 10-14: 소환 깡통이 아니라 공격 효과)
+            if (!Cinematic && Random.value < Can.DynamiteChance) Can.ThrowDynamite(view.Muzzle);
             // 판정: 원 안의 깡통. 리볼버는 가장 가까운 하나, 샷건은 전부. 쏘는 버튼도 여기서
             Can best = null; float bestD = float.MaxValue; bool any = false;
             foreach (var col in Physics2D.OverlapCircleAll(aim, Mathf.Max(Kind.AimRadius, 0.3f)))

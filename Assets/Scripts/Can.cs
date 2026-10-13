@@ -151,12 +151,16 @@ namespace TinCan
         /// 공중에 바로 생기는 깡통 (특성 깡통이 터지며 만든 것). 선반 착지 연출 없이 작게 톡 커지며 바로 공중,
         /// floatSeconds 동안 중력 × floatMul (0이면 그 자리에 둥실), ghost면 반투명. 게임의 깡통 목록에도 넣는다
         /// </summary>
-        public static Can SpawnAirborne(CanKind kind, Vector2 at, Vector2 vel, float floatSeconds, float floatMul, bool ghost = false)
+        bool slowUntilHit;
+
+        /// <summary>selfSlow &lt; 1이면 처음 맞기 전까지 이 깡통만 그 배수로 느리다 (묶음에서 풀린 깡통)</summary>
+        public static Can SpawnAirborne(CanKind kind, Vector2 at, Vector2 vel, float floatSeconds, float floatMul, bool ghost = false, float selfSlow = 1f)
         {
             var c = Spawn(kind, at);
             c.StopAllCoroutines();
             c.transform.position = at;
             c.held = false; c.Airborne = true;
+            if (selfSlow < 1f) { c.localSlow = c.localSlowTarget = selfSlow; c.slowUntilHit = true; c.appliedScale = c.Scale; }
             c.rb.constraints = RigidbodyConstraints2D.None;
             var shelf = Object.FindFirstObjectByType<Shelf>();
             if (shelf != null) Physics2D.IgnoreCollision(c.GetComponent<Collider2D>(), shelf.GetComponent<Collider2D>(), true);
@@ -399,9 +403,11 @@ namespace TinCan
         }
 
         /// <summary>총에 맞았다. hitPoint = 맞은 자리(월드). 맞은 쪽 반대로, 위로 튄다. 돌려주는 값 = 이번 한 발로 쌓인 돈</summary>
-        public int Hit(Vector2 hitPoint, float scale = 1f, float bounceScale = 1f)
+        public int Hit(Vector2 hitPoint, float scale = 1f, float bounceScale = 1f, int damage = 1)
         {
             if (Done) return 0;
+            // 묶음에서 풀린 깡통: 처음 맞기 전까지 자기만 느려져 있다 → 맞는 순간 제 속도 (사용자 10-14)
+            if (slowUntilHit) { slowUntilHit = false; localSlowTarget = 1f; localSlow = 1f; }
             SyncScale();   // 속도 계산 전에 배수부터 맞춘다 (느려지기 켜고 끄는 프레임 버그)
             if (!Airborne)
             {
@@ -415,7 +421,7 @@ namespace TinCan
             floorSlowed = false;
             int earned = Game.I != null ? Game.I.EarnFor(Kind, Combo, scale) : Kind.Value * Combo;
             Earned += earned;
-            HitsLeft--;
+            HitsLeft -= Mathf.Max(1, damage);   // 다이너마이트는 한 번에 2 (스킬로 강화 예정)
             for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
             if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
             Vector2 off = hitPoint - (Vector2)transform.position;
@@ -555,15 +561,15 @@ namespace TinCan
                     Game.I.StartCoroutine(Explode(at, this));
                     break;
                 case CanKind.Trait.Bundle:
-                    // 끈이 끊어지며 셋이 위로 퍼진다. 3초 동안 중력 30%로 천천히
+                    // 끈이 끊어지며 셋이 튀어 오른다. 셋을 각자 때려야 하니, 처음 맞기 전까지 자기만 느리다(0.4배) (사용자 10-14)
                     float[] vx = { -2.4f, 0f, 2.4f };
                     for (int i = 0; i < 3; i++)
-                        SpawnAirborne(CanKind.Loose, at + new Vector2(vx[i] * 0.12f, 0.1f * i), new Vector2(vx[i], 5.5f + (i == 1 ? 1f : 0f)), 3f, 0.3f);
+                        SpawnAirborne(CanKind.Loose, at + new Vector2(vx[i] * 0.12f, 0.1f * i), new Vector2(vx[i], 6.5f + (i == 1 ? 1f : 0f)), 0f, 1f, false, 0.4f);
                     Sfx.Play(Sfx.Drop(), 0.6f, 1.4f);
                     break;
                 case CanKind.Trait.Blue:
-                    // 반투명 깡통이 떠올라 1.5초 그 자리에 둥실 → 그다음 평소처럼 떨어진다
-                    SpawnAirborne(CanKind.Ghost, at, new Vector2(0f, 1.6f), 1.5f, 0f, ghost: true);
+                    // 반투명 깡통이 공중으로 날아오른다 (사용자 10-14). 2초 동안 중력 60%로 살짝 둥실
+                    SpawnAirborne(CanKind.Ghost, at, new Vector2(Random.Range(-1f, 1f), 9f), 2f, 0.6f, ghost: true);
                     Sfx.Play(Sfx.Twirl(), 0.4f, 1.8f);
                     break;
             }
@@ -610,9 +616,28 @@ namespace TinCan
                 Vector2 p = c.transform.position;
                 var dir = (p - at).sqrMagnitude > 0.0001f ? (p - at).normalized : Vector2.up;
                 var hitPoint = p - dir * 0.2f;   // 폭발 쪽 면을 맞힌다 → 반대쪽으로 튄다
-                int earned = c.Hit(hitPoint, 1f, 1.1f);
+                int earned = c.Hit(hitPoint, 1f, 1.8f, DynamiteDamage);   // 높게 뜬다 (천장 한계까지)
                 g.CanHit(c, earned, hitPoint);
             }
+        }
+
+        /// <summary>다이너마이트 피해 (한 번에 깎는 체력). 스킬트리 "다이너마이트 강화"가 올린다 (사용자 10-14: 2~3)</summary>
+        public static int DynamiteDamage = 2;
+        /// <summary>쏠 때마다 다이너마이트를 던질 확률 (사용자 10-14: 1%). 스킬로 올릴 수 있게</summary>
+        public static float DynamiteChance = 0.01f;
+
+        /// <summary>
+        /// 다이너마이트 투척 (사용자 10-14): 선반에 소환되는 게 아니라, 쏠 때 가끔 총 쪽에서 공중으로 던져진다.
+        /// 선반 위 아무 자리 쪽으로 높이 떠서 2.5초 동안 중력 35%로 천천히 → 그사이 3발 맞히면 터진다. 못 맞히면 바닥에 떨어져 불발
+        /// </summary>
+        public static Can ThrowDynamite(Vector2 from)
+        {
+            float tx = Random.Range(Look.ShelfLeft + 1f, Look.ShelfRight - 1f);
+            var vel = new Vector2(Mathf.Clamp((tx - from.x) * 0.9f, -4f, 4f), 9.5f);
+            var c = SpawnAirborne(CanKind.Dynamite, from, vel, 2.5f, 0.35f);
+            Sfx.Play(Sfx.Twirl(), 0.6f, 1.3f);
+            Fx.Smoke(from, Vector2.up);
+            return c;
         }
 
         /// <summary>낙하지역에 떨어졌다: 정산하고 사라진다</summary>
