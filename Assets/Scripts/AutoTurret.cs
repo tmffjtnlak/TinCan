@@ -111,9 +111,7 @@ namespace TinCan
             var tracer = Look.Quad("Tracer", (tip + at) * 0.5f, new Vector2(dv.magnitude, 0.035f), new Color(0.6f, 1f, 0.7f, 0.7f), 47);
             tracer.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dv.y, dv.x) * Mathf.Rad2Deg);
             Destroy(tracer.gameObject, 0.05f);
-            var f = Look.Quad("Flash", tip, Vector2.one * 0.3f, new Color(0.7f, 1f, 0.8f, 0.9f), 48);
-            f.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
-            Destroy(f.gameObject, 0.05f);
+            // 마름모 섬광은 뺐다 (사용자 10-13)
             Sfx.Play(Sfx.Bang(), 0.35f, 1.5f);
         }
     }

@@ -162,27 +162,6 @@ namespace TinCan
             Destroy(d.gameObject);
         }
 
-        /// <summary>링: 네모 테두리가 커지며 사라진다 (터질 때)</summary>
-        public static void Ring(Vector2 at, Color color, float size = 2f) => I.StartCoroutine(I.RingCo(at, color, size));
-
-        IEnumerator RingCo(Vector2 at, Color color, float size)
-        {
-            var root = new GameObject("Ring").transform; root.position = at; root.rotation = Quaternion.Euler(0f, 0f, 45f);
-            var sides = new SpriteRenderer[4];
-            for (int i = 0; i < 4; i++) sides[i] = Look.Quad("Side", Vector2.zero, Vector2.one, color, 21, root);
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 4f)
-            {
-                float r = Mathf.Lerp(0.2f, size, Mathf.Sqrt(t)); float th = 0.08f * (1f - t) + 0.02f;
-                sides[0].transform.localPosition = new Vector2(0f, r); sides[0].transform.localScale = new Vector3(r * 2f, th, 1f);
-                sides[1].transform.localPosition = new Vector2(0f, -r); sides[1].transform.localScale = new Vector3(r * 2f, th, 1f);
-                sides[2].transform.localPosition = new Vector2(r, 0f); sides[2].transform.localScale = new Vector3(th, r * 2f, 1f);
-                sides[3].transform.localPosition = new Vector2(-r, 0f); sides[3].transform.localScale = new Vector3(th, r * 2f, 1f);
-                var c = color; c.a = 1f - t; foreach (var s in sides) s.color = c;
-                yield return null;
-            }
-            Destroy(root.gameObject);
-        }
-
         /// <summary>동전: 노란 조각들이 튀어 올랐다 떨어지며 사라진다. 금액이 클수록 많이 (로그)</summary>
         public static void Coins(Vector2 at, long amount)
         {
@@ -207,7 +186,6 @@ namespace TinCan
         }
 
         /// <summary>조준점 반응: 흰 링이 조준점에서 퍼진다 (맞췄다는 표시)</summary>
-        public static void HitMark(Vector2 at) => I.StartCoroutine(I.RingCo(at, new Color(1f, 1f, 1f, 0.8f), 0.5f));
 
         /// <summary>화면 흔들림 (세기 0~1). 겹치면 더 세게</summary>
         public static void Shake(float strength) { I.enabled = true; shake = Mathf.Min(1.5f, shake + strength); }

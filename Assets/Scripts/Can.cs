@@ -385,7 +385,6 @@ namespace TinCan
             Done = true;
             Sfx.Play(Sfx.Bang(), 0.7f, Kind.Pitch * 1.6f);
             Sfx.Play(Sfx.Tang(), 0.9f, Kind.Pitch * 0.5f);
-            Fx.Ring(transform.position, Cursed ? CurseLabel : new Color(1f, 0.95f, 0.7f), 2.2f);
             Fx.Spark(transform.position, 14, 1.4f);
             Fx.Cloud(transform.position, 1.08f);   // 터진 자리에 소환 때와 같은 구름이 남았다 흩어진다 (사용자 10-13 시험)
             Fx.Shake(0.7f);

@@ -340,9 +340,6 @@ namespace TinCan
                 SetCam(at, size0 * FinisherZoom * 0.92f);   // 맞는 순간 한 번 더 당긴다 (펀치)
                 HitOne(can, at);
                 StartCoroutine(ChainBursts(at));   // 연출 동안 조준을 못 했으니 공중의 다른 깡통들은 가까운 것부터 차례로 터진다
-                Fx.HitMark(at);
-                Fx.Ring(at, new Color(1f, 0.95f, 0.7f), 3.4f);
-                Fx.Ring(at, Color.white, 1.6f);
                 Fx.Spark(at, 26, 1.8f);
                 Fx.Cloud(at, 1.6f);
                 Fx.Shake(1.5f);
@@ -432,7 +429,7 @@ namespace TinCan
                 if (d < bestD) { bestD = d; best = can; }
             }
             if (best != null) { HitOne(best, aim); any = true; }
-            if (any) { Hits++; Fx.HitMark(aim); }
+            if (any) Hits++;   // 맞춤 마름모 표시는 뺐다 (사용자 10-13)
             Game.I?.Shot(any);
             if (Ammo == 0) StartCoroutine(AutoReload());
         }
@@ -449,14 +446,6 @@ namespace TinCan
                 can.Curse();
                 Game.I?.Hud.Float("저주!", at + Vector2.up * 0.5f, 6);
             }
-        }
-
-        IEnumerator MuzzleFlash(Vector2 at)
-        {
-            var f = Look.Quad("Flash", at, Vector2.one * (0.5f + Kind.AimRadius * 0.5f), new Color(1f, 0.95f, 0.6f, 0.9f), 49);
-            f.transform.rotation = Quaternion.Euler(0f, 0f, 45f);
-            yield return null; yield return null;
-            Destroy(f.gameObject);
         }
 
         /// <summary>다 쏘면 즉시 장전 (설정으로 끌 수 있다. PlayerPrefs "autoReload")</summary>
