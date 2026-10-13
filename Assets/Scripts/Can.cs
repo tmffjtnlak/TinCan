@@ -54,9 +54,14 @@ namespace TinCan
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
         /// <summary>현상수배 깡통: 체력 15 (10-14: 30 → 15), 무겁고, 값 5. 터뜨리면 값×15×16 = 1,200 기본. 가게엔 없다</summary>
         public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
+        /// <summary>구르는 무법자 (사용자 10-14 첫 보스 행동): 박치기 두 번마다 좌우로 빠르게 구른다</summary>
+        public static readonly CanKind BountyRoller = new CanKind { Id = "bounty", Name = "구르는 무법자", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Trick = BossTrick.Roll };
         public bool IsBounty;
         /// <summary>현상금의 부하 (사용자 10-14): 콧수염 단 깡통. 현상금이 살아 있는 동안 바닥에서 무한히 다시 뛰어오르고, 터지면 현상금이 새로 불러낸다</summary>
         public bool IsMinion;
+        /// <summary>보스(현상금) 행동 양식 (사용자 10-14: 보스마다 점프 패턴·피격 반응을 다르게)</summary>
+        public enum BossTrick { None, Roll }
+        public BossTrick Trick;
         public static readonly CanKind Minion = new CanKind { Id = "tin", Name = "부하 깡통", Desc = "현상금의 부하.", Value = 1, Cost = 0, Price = 0, Hits = 3, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.15f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, IsMinion = true };
         /// <summary>시험용 현상수배 깡통 (사용자 10-13): 체력 3. F4로 부른다 (막타 연출 확인용)</summary>
         public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true };
@@ -630,6 +635,36 @@ namespace TinCan
             StopAllCoroutines(); StartCoroutine(Squash());
             Sfx.Play(Sfx.Bang(), 0.7f, 0.6f); Sfx.Play(Sfx.Drop(), 0.6f, 0.55f);
             Fx.Cloud(transform.position, 0.9f); Fx.Spark(transform.position, 14, 1.4f); Fx.Shake(0.6f);
+            // 보스 행동: 구르는 무법자는 박치기 두 번마다 좌우로 구른다
+            if (Kind.Trick == CanKind.BossTrick.Roll && ++ramsTaken % 2 == 0) StartCoroutine(RollCo());
+        }
+
+        int ramsTaken;
+        /// <summary>
+        /// 구르기 (사용자 10-14): 0.12초 숨 고른 뒤, 화면에서 넓은 쪽으로 0.55초 동안 빠르게 구른다 (옆 속도 9 → 5.4, 빠른 회전, 먼지 줄).
+        /// 처음엔 살짝 들려서 바로 떨어지지 않는다. 그사이 맞으면 그 한 발이 우선
+        /// </summary>
+        IEnumerator RollCo()
+        {
+            yield return new WaitForSeconds(0.12f);
+            if (Done || !Airborne) yield break;
+            float dir = transform.position.x > 0f ? -1f : 1f;
+            if (Random.value < 0.25f) dir = -dir;   // 가끔은 좁은 쪽으로 (예측을 조금 깬다)
+            Game.I?.Hud.Float("구른다!", (Vector2)transform.position + Vector2.up * 0.9f, 5);
+            Sfx.Play(Sfx.Whoosh(), 0.8f, 0.7f);
+            float dust = 0f;
+            for (float t = 0f; t < 0.55f && !Done && !crouching; t += Time.deltaTime)
+            {
+                SyncScale();
+                var v = rb.linearVelocity / Scale;
+                v.x = dir * Mathf.Lerp(9f, 5.4f, t / 0.55f);
+                if (t < 0.12f) v.y = Mathf.Max(v.y, 2.5f);
+                rb.linearVelocity = v * Scale;
+                rb.angularVelocity = -dir * 1440f * Scale;
+                dust -= Time.deltaTime;
+                if (dust <= 0f) { dust = 0.05f; Fx.Cloud((Vector2)transform.position + Vector2.down * Kind.Height * 0.4f, 0.3f); }
+                yield return null;
+            }
         }
 
         // ---------- 부하 박치기 (사용자 10-14): 체력이 다 닳으면 터지지 않고 → 살짝 작아지며 번쩍 → 현상금에게 날아가 부딪혀 피해 → 튕겨 나와 다시 저글링 ----------

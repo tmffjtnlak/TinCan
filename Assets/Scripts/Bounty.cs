@@ -86,7 +86,8 @@ namespace TinCan
             if (Game.I.Bursts > 0 && Game.I.Bursts / EveryBursts > lastTrigger) { lastTrigger = Game.I.Bursts / EveryBursts; Summon(); }
         }
 
-        public void Summon() => Summon(CanKind.Bounty);
+        /// <summary>현상금 등장: 보스 종류 중 하나 (10-14: 보통 / 구르는 무법자 반반)</summary>
+        public void Summon() => Summon(Random.value < 0.5f ? CanKind.Bounty : CanKind.BountyRoller);
 
         /// <summary>종류를 골라 부른다 (F4 = 체력 3 시험용)</summary>
         public void Summon(CanKind kind)

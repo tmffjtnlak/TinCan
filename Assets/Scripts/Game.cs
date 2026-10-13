@@ -277,8 +277,8 @@ namespace TinCan
             if (kb.f6Key.wasPressedThisFrame) DebugSpawn(CanKind.Bundle);
             if (kb.f7Key.wasPressedThisFrame) DebugSpawn(CanKind.Blue);
             if (kb.f8Key.wasPressedThisFrame) DebugSpawn(CanKind.Magnet);
-            if (kb.f4Key.wasPressedThisFrame) bounty.Summon(CanKind.BountyTest);
-            if (kb.f10Key.wasPressedThisFrame) CycleDebugTime();   // 시험용: 체력 3짜리 현상금 깡통 (막타 연출 확인)
+            if (kb.f4Key.wasPressedThisFrame) bounty.Summon(kb.shiftKey.isPressed ? CanKind.BountyRoller : CanKind.BountyTest);   // 시험: F4 체력 3 현상금 / Shift+F4 구르는 무법자
+            if (kb.f10Key.wasPressedThisFrame) CycleDebugTime();   // 디버그 슬로우
             if (kb.digit1Key.wasPressedThisFrame) SelectSlot(0);
             if (kb.digit2Key.wasPressedThisFrame) SelectSlot(1);
             if (kb.digit3Key.wasPressedThisFrame) hud.Float("3: 투척류 — 아직 없다", new Vector2(0f, 1.5f), 0);
