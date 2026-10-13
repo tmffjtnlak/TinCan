@@ -523,6 +523,10 @@ namespace TinCan
         public long BurstPay(CanKind k) => (long)Mathf.Round(k.BurstReward * ValueMult * (BurstMult / 2f));
         /// <summary>이번 세트의 터뜨림 배율: ×1에서 시작해 터뜨릴 때마다 +0.5. 세트가 끝날 때 합계에 곱한다</summary>
         public float SetBurstMult { get; private set; } = 1f;
+        /// <summary>이번 세트에 터뜨린 수. 배율은 둘째부터 붙는다 (10-14: 하나만 터뜨려도 ×1.5가 붙던 것 → 1개 ×1, 2개 ×1.5, 3개 ×2)</summary>
+        public int SetBursts { get; private set; }
+        string MultTag() => SetBursts >= 2 ? $"  ×{SetBurstMult:0.#}" : "";
+        void AddSetBurst() { SetBursts++; SetBurstMult = 1f + BurstMultStep * Mathf.Max(0, SetBursts - 1); }
 
         float nudgeTimer; int nudges;
         /// <summary>하나만 떠 있고 선반에 깡통이 있으면 "하나 더 띄우면 ×3" (처음 다섯 번, 10초에 한 번)</summary>
@@ -605,7 +609,7 @@ namespace TinCan
         public void CanHit(Can can, int earned, Vector2 at)
         {
             if (can.Kind.NotScored) { StartCoroutine(HitStop(0.02f)); return; }   // 다이너마이트: 세트·기록·배율·게이지 밖 (맞는 손맛만)
-            if (!SetActive) { SetActive = true; SetPending = 0; missed = false; SetMaxAir = 0; SetMaxStreak = 0; SetBurstMult = 1f; }
+            if (!SetActive) { SetActive = true; SetPending = 0; missed = false; SetMaxAir = 0; SetMaxStreak = 0; SetBurstMult = 1f; SetBursts = 0; }
             int air = Airborne;
             if (air > MostAirborne) MostAirborne = air;
             if (air > SetMaxAir) SetMaxAir = air;
@@ -664,9 +668,9 @@ namespace TinCan
             if (!can.Kind.NoCasings) SpillCasings(can.transform.position, can.Kind.IsBounty ? BountyCasings : BurstCasings, true, can.Kind.IsBounty);   // 보조 깡통(다이너마이트)은 탄피 없음
             long pay = BurstPay(can.Kind);
             SetPending += pay;
-            SetBurstMult += BurstMultStep;   // 터뜨릴 때마다 이번 세트 배율 +0.5
+            AddSetBurst();   // 한 세트에 둘째부터 배율 +0.5
             Bursts++;
-            hud.Float($"터짐!  +${pay:N0}  ×{SetBurstMult:0.#}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+            hud.Float($"터짐!  +${pay:N0}{MultTag()}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));
             if (can.Kind.IsBounty) bounty.Busted(can);
             if (can.Kind.IsBounty && !Gun.Cinematic) Gun.StartChain(can.transform.position);   // 막타 연출이 아니었어도 공중 깡통들을 차례로 터뜨린다
@@ -682,9 +686,9 @@ namespace TinCan
             SpillCasings(can.transform.position, BurstCasings, true, false);
             long pay = BurstPay(can.Kind);
             SetPending += pay;
-            SetBurstMult += BurstMultStep;
+            AddSetBurst();
             Bursts++;
-            hud.Float($"+${pay:N0}  ×{SetBurstMult:0.#}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+            hud.Float($"+${pay:N0}{MultTag()}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(0.05f));
         }
         /// <summary>현상금이 살아 있나 (선반·공중 상관없이). 살아 있는 동안 다른 깡통은 터지지 않는다 (사용자 10-14)</summary>
