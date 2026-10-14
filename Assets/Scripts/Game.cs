@@ -27,7 +27,9 @@ namespace TinCan
         public int BestCombo { get; private set; }
         public long BestPayout { get; private set; }
         public int Bursts { get; private set; }
-        public int MaxCans { get; set; } = 3;
+        public int MaxCans { get; set; } = 1;   // 10-15 사용자: 시작은 1칸 (하나만 확실히). "넓은 선반"을 사야 처음으로 저글링이 된다
+        /// <summary>스킬 "파편 튀기기" (10-15: 기본에서 뺐다 — 준비 안 된 저글링을 떠넘겨 불쾌했다): 터지면 선반 깡통이 다 튀어 오른다</summary>
+        public bool ShrapnelPop { get; set; }
         public float ValueMult { get; set; } = 1f;
         public float ComboMult { get; set; } = 1f;
         public float PayoutMult { get; set; } = 1f;
@@ -740,8 +742,8 @@ namespace TinCan
         {
             if (can.Kind.NotScored) { StartCoroutine(HitStop(0.07f)); return; }   // 계산 밖 물체: 터져도 돈·터뜨림 수 없음 (폭발 자체는 Can.TraitBurst)
             if (!can.Kind.NoCasings) SpillCasings(can.transform.position, can.Kind.IsBounty ? BountyCasings : BurstCasings, true, can.Kind.IsBounty);   // 보조 깡통(다이너마이트)은 탄피 없음
-            // 10-14 사용자: 하나가 터지면 선반의 모든 깡통이 파편에 튀어 오른다 (저글링 학습). 현상금은 제외 (파편 피해 규칙이 따로 있다)
-            foreach (var c in Cans) if (c != null && c != can && !c.Done && !c.Airborne && !c.Kind.IsBounty) c.Pop(can.transform.position);
+            // 스킬 "파편 튀기기": 하나가 터지면 선반의 모든 깡통이 파편에 튀어 오른다. 현상금은 제외 (파편 피해 규칙이 따로 있다)
+            if (ShrapnelPop) foreach (var c in Cans) if (c != null && c != can && !c.Done && !c.Airborne && !c.Kind.IsBounty) c.Pop(can.transform.position);
             long pay = JugglePay(can, BurstPay(can.Kind), out bool dbl);
             SetPending += pay;
             AddSetBurst();   // 한 세트에 둘째부터 배율 +0.5

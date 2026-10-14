@@ -79,16 +79,19 @@ namespace TinCan
             // 꾹 눌러 해방하는 핵심 노드(Key)는 미사용 (사용자 10-14). 시작 노드는 클릭 한 번으로 연다.
             Put("root", 0, 0);
             // 위 — 저글링 (하늘)
+            // 10-15 사용자: 저글링은 처음부터 주어지는 게 아니라 얻는 것. 선반 1칸으로 시작 → "넓은 선반"(2칸)이 첫 저글링
             Put("airslow1", 0, 1, (0, 0));
-            Put("burst1", 0, 2, (0, 1));
-            Put("air2x", 0, 3, (0, 2));                 // 핵심
-            Put("airslow2", -1, 4, (0, 3));
-            Put("lowbounce", -1, 5, (-1, 4));           // 핵심
-            Put("bounce", -1, 6, (-1, 5));
-            Put("rebound", -1, 7, (-1, 6));             // 핵심
-            Put("burst2", 1, 4, (0, 3));
-            Put("juggle", 1, 5, (1, 4));                // 핵심
-            Put("burst3", 1, 6, (1, 5));
+            Put("shelf1", 0, 2, (0, 1));                // 핵심: 처음으로 둘
+            Put("burst1", 0, 3, (0, 2));
+            Put("air2x", 0, 4, (0, 3));                 // 핵심
+            Put("airslow2", -1, 5, (0, 4));
+            Put("lowbounce", -1, 6, (-1, 5));           // 핵심
+            Put("bounce", -1, 7, (-1, 6));
+            Put("rebound", -1, 8, (-1, 7));             // 핵심
+            Put("burst2", 1, 5, (0, 4));
+            Put("popchain", 1, 6, (1, 5));              // 핵심: 파편 튀기기 (10-15 기본에서 옮김)
+            Put("juggle", 1, 7, (1, 6));                // 핵심
+            Put("burst3", 1, 8, (1, 7));
             // 왼쪽 — 장전 (빨강)
             Put("reload1", -1, 0, (0, 0));
             Put("just1", -2, 0, (-1, 0));
@@ -101,9 +104,9 @@ namespace TinCan
             Put("holster", -6, -1, (-5, -1));           // 핵심
             // 오른쪽 — 선반 (하늘)
             Put("perfect1", 1, 0, (0, 0));             // (단골 할인은 10-14 소환이 공짜가 되며 뺐다)
-            Put("shelf1", 2, 0, (1, 0));                // 핵심
+            Put("shelf2", 2, 0, (1, 0));                // 핵심: 셋
             Put("cluster", 3, 1, (2, 0));               // 핵심
-            Put("shelf2", 3, 0, (2, 0));                // 핵심
+            Put("shelf3", 3, 0, (2, 0));                // 핵심: 넷
             // (짝 소환은 10-14 Space 한 번에 선반이 꽉 차게 되며 뺐다)
             // 아래 — 돈 (노랑) → 자동 사격 (초록)
             Put("value1", 0, -1, (0, 0));
@@ -216,15 +219,15 @@ namespace TinCan
 
             // 저글링 (하늘) — 위
             N("airslow1", "가벼운 낙하", "낙", Vector2.zero, Cyan, 40, "공중 깡통이 10% 느리게 떨어진다", g => Can.AirFall *= 0.81f),
-            N("burst1", "터뜨림 배율", "배", Vector2.zero, Cyan, 70, "한 세트에 둘째부터 터뜨릴 때마다 배율 +0.2 → +0.3", g => g.BurstMultStep += 0.1f),
-            C("air2x", "둘이면 두 배", "둘", Cyan, 200, "공중에 깡통이 둘 이상일 때 떨어지거나 터진 돈 ×2", g => g.JuggleScoreMult = Mathf.Max(g.JuggleScoreMult, 2f)),
-            N("airslow2", "더 가벼운 낙하", "낙", Vector2.zero, Cyan, 250, "공중 깡통이 10% 더 느리게 떨어진다", g => Can.AirFall *= 0.81f),
+            N("burst1", "터뜨림 배율", "배", Vector2.zero, Cyan, 150, "한 세트에 둘째부터 터뜨릴 때마다 배율 +0.2 → +0.3", g => g.BurstMultStep += 0.1f),
+            C("air2x", "둘이면 두 배", "둘", Cyan, 300, "공중에 깡통이 둘 이상일 때 떨어지거나 터진 돈 ×2", g => g.JuggleScoreMult = Mathf.Max(g.JuggleScoreMult, 2f)),
+            N("airslow2", "더 가벼운 낙하", "낙", Vector2.zero, Cyan, 300, "공중 깡통이 10% 더 느리게 떨어진다", g => Can.AirFall *= 0.81f),
             C("lowbounce", "낮은 튐", "통", Cyan, 450, "떨어진 깡통이 한 번 낮게 튀어오른다 (연속 유지)", g => { if (g.LandBounces == 0) { g.LandBounces = 1; g.LandBouncePower = 6.5f; } }),   // "다시 튐"을 이미 샀으면 그대로 (그쪽이 높다)
             N("bounce", "가벼운 깡통", "경", Vector2.zero, Cyan, 600, "맞으면 더 높이 튄다", g => Can.BounceBonus += 1.0f),
             C("rebound", "다시 튐", "튐", Cyan, 1200, "떨어진 깡통이 높게 다시 튀어오른다 (낮은 튐 → 높은 튐)", g => { g.LandBounces = 1; g.LandBouncePower = 11f; }),
-            N("burst2", "터뜨림 배율 2", "배", Vector2.zero, Cyan, 300, "터뜨림 배율 +0.3 → +0.4", g => g.BurstMultStep += 0.1f),
-            C("juggle", "공중 곡예", "곡", Cyan, 600, "공중에 많을수록 천천히 떨어진다 (2개 -30%, 3개 -45%, 4개+ -55%)", g => Can.JuggleFall = new[] { 1f, 0.7f, 0.55f, 0.45f }),
-            N("burst3", "터뜨림 배율 3", "배", Vector2.zero, Cyan, 900, "터뜨림 배율 +0.4 → +0.5", g => g.BurstMultStep += 0.1f),
+            N("burst2", "터뜨림 배율 2", "배", Vector2.zero, Cyan, 350, "터뜨림 배율 +0.3 → +0.4", g => g.BurstMultStep += 0.1f),
+            C("juggle", "공중 곡예", "곡", Cyan, 800, "공중에 많을수록 천천히 떨어진다 (2개 -30%, 3개 -45%, 4개+ -55%)", g => Can.JuggleFall = new[] { 1f, 0.7f, 0.55f, 0.45f }),
+            N("burst3", "터뜨림 배율 3", "배", Vector2.zero, Cyan, 1000, "터뜨림 배율 +0.4 → +0.5", g => g.BurstMultStep += 0.1f),
 
             // 장전 (빨강) — 왼쪽. 탄창 수는 총의 성격이라 트리에 없다 (사용자 10-10)
             N("reload1", "빠른 장전", "장", Vector2.zero, Red, 40, "장전 시간 -20%", g => g.Gun.ReloadScale *= 0.8f),
@@ -239,9 +242,11 @@ namespace TinCan
 
             // 선반 (하늘) — 오른쪽
             N("perfect1", "퍼펙트 배율", "퍼", Vector2.zero, Cyan, 90, "한 발도 안 놓친 세트 ×1.1 → ×1.2", g => g.PerfectMult += 0.1f),
-            C("shelf1", "넓은 선반", "선", Cyan, 250, "선반 자리 +1", g => g.MaxCans += 1),
+            C("shelf1", "넓은 선반", "선", Cyan, 120, "선반 자리 +1 (1칸 → 2칸). 이제 둘을 띄울 수 있다", g => g.MaxCans += 1),
             C("cluster", "붙여 놓기", "붙", Cyan, 450, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true),
-            C("shelf2", "더 넓은 선반", "선", Cyan, 750, "선반 자리 +1 더", g => g.MaxCans += 1),
+            C("shelf2", "더 넓은 선반", "선", Cyan, 500, "선반 자리 +1 더 (→ 3칸)", g => g.MaxCans += 1),
+            C("shelf3", "선반 확장", "선", Cyan, 1500, "선반 자리 +1 더 (→ 4칸)", g => g.MaxCans += 1),
+            C("popchain", "파편 튀기기", "파", Cyan, 600, "깡통이 터지면 선반의 깡통이 전부 파편에 튀어 오른다 (연쇄 저글링)", g => g.ShrapnelPop = true),
 
             // 돈 (노랑) — 아래
             N("value1", "비싼 깡통", "값", Vector2.zero, Yellow, 50, "깡통 값 +20%", g => g.ValueMult += 0.2f),
