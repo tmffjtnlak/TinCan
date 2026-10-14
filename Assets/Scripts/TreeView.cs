@@ -185,7 +185,7 @@ namespace TinCan
 
         public bool Available(SkillNode n)
         {
-            if (n.Root) return false;
+            if (n.Root) return n.Level < 1;   // 10-14: 시작 노드는 아직 안 열었으면 바로 살 수 있다 (클릭 한 번, 값 0)
             foreach (var o in nb[n.Id]) if (byId.TryGetValue(o, out var m) && m.Level >= 1) return true;
             return false;
         }

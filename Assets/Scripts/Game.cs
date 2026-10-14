@@ -97,7 +97,7 @@ namespace TinCan
         float lastSpawnX = float.NaN;
         int lastPage = 2;
 
-        void Awake() { I = this; Can.BounceBonus = 0f; Can.TimeScale = 1f; Can.JuggleFall = Can.NoJuggleFall; Can.AirFall = 1f; }   // 스킬로 바뀌는 정적 값은 씬마다 처음으로
+        void Awake() { I = this; Can.BounceBonus = 0f; Can.TimeScale = 1f; Can.JuggleFall = Can.NoJuggleFall; Can.AirFall = 1f; Can.DynamiteChance = 0f; }   // 스킬로 바뀌는 정적 값은 씬마다 처음으로
 
         void Start()
         {
@@ -252,7 +252,6 @@ namespace TinCan
                 n.Level = d.nodeLevels[i];
                 if (n.Level > 0 && !n.Root) n.Apply(this, n.Level);   // 시작 노드는 해방 여부만 기억
             }
-            foreach (var n in Nodes) if (n.Root) n.Level = 1;   // 10-14: 시작 노드는 처음부터 열려 있다 (옛 저장의 "해방 전" 무시)
             var g = GunKind.ForSale.Find(x => x.Id == d.gun); if (g != null) { Primary = g; Gun.Equip(g); }
             var s2 = GunKind.ForSale.Find(x => x.Id == d.secondary); if (s2 != null && s2 != Primary) Secondary = s2;
             ActiveSlot = 0;

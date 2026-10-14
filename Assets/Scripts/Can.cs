@@ -916,7 +916,7 @@ namespace TinCan
         /// <summary>다이너마이트 피해 (한 번에 깎는 체력). 스킬트리 "다이너마이트 강화"가 올린다 (사용자 10-14: 2~3)</summary>
         public static int DynamiteDamage = 2;
         /// <summary>쏠 때마다 다이너마이트를 던질 확률 (사용자 10-14: 1%). 스킬로 올릴 수 있게</summary>
-        public static float DynamiteChance = 0.01f;
+        public static float DynamiteChance = 0f;   // 10-14 사용자: 기본 0, 스킬 "다이너마이트"로 1%
 
         /// <summary>
         /// 다이너마이트 투척 (사용자 10-14): 선반에 소환되는 게 아니라, 쏠 때 가끔 총 쪽에서 공중으로 던져진다.

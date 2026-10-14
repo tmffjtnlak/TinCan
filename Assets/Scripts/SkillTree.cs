@@ -76,7 +76,7 @@ namespace TinCan
             }
 
             // 10-14 3판 (사용자: "수치 스킬과 핵심 스킬을 구분"): 갈래마다 수치(작은 노드) 몇 개 → 핵심(큰 노드, 플레이가 달라짐).
-            // 꾹 눌러 해방하는 핵심 노드(Key)는 미사용 (사용자 10-14). 시작 노드는 처음부터 열려 있다.
+            // 꾹 눌러 해방하는 핵심 노드(Key)는 미사용 (사용자 10-14). 시작 노드는 클릭 한 번으로 연다.
             Put("root", 0, 0);
             // 위 — 저글링 (하늘)
             Put("airslow1", 0, 1, (0, 0));
@@ -110,6 +110,7 @@ namespace TinCan
             Put("value1", 0, -1, (0, 0));
             Put("payout1", 0, -2, (0, -1));
             Put("value2", 0, -3, (0, -2));
+            Put("dynamite", -1, -3, (0, -3));          // 핵심 (10-14: 기본에서 빼 스킬로)
             Put("auto1", 0, -4, (0, -3));               // 핵심
             Put("auto2", -1, -5, (0, -4));
             Put("auto_lever", -2, -6, (-1, -5));        // 핵심
@@ -209,9 +210,9 @@ namespace TinCan
         // 가격 (10-14): 세트 하나 ≈ $10~40 (깡통 터짐 8). 수치 = 세트 1~2번 값, 핵심 = 4~6번 값, 바깥으로 갈수록 오른다
         static List<SkillNode> Raw() => new List<SkillNode>
         {
-            // 시작 노드: 처음부터 열려 있다 (꾹 눌러 해방은 10-14 미사용)
-            new SkillNode { Id = "root", Name = "사수", Glyph = "총", Root = true, Core = true, Level = 1, Pos = Vector2.zero, Color = White,
-                Cost = l => 0, Desc = l => "모든 것의 시작.", Apply = (g, l) => { } },
+            // 시작 노드: 눌러서 연다 (10-14 사용자: 꾹 누르는 연출 말고 그냥 클릭, 값 0)
+            new SkillNode { Id = "root", Name = "사수", Glyph = "총", Root = true, Core = true, Level = 0, Pos = Vector2.zero, Color = White,
+                Cost = l => 0, Desc = l => "모든 것의 시작. 눌러서 연다.", Apply = (g, l) => { } },
 
             // 저글링 (하늘) — 위
             N("airslow1", "가벼운 낙하", "낙", Vector2.zero, Cyan, 15, "공중 깡통이 10% 느리게 떨어진다", g => Can.AirFall *= 0.81f),
@@ -250,6 +251,9 @@ namespace TinCan
             N("value2", "더 비싼 깡통", "값", Vector2.zero, Yellow, 70, "깡통 값 +30% 더", g => g.ValueMult += 0.3f),
             N("perfect2", "퍼펙트 배율 2", "퍼", Vector2.zero, Yellow, 180, "퍼펙트 ×1.2 → ×1.3", g => g.PerfectMult += 0.1f),
             N("value3", "아주 비싼 깡통", "값", Vector2.zero, Yellow, 300, "깡통 값 +50% 더", g => g.ValueMult += 0.5f),
+
+            // 다이너마이트 (10-14 사용자: 공격 수단. 기본 0% → 이 스킬로 쏠 때 1% 투척)
+            C("dynamite", "다이너마이트", "폭", Red, 120, "쏠 때 1% 확률로 화면 아래에서 다이너마이트가 날아온다. 3발 맞히면 크게 터진다", g => Can.DynamiteChance = 0.01f),
 
             // 자동 사격 (초록) — 돈 아래. 총 종류를 뚫을수록 화면 아래에 총이 늘어난다 (값 절반)
             C("auto1", "자동 리볼버", "자", Green, 150, "화면 아래에 리볼버가 서서 쏜다. 빠르고 넓게 쫓는다 (값 절반)", g => g.AddAutoGun(GunKind.Revolver)),
