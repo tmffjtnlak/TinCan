@@ -53,6 +53,8 @@ namespace TinCan
 
         /// <summary>깡통류 가게 목록 (순서대로)</summary>
         /// <summary>현상수배 깡통: 체력 15 (10-14: 30 → 15), 무겁고, 값 5. 터뜨리면 값×15×16 = 1,200 기본. 가게엔 없다</summary>
+        /// <summary>첫 현상금 (10-15 사용자): 체력 8 — 녹슨 리볼버로는 못 잡거나 아슬아슬. 못 잡으면 주인이 증표를 주고 총 가게를 알려 준다</summary>
+        public static readonly CanKind BountyFirst = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 8. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 8, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 200 };
         public static readonly CanKind Bounty = new CanKind { Id = "bounty", Name = "현상수배 깡통", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 200 };
         /// <summary>구르는 무법자 (사용자 10-14 첫 보스 행동): 박치기 두 번마다 좌우로 빠르게 구른다</summary>
         public static readonly CanKind BountyRoller = new CanKind { Id = "bounty", Name = "구르는 무법자", Desc = "체력 15. 무겁다. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 15, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 200, Trick = BossTrick.Roll };

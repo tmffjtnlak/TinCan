@@ -211,9 +211,10 @@ namespace TinCan
         }
 
         /// <summary>현상금을 잡았다: 영혼 하나가 주인에게 빨려 들어가고, 눈이 잠깐 빨갛게, "잘 보관하지"</summary>
-        public void BountyBusted(Vector2 from) => StartCoroutine(SoulCo(from));
-        IEnumerator SoulCo(Vector2 from)
+        public void BountyBusted(Vector2 from, bool first = false) => StartCoroutine(SoulCo(from, first));
+        IEnumerator SoulCo(Vector2 from, bool first)
         {
+            appearing = true;
             yield return new WaitForSecondsRealtime(1.6f);   // 막타 연출이 끝나고
             while (Gun.Cinematic) yield return null;
             if (!Up) { yield return RiseCo(); }
@@ -235,7 +236,37 @@ namespace TinCan
             Reveal(0f, false);
             busy = false;
             yield return Say("잘했어. 그 영혼은 내가 잘 보관하지.");
+            if (first) { yield return ShopIntroCo(true); yield break; }
             Sink();
+            appearing = false;
+        }
+
+        // ---------- 총 가게 안내 (10-15 사용자: 첫 현상금이 끝나면) ----------
+        /// <summary>
+        /// 첫 현상금이 끝났다. 놓쳤으면 "그 총으론 무리지" 하며 증표를 하나 주고, 잡았으면 "그 증표로 총을 바꿀 수 있지".
+        /// 화면이 조용해지면(공중 깡통·정산 끝) 총 가게를 열어 준다
+        /// </summary>
+        public void ShopIntro(bool caught) => StartCoroutine(ShopIntroCo(caught));
+        IEnumerator ShopIntroCo(bool caught)
+        {
+            appearing = true;
+            var g = Game.I;
+            while (g != null && (g.Airborne > 0 || g.SetActive || g.Settling || Gun.Cinematic || g.MenuOpen)) yield return null;
+            yield return new WaitForSecondsRealtime(0.4f);
+            if (!Up) yield return RiseCo();
+            if (!caught)
+            {
+                yield return Say("그 녹슨 총으론 무리였지. 이거 받아.", 1.0f);
+                g.Tokens += 1;
+                g.Hud.Float("증표 +1", new Vector2(IdleX, ShelfTop + 2.2f), 10);
+                Sfx.Play(Sfx.Tang(), 0.7f, 1.3f);
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+            yield return Say("증표로 총을 바꿀 수 있어. 한번 골라 봐.", 1.0f);
+            Sink();
+            appearing = false;
+            yield return new WaitForSecondsRealtime(0.4f);
+            if (g != null && !g.MenuOpen && g.State == GameState.Play) g.OpenGunShop(GunKind.Revolver);   // 총 가게 (책자), 살 수 있는 리볼버를 펼쳐서
         }
     }
 }

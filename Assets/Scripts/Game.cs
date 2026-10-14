@@ -30,7 +30,12 @@ namespace TinCan
         public int MaxCans { get; set; } = 1;
         /// <summary>술집 주인을 쏜 횟수 (반응이 점점 짙어진다), 첫 터뜨림 대사를 들었나 (10-15, 저장)</summary>
         public int BartenderShots { get; set; }
-        public bool SeenFirstBurst { get; set; }   // 10-15 사용자: 시작은 1칸 (하나만 확실히). "넓은 선반"을 사야 처음으로 저글링이 된다
+        public bool SeenFirstBurst { get; set; }
+        /// <summary>첫 현상금이 끝났나 (잡았든 놓쳤든). 첫 현상금은 체력 8, 끝나면 주인이 총 가게를 알려 준다 (10-15)</summary>
+        public bool FirstBountyDone { get; set; }
+        /// <summary>주인이 "스킬트리 봐" 하고 권했나 (10-15)</summary>
+        public bool TreeNudged { get; set; }
+        float treeWait;   // 10-15 사용자: 시작은 1칸 (하나만 확실히). "넓은 선반"을 사야 처음으로 저글링이 된다
         /// <summary>스킬 "파편 튀기기" (10-15: 기본에서 뺐다 — 준비 안 된 저글링을 떠넘겨 불쾌했다): 터지면 선반 깡통이 다 튀어 오른다</summary>
         public bool ShrapnelPop { get; set; }
         public float ValueMult { get; set; } = 1f;
@@ -319,7 +324,7 @@ namespace TinCan
         {
             var d = Save.Read(); if (d == null) return;
             Money = d.money; Bursts = d.bursts; BestCombo = d.bestCombo; BestPayout = d.bestPayout;
-            Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst;
+            Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst; FirstBountyDone = d.firstBountyDone; TreeNudged = d.treeNudged;
             OwnedGuns.Clear(); OwnedGuns.UnionWith(d.ownedGuns); OwnedGuns.Add("rusty");
             OwnedCans.Clear(); OwnedCans.UnionWith(d.ownedCans); OwnedCans.Add("tin");
             for (int i = 0; i < d.nodeIds.Count && i < d.nodeLevels.Count; i++)
@@ -385,6 +390,8 @@ namespace TinCan
 
         void OnApplicationQuit() { if (State == GameState.Play) Save.Write(this); }
 
+        /// <summary>총 가게를 그 총이 골라진 채로 연다 (10-15: 첫 현상금 뒤 주인이 리볼버를 보여 준다)</summary>
+        public void OpenGunShop(GunKind focus) { OpenMenu(0); if (focus != null) booklet.Select(focus); }
         public void OpenMenu(int page) { MenuOpen = true; Gun.Enabled = false; hud.SetButtonsVisible(false); OpenPage(page); }
         public void CloseMenu() { PlayLog.Menu(null); MenuOpen = false; Gun.Enabled = true; tree.SetOpen(false); armory.Hide(); booklet.Hide(); uiStage = -1; Save.Write(this); }   // 버튼은 단계대로 다시 (UpdateStageUi)
 
@@ -414,6 +421,9 @@ namespace TinCan
             int stage = (SummonUnlocked ? 1 : 0) + (ShopUnlocked ? 2 : 0);
             if (stage != uiStage && !MenuOpen) { uiStage = stage; hud.SetStage(SummonUnlocked, ShopUnlocked); }
             bool canBuy = AnyAffordable();
+            // 살 수 있는데 한참 안 열면 주인이 한 번 권한다 (10-15: 현상금 전엔 스킬트리로 유도)
+            if (SummonUnlocked && !TreeNudged && canBuy && !MenuOpen && !SetActive && Airborne == 0) { treeWait += Time.unscaledDeltaTime; if (treeWait > 6f) { TreeNudged = true; Bartender.I?.SayNow("돈이 좀 모였군. 저기 스킬트리 한번 봐 둬."); } }
+            else if (!canBuy) treeWait = 0f;
             hud.PulseTree = !SummonUnlocked || canBuy;
             hud.TreeBadge(SummonUnlocked && canBuy && !MenuOpen, Time.unscaledDeltaTime);
             bool waiting = SummonUnlocked && !spawnedOnce && !MenuOpen;

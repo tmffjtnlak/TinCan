@@ -91,7 +91,7 @@ namespace TinCan
         }
 
         /// <summary>현상금 등장: 보스 종류 중 하나 (10-14: 보통 / 구르는 무법자 반반)</summary>
-        public void Summon() => Summon(Random.value < 0.5f ? CanKind.Bounty : CanKind.BountyRoller);
+        public void Summon() => Summon(!Game.I.FirstBountyDone ? CanKind.BountyFirst : Random.value < 0.5f ? CanKind.Bounty : CanKind.BountyRoller);   // 10-15: 첫 현상금은 체력 8 보통형
 
         /// <summary>종류를 골라 부른다 (F4 = 체력 3 시험용)</summary>
         public void Summon(CanKind kind)
@@ -182,7 +182,8 @@ namespace TinCan
             Sfx.Play(Sfx.Bang(), 1f, 0.4f);
             Game.I.Tokens += 1;
             PlayLog.Event("busted", c.Kind.Id, 0);
-            Bartender.I?.BountyBusted(c.transform.position);   // 영혼을 거둬 간다 (10-15)   // 현상금 증표: 잡을 때마다 1개 (도주하면 없음)
+            bool first = !Game.I.FirstBountyDone; Game.I.FirstBountyDone = true;
+            Bartender.I?.BountyBusted(c.transform.position, first);   // 영혼을 거둬 간다 (10-15). 첫 현상금이면 이어서 총 가게 안내   // 현상금 증표: 잡을 때마다 1개 (도주하면 없음)
             Game.I.Hud.Float("현상금 획득!  증표 +1", (Vector2)c.transform.position + Vector2.up * 1.3f, 12);
         }
 
@@ -192,6 +193,7 @@ namespace TinCan
             if (c != can) return;
             stamp.text = "ESCAPED";
             PlayLog.Event("escaped", c.Kind.Id, 0);
+            if (!Game.I.FirstBountyDone) { Game.I.FirstBountyDone = true; Bartender.I?.ShopIntro(false); }   // 10-15: 첫 현상금을 놓치면 주인이 "그 총으론 무리" + 증표 하나 + 총 가게
             stamp.color = new Color(0.3f, 0.3f, 0.35f, 0.9f);
             StartCoroutine(StampCo());
         }

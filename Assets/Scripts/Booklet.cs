@@ -124,7 +124,7 @@ namespace TinCan
         public void Hide() { veil.gameObject.SetActive(false); if (blurCam != null) blurCam.enabled = false; }
 
         /// <summary>카드를 고른다: 밑그림이 바뀌고, 잠시 뒤 진짜 총이 그 위에 생겨난다</summary>
-        void Select(GunKind k)
+        public void Select(GunKind k)
         {
             selected = k;
             gunSprite = GunView.LoadArt($"gun_{k.Id}_side") ?? GunView.LoadArt("gun_revolver_side");
