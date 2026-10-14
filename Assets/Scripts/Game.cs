@@ -512,7 +512,11 @@ namespace TinCan
         // ---------- 세트 배율 (사용자 10-12: 세트가 끝날 때 낚시/오버워치 점수판처럼 딱딱딱 보여 준다) ----------
         // 세트 동안 기본 돈만 쌓이고, 끝에 한꺼번에 곱한다. 저글링 = 세트 중 최대 동시 공중 n(n+1)/2 ·
         // 퍼펙트샷 = 세트 내내 빗나감 없음 ×1.2 · 저스트리로드 = 세트 중 최대 연속마다 +0.2 (최대 ×2)
-        public const float PerfectMult = 1.2f, JustPerStreak = 0.2f, JustMax = 2f;
+        // 세트 배율 (10-14 사용자: 초반엔 짜게, 수치 노드로 올린다). 전: 퍼펙트 1.2 / 저스트 +0.2 (최대 2) / 터뜨림 +0.5
+        public float PerfectMult { get; set; } = 1.1f;
+        public float JustPerStreak { get; set; } = 0.1f;
+        public float JustMax { get; set; } = 1.5f;
+        public float BurstMultStep { get; set; } = 0.2f;
         bool missed;
         public int SetMaxAir { get; private set; }
         public int SetMaxStreak { get; private set; }
@@ -530,7 +534,7 @@ namespace TinCan
         public int EarnFor(CanKind kind, int combo, float scale) => Mathf.Max(1, Mathf.RoundToInt(kind.Value * ValueMult * combo * ComboMult * scale));
 
         // ---------- 돈 시스템 단순화 (사용자 10-14): 맞힐 땐 돈 없음. 떨어지면 소환비보다 조금 더(×1.25), 터뜨리면 보상 + 세트 배율 +0.5 ----------
-        public const float LandRate = 1.25f, BurstMultStep = 0.5f;
+        public const float LandRate = 1.25f;
         /// <summary>떨어졌을 때 받는 돈: 소환비 × 1.25 (올림) × 값 배수 × 정산 배수</summary>
         public long LandPay(CanKind k) => k.Cost <= 0 ? 0 : (long)Mathf.CeilToInt(k.Cost * LandRate * ValueMult * PayoutMult);
         /// <summary>터뜨렸을 때 보상: 깡통 보상 × 값 배수 × (터짐 배수 / 2 — 스킬로 오르는 몫)</summary>
