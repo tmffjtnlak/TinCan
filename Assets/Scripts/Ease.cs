@@ -20,6 +20,7 @@ namespace TinCan
         public static float InQuad(float t) => t * t;
         public static float InCubic(float t) => t * t * t;
         /// <summary>천천히 출발해 빨라졌다 천천히 닿는다 (카메라 이동)</summary>
+        public static float InOutSine(float t) => -(Mathf.Cos(Mathf.PI * Mathf.Clamp01(t)) - 1f) / 2f;   // 카메라 둘러보기 (10-15 오프닝)
         public static float InOutCubic(float t) => t < 0.5f ? 4f * t * t * t : 1f - Mathf.Pow(-2f * t + 2f, 3f) / 2f;
         /// <summary>처음에 살짝 뒤로 물러났다(예비 동작) 나간다</summary>
         public static float InBack(float t, float s = 1.70158f) => t * t * ((s + 1f) * t - s);

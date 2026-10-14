@@ -228,6 +228,8 @@ namespace TinCan
             uiReady = false; spawnedOnce = false; summonIdle = 0f;
             if (load) Load();
             PlayLog.Begin(this, load);
+            introPending = !load;   // 새 게임만 오프닝 (10-15)
+            if (introPending) IntroSetup();
             Iris.Get().StartClosed();
             StartCoroutine(OpenAfterLoad());
         }
@@ -241,7 +243,73 @@ namespace TinCan
             yield return null; yield return null;
             yield return new WaitForSecondsRealtime(0.1f);
             yield return Iris.Get().Open(0.45f);
-            if (State == GameState.Play) { uiReady = true; uiStage = -1; }   // 보이는 UI는 단계대로 (UpdateStageUi)
+            if (State != GameState.Play) yield break;
+            if (introPending) { introPending = false; StartCoroutine(Intro()); yield break; }
+            uiReady = true; uiStage = -1;   // 보이는 UI는 단계대로 (UpdateStageUi)
+        }
+
+        // ---------- 오프닝 (사용자 10-15: "부드러운 시작") ----------
+        // 레터박스 + 살짝 줌인 → 왼쪽에서 오른쪽으로 둘러보고 가운데로 → 가운데 선반에 깡통이 저절로 → "좌클릭으로 쏘기"
+        // → 첫 발을 쏘면 띠·줌·글자가 함께 풀리고 평소 화면(스킬트리 버튼 단계)으로
+        bool introPending;
+        public bool IntroRunning { get; private set; }
+        const float IntroZoom = 0.8f, IntroPan = 1.7f;
+        float introSize0;
+        void IntroSetup()
+        {
+            IntroRunning = true;
+            Letterbox.Force = true; Letterbox.HoldCamera = true;
+            Gun.Enabled = false;
+            var cam = Camera.main;
+            introSize0 = cam.orthographicSize;
+            cam.orthographicSize = introSize0 * IntroZoom;
+            SetIntroCam(-IntroPan);
+        }
+        void SetIntroCam(float x)
+        {
+            var p = new Vector3(x, 0f, -10f);
+            Camera.main.transform.position = p;
+            Fx.CamFocus = p;   // 흔들림이 이 자리를 기준으로
+        }
+        IEnumerator Intro()
+        {
+            var cam = Camera.main;
+            // 둘러보기: 왼쪽 → 오른쪽 → 가운데 (부드럽게 출발·정지)
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 2.2f) { SetIntroCam(Mathf.Lerp(-IntroPan, IntroPan, Ease.InOutSine(t))); yield return null; }
+            yield return new WaitForSecondsRealtime(0.25f);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 1.3f) { SetIntroCam(Mathf.Lerp(IntroPan, 0f, Ease.InOutSine(t))); yield return null; }
+            SetIntroCam(0f);
+            // 가운데 선반에 깡통이 저절로 (소환 노드를 열기 전 단 한 번)
+            yield return new WaitForSecondsRealtime(0.3f);
+            Cans.Add(Can.Spawn(CanKind.Tin, new Vector2(0f, Look.ShelfY + 0.11f + CanKind.Tin.Height * 0.5f)));
+            Sfx.Play(Sfx.Reload(), 0.4f, 2.0f);
+            yield return new WaitForSecondsRealtime(0.6f);
+            // "좌클릭으로 쏘기": 아래 띠 위에 자막처럼
+            Gun.Enabled = true;
+            int shots0 = Gun.Shots;
+            float a = 0f;
+            while (Gun.Shots == shots0)
+            {
+                a = Mathf.MoveTowards(a, 1f, Time.unscaledDeltaTime / 0.5f);
+                hud.IntroText("좌클릭으로 쏘기", a);
+                yield return null;
+            }
+            // 첫 발: 띠·줌·글자가 함께 풀린다
+            Letterbox.Force = false;
+            float s0 = cam.orthographicSize;
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.6f)
+            {
+                float e = 1f - Mathf.Pow(1f - t, 3f);
+                cam.orthographicSize = Mathf.Lerp(s0, introSize0, e);
+                hud.IntroText("좌클릭으로 쏘기", Mathf.Max(0f, a * (1f - t * 1.6f)));
+                yield return null;
+            }
+            cam.orthographicSize = introSize0;
+            hud.IntroText("", 0f);
+            Fx.CamFocus = null; cam.transform.position = new Vector3(0f, 0f, -10f);
+            Letterbox.HoldCamera = false;
+            IntroRunning = false;
+            uiReady = true; uiStage = -1;   // 스킬트리 버튼 단계로
         }
 
         void Load()
@@ -278,6 +346,7 @@ namespace TinCan
                 return;
             }
             // 가게는 오른쪽 아래 버튼 둘(스킬트리·총 상점)로 연다 (사용자 10-12). Tab/Esc = 닫기 (Tab은 마지막 페이지 다시 열기도)
+            if (IntroRunning) { HolsterReload(); return; }   // 오프닝 중엔 가게·소환·디버그 키 없음
             if (kb.tabKey.wasPressedThisFrame) { if (MenuOpen) CloseMenu(); else OpenMenu(lastPage); }
             UpdateStageUi();
             if (MenuOpen)

@@ -124,6 +124,26 @@ namespace TinCan
         /// <summary>시작 노드를 아직 안 열었거나 살 수 있는 노드가 있으면 스킬트리 버튼이 숨 쉬듯 뛴다</summary>
         public bool PulseTree { get; set; }
 
+        Text introText; CanvasGroup introGroup;
+        /// <summary>오프닝 자막 (10-15): 아래 띠 위 가운데. HUD 전체가 띠 연출로 투명해져도 따로 보인다</summary>
+        public void IntroText(string text, float alpha)
+        {
+            if (introText == null)
+            {
+                // 자기 캔버스 (HUD 캔버스의 투명도 묶음 밖): 띠 연출로 HUD가 0이 되어도 보인다
+                var cg = new GameObject("IntroCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(CanvasGroup));
+                var c = cg.GetComponent<Canvas>(); c.renderMode = RenderMode.ScreenSpaceOverlay; c.sortingOrder = 50; c.pixelPerfect = true;
+                var sc = cg.GetComponent<CanvasScaler>(); sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; sc.referenceResolution = new Vector2(1920f, 1080f);
+                introGroup = cg.GetComponent<CanvasGroup>(); introGroup.blocksRaycasts = false; introGroup.interactable = false;
+                introText = Ui.Text("IntroText", cg.transform, new Vector2(0f, -452f), new Vector2(1000f, 60f), 36, TextAnchor.MiddleCenter, Color.white);
+            }
+            introText.text = text;
+            float e = alpha * alpha * (3f - 2f * alpha);
+            introGroup.alpha = e;
+            introText.rectTransform.anchoredPosition = new Vector2(0f, -452f - (1f - e) * 12f);
+            introText.gameObject.SetActive(alpha > 0.001f);
+        }
+
         Text prompt; float promptA;
         /// <summary>"Space를 눌러 깡통 소환" — 소환을 열고 한참 안 부르면 부드럽게 나타나고, 부르면 부드럽게 사라진다</summary>
         public void SpawnPrompt(bool on, float dt)

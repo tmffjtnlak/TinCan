@@ -20,10 +20,12 @@ namespace TinCan
         float k, kv;                        // 0 = 없음 … 1 = 다 들어옴 (용수철)
         /// <summary>연출이 띠를 강제로 올린다 (현상금 막타 슬로우모션)</summary>
         public static bool Force;
+        /// <summary>오프닝 연출이 카메라(줌·위치)를 쥐고 있다 (10-15). 띠는 Force로 따로</summary>
+        public static bool HoldCamera;
 
         public static Letterbox Make(Transform hudCanvas)
         {
-            Force = false;
+            Force = false; HoldCamera = false;
             var lb = new GameObject("Letterbox").AddComponent<Letterbox>();
             lb.top = Look.Quad("BarTop", Vector2.zero, Vector2.one, Look.Bar, 0, lb.transform);
             lb.bottom = Look.Quad("BarBottom", Vector2.zero, Vector2.one, Look.Bar, 0, lb.transform);
@@ -56,7 +58,7 @@ namespace TinCan
             // 줌: 집중 중에만. 부드럽게(덜 출렁) 다가가고, 마지막 1초엔 남은 만큼 천천히 풀린다
             float zTarget = slow ? Mathf.Lerp(1f, ZoomIn, tail) : 1f;
             Ease.Spring(ref zoom, ref zoomV, zTarget, 40f, 12f, dt);
-            if (play && !Force && !Gun.Cinematic)   // 현상금 막타 연출이 카메라를 쥐고 있을 땐 손대지 않는다
+            if (play && !Force && !HoldCamera && !Gun.Cinematic)   // 현상금 막타 연출이 카메라를 쥐고 있을 땐 손대지 않는다
             {
                 var cam = Camera.main;
                 if (cam != null)
