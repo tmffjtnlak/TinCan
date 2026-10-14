@@ -98,7 +98,30 @@ namespace TinCan
             if (v && !btn[i].gameObject.activeSelf) { btnS[i] = 0.2f; btnSV[i] = 0f; Sfx.Play(Sfx.Tang(), 0.4f, 1.6f); }
             btn[i].gameObject.SetActive(v);
         }
-        /// <summary>시작 노드를 아직 안 열었으면 스킬트리 버튼이 숨 쉬듯 뛴다</summary>
+        Image badge; Text badgeMark; float badgeS, badgeSV; bool badgeOn;
+        /// <summary>살 수 있는 노드가 생기면 스킬트리 버튼 오른쪽 위에 금색 "!" 마름모가 톡 튀어나오고 위아래로 까딱인다 (10-14)</summary>
+        public void TreeBadge(bool on, float dt)
+        {
+            if (btn[0] == null) return;
+            if (badge == null)
+            {
+                badge = Ui.Diamond("Badge", btn[0].transform, new Vector2(138f, 30f), 34f, Ui.Ink, Ui.Gold);
+                badgeMark = Ui.Text("Mark", btn[0].transform, new Vector2(138f, 30f), new Vector2(40f, 40f), 24, TextAnchor.MiddleCenter, Ui.Ink, shadow: false);
+                badgeMark.text = "!";
+            }
+            if (on && !badgeOn) { badgeS = 0.2f; badgeSV = 0f; Sfx.Play(Sfx.Click(), 0.35f, 2.2f); }
+            badgeOn = on;
+            Ease.Spring(ref badgeS, ref badgeSV, on ? 1f : 0f, 500f, 14f, dt);
+            float bob = on ? Mathf.Round(Mathf.Sin(Time.unscaledTime * 5f)) * 4f : 0f;
+            foreach (var g in new Graphic[] { badge, badgeMark })
+            {
+                g.gameObject.SetActive(badgeS > 0.02f && btn[0].gameObject.activeSelf);
+                g.rectTransform.localScale = Vector3.one * Mathf.Max(0f, badgeS);
+                g.rectTransform.anchoredPosition = new Vector2(138f, 30f + bob);
+            }
+        }
+
+        /// <summary>시작 노드를 아직 안 열었거나 살 수 있는 노드가 있으면 스킬트리 버튼이 숨 쉬듯 뛴다</summary>
         public bool PulseTree { get; set; }
 
         Text prompt; float promptA;

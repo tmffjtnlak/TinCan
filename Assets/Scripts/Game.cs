@@ -106,6 +106,8 @@ namespace TinCan
             Gun.Build();
             Nodes = SkillTree.Make();
             rootNode = Nodes.Find(n => n.Root);
+            nodeNbr = SkillTree.Neighbors(Nodes);
+            foreach (var n in Nodes) nodeById[n.Id] = n;
             hud = new GameObject("Hud").AddComponent<Hud>();
             hud.Bind(this);
             new GameObject("AmmoHud").AddComponent<AmmoHud>().Build(hud.Canvas, Gun);
@@ -314,6 +316,18 @@ namespace TinCan
 
         // ---------- 첫 흐름 (사용자 10-14): 들어오면 총만 → 스킬트리 버튼 → 시작 노드 "깡통 소환" → Space ----------
         SkillNode rootNode;
+        Dictionary<string, HashSet<string>> nodeNbr; readonly Dictionary<string, SkillNode> nodeById = new Dictionary<string, SkillNode>();
+        /// <summary>지금 살 수 있는 노드가 있나 (열린 노드의 이웃 + 돈이 됨). 스킬트리 버튼에 표시 (10-14: 살 때를 몰라 모았다 몰아 샀다)</summary>
+        public bool AnyAffordable()
+        {
+            foreach (var n in Nodes)
+            {
+                if (n.Maxed || n.NextCost > Money) continue;
+                if (n.Root) return true;
+                foreach (var o in nodeNbr[n.Id]) if (nodeById.TryGetValue(o, out var m) && m.Level >= 1) return true;
+            }
+            return false;
+        }
         /// <summary>시작 노드를 열었나 = 깡통을 부를 수 있나. 그전엔 화면에 총과 스킬트리 버튼뿐</summary>
         public bool SummonUnlocked => rootNode == null || rootNode.Level >= 1;
         /// <summary>총 상점 버튼: 증표가 생기거나 총이 둘 이상일 때부터</summary>
@@ -325,7 +339,9 @@ namespace TinCan
             if (!uiReady) return;
             int stage = (SummonUnlocked ? 1 : 0) + (ShopUnlocked ? 2 : 0);
             if (stage != uiStage && !MenuOpen) { uiStage = stage; hud.SetStage(SummonUnlocked, ShopUnlocked); }
-            hud.PulseTree = !SummonUnlocked;
+            bool canBuy = AnyAffordable();
+            hud.PulseTree = !SummonUnlocked || canBuy;
+            hud.TreeBadge(SummonUnlocked && canBuy && !MenuOpen, Time.unscaledDeltaTime);
             bool waiting = SummonUnlocked && !spawnedOnce && !MenuOpen;
             if (waiting) summonIdle += Time.unscaledDeltaTime;
             hud.SpawnPrompt(waiting && summonIdle >= SpawnPromptDelay, Time.unscaledDeltaTime);

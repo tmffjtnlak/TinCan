@@ -206,7 +206,8 @@ namespace TinCan
         static SkillNode C(string id, string name, string glyph, Color color, long cost, string desc, Action<Game> apply)
         { var n = N(id, name, glyph, Vector2.zero, color, cost, desc, apply); n.Core = true; return n; }
 
-        // 가격 (10-14): 세트 하나 ≈ $10~40 (깡통 터짐 8). 수치 = 세트 1~2번 값, 핵심 = 4~6번 값, 바깥으로 갈수록 오른다
+        // 가격 (10-14 2차, 사용자 플레이 기록: 숙련자 분당 ≈ $180, 7개를 25초에 몰아 삼 → 약 3배). 처음 보는 사람은 분당 ≈ $90~120으로 잡고
+        // 첫 수치 노드 ≈ 20~30초 벌이, 첫 핵심(둘이면 두 배) ≈ 2분 벌이. 바깥으로 갈수록 오른다
         static List<SkillNode> Raw() => new List<SkillNode>
         {
             // 시작 노드: 눌러서 연다 (10-14 사용자: 꾹 누르는 연출 말고 그냥 클릭, 값 0)
@@ -214,55 +215,55 @@ namespace TinCan
                 Cost = l => 0, Desc = l => "Space를 누르면 선반에 깡통이 나온다. 모든 것의 시작.", Apply = (g, l) => { } },
 
             // 저글링 (하늘) — 위
-            N("airslow1", "가벼운 낙하", "낙", Vector2.zero, Cyan, 15, "공중 깡통이 10% 느리게 떨어진다", g => Can.AirFall *= 0.81f),
-            N("burst1", "터뜨림 배율", "배", Vector2.zero, Cyan, 25, "한 세트에 둘째부터 터뜨릴 때마다 배율 +0.2 → +0.3", g => g.BurstMultStep += 0.1f),
-            C("air2x", "둘이면 두 배", "둘", Cyan, 60, "공중에 깡통이 둘 이상일 때 떨어지거나 터진 돈 ×2", g => g.JuggleScoreMult = Mathf.Max(g.JuggleScoreMult, 2f)),
-            N("airslow2", "더 가벼운 낙하", "낙", Vector2.zero, Cyan, 80, "공중 깡통이 10% 더 느리게 떨어진다", g => Can.AirFall *= 0.81f),
-            C("lowbounce", "낮은 튐", "통", Cyan, 150, "떨어진 깡통이 한 번 낮게 튀어오른다 (연속 유지)", g => { if (g.LandBounces == 0) { g.LandBounces = 1; g.LandBouncePower = 6.5f; } }),   // "다시 튐"을 이미 샀으면 그대로 (그쪽이 높다)
-            N("bounce", "가벼운 깡통", "경", Vector2.zero, Cyan, 220, "맞으면 더 높이 튄다", g => Can.BounceBonus += 1.0f),
-            C("rebound", "다시 튐", "튐", Cyan, 450, "떨어진 깡통이 높게 다시 튀어오른다 (낮은 튐 → 높은 튐)", g => { g.LandBounces = 1; g.LandBouncePower = 11f; }),
-            N("burst2", "터뜨림 배율 2", "배", Vector2.zero, Cyan, 100, "터뜨림 배율 +0.3 → +0.4", g => g.BurstMultStep += 0.1f),
-            C("juggle", "공중 곡예", "곡", Cyan, 200, "공중에 많을수록 천천히 떨어진다 (2개 -30%, 3개 -45%, 4개+ -55%)", g => Can.JuggleFall = new[] { 1f, 0.7f, 0.55f, 0.45f }),
-            N("burst3", "터뜨림 배율 3", "배", Vector2.zero, Cyan, 300, "터뜨림 배율 +0.4 → +0.5", g => g.BurstMultStep += 0.1f),
+            N("airslow1", "가벼운 낙하", "낙", Vector2.zero, Cyan, 40, "공중 깡통이 10% 느리게 떨어진다", g => Can.AirFall *= 0.81f),
+            N("burst1", "터뜨림 배율", "배", Vector2.zero, Cyan, 70, "한 세트에 둘째부터 터뜨릴 때마다 배율 +0.2 → +0.3", g => g.BurstMultStep += 0.1f),
+            C("air2x", "둘이면 두 배", "둘", Cyan, 200, "공중에 깡통이 둘 이상일 때 떨어지거나 터진 돈 ×2", g => g.JuggleScoreMult = Mathf.Max(g.JuggleScoreMult, 2f)),
+            N("airslow2", "더 가벼운 낙하", "낙", Vector2.zero, Cyan, 250, "공중 깡통이 10% 더 느리게 떨어진다", g => Can.AirFall *= 0.81f),
+            C("lowbounce", "낮은 튐", "통", Cyan, 450, "떨어진 깡통이 한 번 낮게 튀어오른다 (연속 유지)", g => { if (g.LandBounces == 0) { g.LandBounces = 1; g.LandBouncePower = 6.5f; } }),   // "다시 튐"을 이미 샀으면 그대로 (그쪽이 높다)
+            N("bounce", "가벼운 깡통", "경", Vector2.zero, Cyan, 600, "맞으면 더 높이 튄다", g => Can.BounceBonus += 1.0f),
+            C("rebound", "다시 튐", "튐", Cyan, 1200, "떨어진 깡통이 높게 다시 튀어오른다 (낮은 튐 → 높은 튐)", g => { g.LandBounces = 1; g.LandBouncePower = 11f; }),
+            N("burst2", "터뜨림 배율 2", "배", Vector2.zero, Cyan, 300, "터뜨림 배율 +0.3 → +0.4", g => g.BurstMultStep += 0.1f),
+            C("juggle", "공중 곡예", "곡", Cyan, 600, "공중에 많을수록 천천히 떨어진다 (2개 -30%, 3개 -45%, 4개+ -55%)", g => Can.JuggleFall = new[] { 1f, 0.7f, 0.55f, 0.45f }),
+            N("burst3", "터뜨림 배율 3", "배", Vector2.zero, Cyan, 900, "터뜨림 배율 +0.4 → +0.5", g => g.BurstMultStep += 0.1f),
 
             // 장전 (빨강) — 왼쪽. 탄창 수는 총의 성격이라 트리에 없다 (사용자 10-10)
-            N("reload1", "빠른 장전", "장", Vector2.zero, Red, 15, "장전 시간 -20%", g => g.Gun.ReloadScale *= 0.8f),
-            N("just1", "저스트 배율", "저", Vector2.zero, Red, 25, "저스트 장전 연속마다 +0.1 → +0.15", g => g.JustPerStreak += 0.05f),
-            C("firstshot", "첫 발", "첫", Red, 70, "장전 직후 첫 발은 값 2배 (어느 총이든)", g => g.Gun.FirstShotMult = 2f),
-            N("reload2", "더 빠른 장전", "장", Vector2.zero, Red, 90, "장전 시간 -20% 더", g => g.Gun.ReloadScale *= 0.8f),
-            C("lastshot", "마지막 발", "끝", Red, 200, "탄창의 마지막 한 발은 더 높이 띄운다", g => g.Gun.LastShotBounce = 1.5f),
-            N("reload3", "번개 장전", "번", Vector2.zero, Red, 300, "장전 시간 -25% 더", g => g.Gun.ReloadScale *= 0.75f),
-            N("just2", "저스트 배율 2", "저", Vector2.zero, Red, 110, "저스트 연속마다 +0.15 → +0.2, 최대 ×1.5 → ×2", g => { g.JustPerStreak += 0.05f; g.JustMax = 2f; }),
-            C("comboreload", "연속 장전", "연", Red, 240, "공중 연속 5번마다 즉시 장전", g => g.Gun.ComboReloadEvery = 5),
-            C("holster", "허리춤 장전", "허", Red, 400, "꺼내지 않은 보조무기가 1.5초마다 한 발씩 찬다", g => g.HolsterReloadSeconds = 1.5f),
+            N("reload1", "빠른 장전", "장", Vector2.zero, Red, 40, "장전 시간 -20%", g => g.Gun.ReloadScale *= 0.8f),
+            N("just1", "저스트 배율", "저", Vector2.zero, Red, 70, "저스트 장전 연속마다 +0.1 → +0.15", g => g.JustPerStreak += 0.05f),
+            C("firstshot", "첫 발", "첫", Red, 220, "장전 직후 첫 발은 값 2배 (어느 총이든)", g => g.Gun.FirstShotMult = 2f),
+            N("reload2", "더 빠른 장전", "장", Vector2.zero, Red, 260, "장전 시간 -20% 더", g => g.Gun.ReloadScale *= 0.8f),
+            C("lastshot", "마지막 발", "끝", Red, 600, "탄창의 마지막 한 발은 더 높이 띄운다", g => g.Gun.LastShotBounce = 1.5f),
+            N("reload3", "번개 장전", "번", Vector2.zero, Red, 900, "장전 시간 -25% 더", g => g.Gun.ReloadScale *= 0.75f),
+            N("just2", "저스트 배율 2", "저", Vector2.zero, Red, 330, "저스트 연속마다 +0.15 → +0.2, 최대 ×1.5 → ×2", g => { g.JustPerStreak += 0.05f; g.JustMax = 2f; }),
+            C("comboreload", "연속 장전", "연", Red, 700, "공중 연속 5번마다 즉시 장전", g => g.Gun.ComboReloadEvery = 5),
+            C("holster", "허리춤 장전", "허", Red, 1200, "꺼내지 않은 보조무기가 1.5초마다 한 발씩 찬다", g => g.HolsterReloadSeconds = 1.5f),
 
             // 선반 (하늘) — 오른쪽
-            N("perfect1", "퍼펙트 배율", "퍼", Vector2.zero, Cyan, 30, "한 발도 안 놓친 세트 ×1.1 → ×1.2", g => g.PerfectMult += 0.1f),
-            C("shelf1", "넓은 선반", "선", Cyan, 80, "선반 자리 +1", g => g.MaxCans += 1),
-            C("cluster", "붙여 놓기", "붙", Cyan, 150, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true),
-            C("shelf2", "더 넓은 선반", "선", Cyan, 250, "선반 자리 +1 더", g => g.MaxCans += 1),
+            N("perfect1", "퍼펙트 배율", "퍼", Vector2.zero, Cyan, 90, "한 발도 안 놓친 세트 ×1.1 → ×1.2", g => g.PerfectMult += 0.1f),
+            C("shelf1", "넓은 선반", "선", Cyan, 250, "선반 자리 +1", g => g.MaxCans += 1),
+            C("cluster", "붙여 놓기", "붙", Cyan, 450, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true),
+            C("shelf2", "더 넓은 선반", "선", Cyan, 750, "선반 자리 +1 더", g => g.MaxCans += 1),
 
             // 돈 (노랑) — 아래
-            N("value1", "비싼 깡통", "값", Vector2.zero, Yellow, 20, "깡통 값 +20%", g => g.ValueMult += 0.2f),
-            N("payout1", "두둑한 정산", "정", Vector2.zero, Yellow, 40, "떨어질 때 정산 +25%", g => g.PayoutMult += 0.25f),
-            N("value2", "더 비싼 깡통", "값", Vector2.zero, Yellow, 70, "깡통 값 +30% 더", g => g.ValueMult += 0.3f),
-            N("perfect2", "퍼펙트 배율 2", "퍼", Vector2.zero, Yellow, 180, "퍼펙트 ×1.2 → ×1.3", g => g.PerfectMult += 0.1f),
-            N("value3", "아주 비싼 깡통", "값", Vector2.zero, Yellow, 300, "깡통 값 +50% 더", g => g.ValueMult += 0.5f),
+            N("value1", "비싼 깡통", "값", Vector2.zero, Yellow, 50, "깡통 값 +20%", g => g.ValueMult += 0.2f),
+            N("payout1", "두둑한 정산", "정", Vector2.zero, Yellow, 120, "떨어질 때 정산 +25%", g => g.PayoutMult += 0.25f),
+            N("value2", "더 비싼 깡통", "값", Vector2.zero, Yellow, 210, "깡통 값 +30% 더", g => g.ValueMult += 0.3f),
+            N("perfect2", "퍼펙트 배율 2", "퍼", Vector2.zero, Yellow, 540, "퍼펙트 ×1.2 → ×1.3", g => g.PerfectMult += 0.1f),
+            N("value3", "아주 비싼 깡통", "값", Vector2.zero, Yellow, 900, "깡통 값 +50% 더", g => g.ValueMult += 0.5f),
 
             // 다이너마이트 (10-14 사용자: 공격 수단. 기본 0% → 이 스킬로 쏠 때 1% 투척)
-            C("dynamite", "다이너마이트", "폭", Red, 120, "쏠 때 1% 확률로 화면 아래에서 다이너마이트가 날아온다. 3발 맞히면 크게 터진다", g => Can.DynamiteChance = 0.01f),
+            C("dynamite", "다이너마이트", "폭", Red, 360, "쏠 때 1% 확률로 화면 아래에서 다이너마이트가 날아온다. 3발 맞히면 크게 터진다", g => Can.DynamiteChance = 0.01f),
 
             // 자동 사격 (초록) — 돈 아래. 총 종류를 뚫을수록 화면 아래에 총이 늘어난다 (값 절반)
-            C("auto1", "자동 리볼버", "자", Green, 150, "화면 아래에 리볼버가 서서 쏜다. 빠르고 넓게 쫓는다 (값 절반)", g => g.AddAutoGun(GunKind.Revolver)),
-            N("auto2", "빠른 사격기", "속", Vector2.zero, Green, 250, "자동 총들의 간격 -40%", g => g.AutoRate = 0.6f),
-            C("auto_lever", "자동 레버액션", "레", Green, 400, "아래에 레버액션 소총이 합류. 중간 속도로 꾸준히", g => g.AddAutoGun(GunKind.LeverAction)),
-            C("auto_shotgun", "자동 샷건", "샷", Green, 600, "아래에 샷건이 합류. 느리게 쫓지만 원 안을 전부 띄운다", g => g.AddAutoGun(GunKind.Shotgun)),
+            C("auto1", "자동 리볼버", "자", Green, 450, "화면 아래에 리볼버가 서서 쏜다. 빠르고 넓게 쫓는다 (값 절반)", g => g.AddAutoGun(GunKind.Revolver)),
+            N("auto2", "빠른 사격기", "속", Vector2.zero, Green, 750, "자동 총들의 간격 -40%", g => g.AutoRate = 0.6f),
+            C("auto_lever", "자동 레버액션", "레", Green, 1200, "아래에 레버액션 소총이 합류. 중간 속도로 꾸준히", g => g.AddAutoGun(GunKind.LeverAction)),
+            C("auto_shotgun", "자동 샷건", "샷", Green, 1800, "아래에 샷건이 합류. 느리게 쫓지만 원 안을 전부 띄운다", g => g.AddAutoGun(GunKind.Shotgun)),
 
             // 숨 (보라) — 우클릭 슬로우
-            N("slow1", "긴 숨", "숨", Vector2.zero, Purple, 60, "슬로우 3초 → 4.5초 (꽉 채워야 쓸 수 있다)", g => g.SlowGaugeMax += 0.5f),
-            N("slow3", "빠른 숨", "빠", Vector2.zero, Purple, 90, "맞출 때 게이지 +0.1 → +0.2", g => g.SlowFillPerHit = 0.2f),
-            N("slow2", "깊은 숨", "깊", Vector2.zero, Purple, 140, "슬로우 중 깡통이 더 느리게 (×0.3 → ×0.18)", g => g.SlowStrength = 0.18f),
-            C("floor", "바닥 바람", "바", Purple, 250, "바닥 가까이 온 깡통은 낙하 속도 -40%", g => g.FloorSlow = 0.4f),
+            N("slow1", "긴 숨", "숨", Vector2.zero, Purple, 180, "슬로우 3초 → 4.5초 (꽉 채워야 쓸 수 있다)", g => g.SlowGaugeMax += 0.5f),
+            N("slow3", "빠른 숨", "빠", Vector2.zero, Purple, 270, "맞출 때 게이지 +0.1 → +0.2", g => g.SlowFillPerHit = 0.2f),
+            N("slow2", "깊은 숨", "깊", Vector2.zero, Purple, 420, "슬로우 중 깡통이 더 느리게 (×0.3 → ×0.18)", g => g.SlowStrength = 0.18f),
+            C("floor", "바닥 바람", "바", Purple, 750, "바닥 가까이 온 깡통은 낙하 속도 -40%", g => g.FloorSlow = 0.4f),
         };
 
         /// <summary>이웃 관계를 양방향으로 맞춘다</summary>
