@@ -610,6 +610,35 @@ namespace TinCan
         }
 
         /// <summary>
+        /// 터진 깡통의 파편에 선반 깡통이 튀어 오른다 (사용자 10-14: 저글링 학습 — 하나 터뜨리면 선반의 모든 깡통이 뜬다.
+        /// 결정한 적 없이 공중에 둘이 생기고 세트가 이어진다). 터진 자리에서 퍼지는 물결처럼 가까운 것부터, 쏘기 쉬운 높이로
+        /// </summary>
+        public void Pop(Vector2 from)
+        {
+            if (Done || Airborne || IsMenu) return;
+            float dx = transform.position.x - from.x;
+            StartCoroutine(PopCo(Mathf.Abs(dx) / PopWave, dx >= 0f ? 1f : -1f));
+        }
+        const float PopWave = 14f;   // 물결 빠르기 (유닛/초): 선반 끝까지 ≈ 0.4초
+        const float PopUp = 7.2f;    // 튀는 세기 = 총 한 발과 같게 (6.2는 체공 0.8초쯤이라 쏠 틈이 없었다)
+        IEnumerator PopCo(float delay, float dir)
+        {
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+            if (Done || Airborne) yield break;
+            Airborne = true; ReleaseHold();
+            rb.constraints = RigidbodyConstraints2D.None;
+            var shelf = Object.FindFirstObjectByType<Shelf>();
+            if (shelf != null) Physics2D.IgnoreCollision(GetComponent<Collider2D>(), shelf.GetComponent<Collider2D>(), true);
+            SyncScale();
+            rb.linearVelocity = new Vector2(dir * Random.Range(0.3f, 0.9f), (PopUp + Random.Range(-0.3f, 0.4f)) * Kind.Bounce) * Scale;
+            rb.angularVelocity = dir * Random.Range(-120f, -40f);
+            rb.gravityScale = Gravity;
+            flashLeft = 0.06f;
+            StartCoroutine(Squash());
+            Sfx.Play(Sfx.Tang(), 0.35f, Kind.Pitch * 1.3f);
+        }
+
+        /// <summary>
         /// 파편에 맞았다 (현상금전, 사용자 10-14): 다른 깡통이 터진 파편이 날아와 체력을 깎고 현상금이 조금 오른다.
         /// 튀지는 않고 번쩍 + 찌그러짐만. 체력은 1까지만 — 마지막 한 발은 총으로 (막타 연출)
         /// </summary>
