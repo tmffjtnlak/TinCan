@@ -252,6 +252,7 @@ namespace TinCan
                 n.Level = d.nodeLevels[i];
                 if (n.Level > 0 && !n.Root) n.Apply(this, n.Level);   // 시작 노드는 해방 여부만 기억
             }
+            foreach (var n in Nodes) if (n.Root) n.Level = 1;   // 10-14: 시작 노드는 처음부터 열려 있다 (옛 저장의 "해방 전" 무시)
             var g = GunKind.ForSale.Find(x => x.Id == d.gun); if (g != null) { Primary = g; Gun.Equip(g); }
             var s2 = GunKind.ForSale.Find(x => x.Id == d.secondary); if (s2 != null && s2 != Primary) Secondary = s2;
             ActiveSlot = 0;
@@ -409,9 +410,9 @@ namespace TinCan
         public int Airborne { get { int n = 0; foreach (var c in Cans) if (c != null && c.Airborne && !c.Done && !c.Kind.NotScored) n++; return n; } }   // 다이너마이트는 공중 수 밖 (배율·세트 끝·소환 잠금)
 
         /// <summary>돈을 내고 선반에 깡통. 짝 소환이면 여러 개, 붙여 놓기면 마지막 깡통 옆에. 공중에 깡통이 있으면 잠긴다 (세트 중)</summary>
-        public const float BottleChance = 0.2f;
+        public float BottleChance { get; set; } = 0f;   // 10-14 사용자: 소환은 일단 기본 깡통만 (전 20%). 트리로 열 자리
         /// <summary>특성 깡통 각각의 확률 (사용자 10-14: 묶음·파랑·자석. 다이너마이트는 쏠 때 1% 투척). 설정·해금은 아직 없음</summary>
-        public const float TraitChance = 0.06f;
+        public float TraitChance { get; set; } = 0f;    // 10-14: 일단 0 (전 6%씩)
 
         /// <summary>깡통 소환 한 번에 나올 종류: 병 20%, 특성 깡통 각 6%, 나머지 깡통</summary>
         CanKind RollKind()

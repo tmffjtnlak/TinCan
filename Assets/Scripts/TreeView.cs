@@ -26,6 +26,7 @@ namespace TinCan
         const float Spacing = 190f;
         public const float Px = 4f;          // 480×270: 본 게임과 같은 4px 도트
         const float NodePx = 30f;            // 30칸 = 120px
+        const float CorePx = 40f;            // 핵심 노드 40칸 = 160px (수치 노드와 크기로 구분)
         const float IconPx = 14f;            // 14칸 = 56px
         static float Mult => 100f / (TreeArt.Ppu * Px);
 
@@ -145,7 +146,7 @@ namespace TinCan
         NodeView MakeNode(SkillNode n)
         {
             var v = new NodeView { Node = n };
-            float size = NodePx * Px;
+            float size = (n.Core ? CorePx : NodePx) * Px;   // 핵심 노드는 크게 (10-14)
             var root = Img("Node_" + n.Id, world, n.Pos * Spacing, Vector2.one * size, null, Color.clear);
             v.Root = root.rectTransform;
             v.Fill = Img("Fill", root.transform, Vector2.zero, Vector2.one * size, "node_fill", new Color(0.08f, 0.1f, 0.2f));
