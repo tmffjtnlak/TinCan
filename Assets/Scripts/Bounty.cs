@@ -13,7 +13,9 @@ namespace TinCan
     public class Bounty : MonoBehaviour
     {
         /// <summary>지난 현상금이 끝난 뒤 터뜨린 수가 이만큼 차면 부른다 (10-14: 5 → 10, 끝난 때부터 다시 센다. 전엔 싸움 중 박치기도 세져서 끝나자마자 또 떴다)</summary>
-        public int EveryBursts = 10;
+        public int EveryBursts = 25;   // 10-14 2차: 체력 3·파편 튀기기로 터뜨림이 빨라져 10 → 25 (분당 15~20번 기준 1분 반쯤)
+        /// <summary>첫 현상금은 터뜨림 이만큼에서 (10-14: 0:34에 나와 너무 일렀다 → 튜토리얼 흐름의 3분쯤)</summary>
+        public int FirstAt = 45;
         /// <summary>도주 시간 (초, 선반에 내려앉은 때부터). 떨어져도 안 끝나고 이 시간이 다 되면 도망간다 (사용자 10-14, 첫 시험값)</summary>
         public float EscapeSeconds = 35f;   // 10-14: 부하를 잡아야만 깎이니 25 → 35
         int nextAt;
@@ -84,7 +86,7 @@ namespace TinCan
         public void Tick()
         {
             if (busy || Game.I == null || Game.I.State != GameState.Play) return;
-            if (nextAt == 0) nextAt = Game.I.Bursts + EveryBursts;
+            if (nextAt == 0) nextAt = Mathf.Max(FirstAt, Game.I.Bursts + EveryBursts);   // 새 게임은 FirstAt, 이어 하기는 지금부터 한 간격 뒤
             if (Game.I.Bursts >= nextAt && !Game.I.SetActive && !Game.I.Settling && Game.I.Airborne == 0) Summon();   // 10-14 사용자: 조건이 차도 세트가 끝난 뒤에 (저글링 도중에 끼어들지 않게)
         }
 

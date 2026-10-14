@@ -69,6 +69,7 @@ namespace TinCan
             public float GlintTimer = -1f, Glint;        // 산 노드의 빛 반사 (주기적으로 한 번씩)
             public Image Gauge;                           // 핵심 노드: 꾹 누르면 차는 링
             public bool Visible, Pressed;
+            public CanvasGroup Group;   // 미리보기(건너 노드)는 반투명
         }
         class LinkView { public Image Img; public string A, B; public float Flash; }
 
@@ -149,6 +150,7 @@ namespace TinCan
             float size = (n.Core ? CorePx : NodePx) * Px;   // 핵심 노드는 크게 (10-14)
             var root = Img("Node_" + n.Id, world, n.Pos * Spacing, Vector2.one * size, null, Color.clear);
             v.Root = root.rectTransform;
+            v.Group = root.gameObject.AddComponent<CanvasGroup>();
             v.Fill = Img("Fill", root.transform, Vector2.zero, Vector2.one * size, "node_fill", new Color(0.08f, 0.1f, 0.2f));
             v.Bevel = Img("Bevel", root.transform, Vector2.zero, Vector2.one * size, "node_bevel", new Color(1f, 1f, 1f, 0.12f));
             v.Frame = Img("Frame", root.transform, Vector2.zero, Vector2.one * size, "node_frame", n.Color);
@@ -190,8 +192,19 @@ namespace TinCan
             return false;
         }
 
-        /// <summary>보이는 노드 = 뿌리, 산 것, 살 수 있는 것 (산 노드의 이웃)</summary>
-        bool ShouldShow(SkillNode n) => n.Root || n.Level >= 1 || Available(n);
+        /// <summary>보이는 노드 = 뿌리, 산 것, 살 수 있는 것 (산 노드의 이웃), 그리고 그 다음 노드(미리보기, 반투명)</summary>
+        bool ShouldShow(SkillNode n) => n.Root || n.Level >= 1 || Available(n) || Preview(n);
+        /// <summary>
+        /// 미리보기 (사용자 10-14: "이 루트 찍어야지" 하고 미리 볼 수 있게): 아직 못 사는데, 살 수 있는 노드의 바로 다음이다.
+        /// 반투명으로 보이고, 설명은 볼 수 있지만 살 수는 없다
+        /// </summary>
+        bool Preview(SkillNode n)
+        {
+            if (n.Root || n.Level >= 1 || Available(n)) return false;
+            foreach (var o in nb[n.Id]) if (byId.TryGetValue(o, out var m) && m.Level < 1 && Available(m)) return true;
+            return false;
+        }
+        const float PreviewAlpha = 0.35f;
 
         Coroutine anim; bool isOpen;
         public void SetOpen(bool open)
@@ -294,6 +307,7 @@ namespace TinCan
                 Ease.Spring(ref v.Rot, ref v.RotV, 0f, 320f, 9f, dt);
                 v.Root.localScale = new Vector3(v.Sx + v.Wake * 0.1f, v.Sy + v.Wake * 0.1f, 1f);
                 v.Root.localRotation = Quaternion.Euler(0f, 0f, v.Rot);
+                v.Group.alpha = Mathf.MoveTowards(v.Group.alpha, owned || avail ? 1f : PreviewAlpha, dt * 4f);   // 미리보기 → 살 수 있게 되면 차오른다
             }
             foreach (var l in links)
             {
@@ -309,7 +323,8 @@ namespace TinCan
                 bool lit = na.Level >= 1 && nbn.Level >= 1;
                 // 선은 계열 색이 아니라 흰색 (사용자 10-13: 서부 마을인데 너무 컬러풀, 통일감). 산 선은 밝은 흰색, 아직인 선은 흐린 흰 점선
                 l.Img.sprite = TreeArt.Get(lit ? "link" : "link_dim");
-                var col = lit ? new Color(0.95f, 0.93f, 0.88f) : new Color(0.95f, 0.93f, 0.88f, 0.45f);
+                bool previewLink = (na.Level < 1 && !Available(na)) || (nbn.Level < 1 && !Available(nbn));   // 미리보기 노드로 가는 선은 더 흐리게
+                var col = lit ? new Color(0.95f, 0.93f, 0.88f) : new Color(0.95f, 0.93f, 0.88f, previewLink ? 0.18f : 0.45f);
                 l.Flash = Mathf.Max(0f, l.Flash - dt / 0.2f);
                 l.Img.color = Color.Lerp(col, Color.white, l.Flash);
             }
@@ -738,6 +753,21 @@ namespace TinCan
                 if (reveal) ov.Visible = true;   // 선은 Refresh에서 켜진다
                 StartCoroutine(PulseAlong(n.Pos * Spacing, byId[otherId].Pos * Spacing, n.Color, reveal ? ov : null));
             }
+            // 새로 생긴 미리보기(두 칸 건너)는 펄스가 지나간 뒤 반투명으로 살며시 나타난다
+            foreach (var o in nodes)
+            {
+                var ov = views[o.Id];
+                if (ov.Visible || before.Contains(o.Id) || !ShouldShow(o)) continue;
+                StartCoroutine(RevealPreview(ov, 0.35f));
+            }
+        }
+
+        IEnumerator RevealPreview(NodeView v, float delay)
+        {
+            v.Visible = true; v.Group.alpha = 0f;
+            yield return new WaitForSecondsRealtime(delay);
+            v.Root.gameObject.SetActive(true);
+            v.Sx = 0.6f; v.Sy = 0.6f; v.Vx = v.Vy = 0f;   // 작게 시작해 용수철로 제자리 (알파는 Refresh가 0 → 0.35로 채운다)
         }
 
         /// <summary>놓임: 2프레임 뒤 원래보다 길게 (가로 0.85, 세로 1.3) 튕겼다가 용수철로 가라앉는다. 그때 흰 빗금 조각</summary>
