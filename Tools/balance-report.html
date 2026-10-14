@@ -55,6 +55,12 @@
   </div>
 
   <div class="panel">
+    <h2>메뉴에 머문 시간</h2>
+    <div class="tablewrap"><table id="menus"></table></div>
+    <p class="note">메뉴를 연 동안은 쏘지 않으니 수입이 멈춘다. 시간대별 돈 그래프의 회색 띠가 메뉴에 있던 구간.</p>
+  </div>
+
+  <div class="panel">
     <h2>스킬트리 지도 (가격 색)</h2>
     <canvas id="map"></canvas>
     <p class="note">원 안 색 = 가격 (초록 쌈 → 빨강 비쌈, 로그). 테두리 = 계열 색. 굵은 테두리 = 이번 기록에서 산 노드. 숫자 = 산 순서.</p>
@@ -99,13 +105,21 @@ function draw(s) {
   const ev = k => L.filter(l => l.e === k);
   const nodes = ev('node'), busted = ev('busted'), guns = ev('gun'), sets = ev('set');
   const last = L.at(-1) || { t:0, earned:0, money:0 };
+  const menus = ev('menu').map(p => ({ page:p.id, end:p.t, start:p.t - p.amount / 1000, sec:p.amount / 1000 }));
+  const pageName = { tree:'스킬트리', gunshop:'총 상점', cans:'깡통류' };
+  const menuTotal = menus.reduce((a, b) => a + b.sec, 0);
 
   document.getElementById('stats').innerHTML = [
     ['플레이 시간', (last.t/60).toFixed(1) + '분'], ['누적 수입', fmt(last.earned)], ['평균 분당', fmt(last.t > 0 ? last.earned / last.t * 60 : 0)],
-    ['노드 구매', nodes.length + '개'], ['현상금', `${busted.length} 잡음 / ${ev('escaped').length} 놓침`], ['세트', sets.length + '번'], ['터뜨림', (last.bursts ?? 0) + '번']
+    ['노드 구매', nodes.length + '개'], ['현상금', `${busted.length} 잡음 / ${ev('escaped').length} 놓침`], ['세트', sets.length + '번'], ['메뉴에 머문 시간', (menuTotal/60).toFixed(1) + '분 (' + (last.t > 0 ? Math.round(menuTotal / last.t * 100) : 0) + '%)'], ['터뜨림', (last.bursts ?? 0) + '번']
   ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
 
+  const menuBands = { id:'menuBands', beforeDatasetsDraw(c) {
+    const { ctx, chartArea:a, scales:{ x } } = c; ctx.save(); ctx.fillStyle = 'rgba(128,128,128,0.15)';
+    for (const b of menus) { const x0 = Math.max(a.left, x.getPixelForValue(b.start / 60)), x1 = Math.min(a.right, x.getPixelForValue(b.end / 60)); ctx.fillRect(x0, a.top, Math.max(1, x1 - x0), a.bottom - a.top); }
+    ctx.restore(); } };
   charts.push(new Chart(document.getElementById('money'), {
+    plugins: [menuBands],
     type: 'line',
     data: { datasets: [
       { label:'누적 수입', data: samples.map(p => ({ x:m(p), y:p.earned })), borderColor: css('--gold'), pointRadius:0, tension:0.2 },
@@ -131,6 +145,10 @@ function draw(s) {
   document.getElementById('buys').innerHTML = '<tr><th>분</th><th>종류</th><th>이름</th><th class="num">가격</th><th class="num">그때 분당 수입</th><th class="num">모으는 데 걸린 분</th><th class="num">지난 구매에서</th></tr>' +
     rows.map(r => { const rate = rateAt(r.t), need = r.kind === '노드' && rate > 0 ? (r.amount / rate).toFixed(1) : '–', gap = ((r.t - prev) / 60).toFixed(1); prev = r.t;
       return `<tr><td class="num">${(r.t/60).toFixed(1)}</td><td>${r.kind}</td><td>${r.name}</td><td class="num">${r.kind === '노드' ? fmt(r.amount) : '증표 ' + r.amount}</td><td class="num">${fmt(rate)}</td><td class="num">${need}</td><td class="num">${gap}분</td></tr>`; }).join('');
+
+  const byPage = {}; menus.forEach(m => { const b = byPage[m.page] = byPage[m.page] || { n:0, sec:0, max:0 }; b.n++; b.sec += m.sec; b.max = Math.max(b.max, m.sec); });
+  document.getElementById('menus').innerHTML = '<tr><th>메뉴</th><th class="num">연 횟수</th><th class="num">합계</th><th class="num">평균</th><th class="num">가장 길게</th></tr>' +
+    (Object.keys(byPage).length ? Object.entries(byPage).map(([k, b]) => `<tr><td>${pageName[k] || k}</td><td class="num">${b.n}번</td><td class="num">${b.sec.toFixed(1)}초</td><td class="num">${(b.sec / b.n).toFixed(1)}초</td><td class="num">${b.max.toFixed(1)}초</td></tr>`).join('') : '<tr><td colspan="5">이 기록엔 메뉴 기록이 없다 (10-14 이전 기록)</td></tr>');
 
   // 깊이 (시작에서 몇 칸)
   const depth = {}; const root = tree.find(n => n.root);

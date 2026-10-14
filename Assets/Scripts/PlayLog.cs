@@ -23,7 +23,19 @@ namespace TinCan
         static string Dir => Application.isEditor ? Path.GetFullPath(Path.Combine(Application.dataPath, "..", "PlayLogs")) : Path.Combine(Application.persistentDataPath, "PlayLogs");
 
         /// <summary>새 플레이 직전: 이전 파일을 닫는다 (시작 돈·불러온 돈이 수입으로 잡히지 않게)</summary>
-        public static void Stop() => path = null;
+        public static void Stop() { path = null; menuPage = null; }
+
+        static string menuPage; static float menuSince;
+        /// <summary>
+        /// 메뉴에 머문 시간 (사용자 10-14): 페이지가 바뀌거나 닫힐 때 앞 페이지를 "menu" 한 줄로 남긴다.
+        /// id = 페이지 (tree / gunshop / cans), amount = 머문 밀리초. page가 null이면 닫힘
+        /// </summary>
+        public static void Menu(string page)
+        {
+            if (!Active) return;
+            if (menuPage != null) Event("menu", menuPage, (long)Mathf.Round((T - menuSince) * 1000f));
+            menuPage = page; menuSince = T;
+        }
 
         public static void Begin(Game g, bool loaded)
         {

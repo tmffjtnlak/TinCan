@@ -312,7 +312,7 @@ namespace TinCan
         void OnApplicationQuit() { if (State == GameState.Play) Save.Write(this); }
 
         public void OpenMenu(int page) { MenuOpen = true; Gun.Enabled = false; hud.SetButtonsVisible(false); OpenPage(page); }
-        public void CloseMenu() { MenuOpen = false; Gun.Enabled = true; tree.SetOpen(false); armory.Hide(); booklet.Hide(); uiStage = -1; Save.Write(this); }   // 버튼은 단계대로 다시 (UpdateStageUi)
+        public void CloseMenu() { PlayLog.Menu(null); MenuOpen = false; Gun.Enabled = true; tree.SetOpen(false); armory.Hide(); booklet.Hide(); uiStage = -1; Save.Write(this); }   // 버튼은 단계대로 다시 (UpdateStageUi)
 
         // ---------- 첫 흐름 (사용자 10-14): 들어오면 총만 → 스킬트리 버튼 → 시작 노드 "깡통 소환" → Space ----------
         SkillNode rootNode;
@@ -349,6 +349,7 @@ namespace TinCan
 
         void OpenPage(int p)
         {
+            PlayLog.Menu(p == 2 ? "tree" : p == 0 ? "gunshop" : "cans");   // 메뉴 체류 시간 기록
             lastPage = p;
             tree.SetOpen(p == 2);
             // 0 = 총기 책자 (사용자 10-12 종이 책자 가게), 1 = 깡통류(옛 카드, 소환비 손보기 전까지), 2 = 트리. QWE 탭은 뺐다
