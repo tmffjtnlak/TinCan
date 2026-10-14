@@ -161,7 +161,7 @@ namespace TinCan
             barWindow = Look.Quad("Window", Vector2.zero, new Vector2(Dot, 5f * Dot), new Color(1f, 0.85f, 0.25f, 1f), 52, bar);
             barFill = MakeSR("Cursor", PixelBar(1, 5), 53, bar);
             bar.gameObject.SetActive(false);
-            Equip(GunKind.Revolver);
+            Equip(GunKind.Rusty);
         }
 
         // 총마다 탄 상태를 기억한다 (주/보조 교대용)

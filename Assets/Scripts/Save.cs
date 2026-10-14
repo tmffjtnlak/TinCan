@@ -21,7 +21,7 @@ namespace TinCan
             public List<int> nodeLevels = new List<int>();
             public List<string> ownedGuns = new List<string>();
             public List<string> ownedCans = new List<string>();
-            public string gun = "revolver", spawn = "tin", secondary = "";
+            public string gun = "rusty", spawn = "tin", secondary = "";
             public float volume = 1f;
         }
 

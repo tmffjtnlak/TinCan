@@ -85,7 +85,7 @@ namespace TinCan
         public Gun Gun { get; private set; }
         public List<Can> Cans { get; } = new List<Can>();
         public List<SkillNode> Nodes { get; private set; }
-        public HashSet<string> OwnedGuns { get; } = new HashSet<string> { "revolver" };
+        public HashSet<string> OwnedGuns { get; } = new HashSet<string> { "rusty" };   // 10-15: 시작 총 = 녹슨 리볼버
         public HashSet<string> OwnedCans { get; } = new HashSet<string> { "tin" };
         public bool MenuOpen { get; private set; }
         /// <summary>디버그 (F1): 돈 무한</summary>
@@ -249,7 +249,6 @@ namespace TinCan
             yield return Iris.Get().Open(0.45f);
             if (State != GameState.Play) yield break;
             if (introPending) { introPending = false; StartCoroutine(Intro()); yield break; }
-            Bartender.I?.Rise();   // 이어 하기: 주인은 처음부터 카운터에
             uiReady = true; uiStage = -1;   // 보이는 UI는 단계대로 (UpdateStageUi)
         }
 
@@ -285,13 +284,10 @@ namespace TinCan
             yield return new WaitForSecondsRealtime(0.2f);
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 1.1f) { SetIntroCam(Mathf.LerpUnclamped(IntroPan, 0f, Ease.OutBack(t, 1.2f))); yield return null; }
             SetIntroCam(0f);
-            // 주인이 카운터 뒤에서 올라와 가운데 선반에 깡통을 올려 두고 한마디 (10-15)
-            var bt = Bartender.I;
-            if (bt != null) yield return bt.RiseCo();
+            // 가운데 선반에 깡통이 저절로 (주인은 첫 깡통을 터뜨릴 때 처음 나온다, 10-15)
             Cans.Add(Can.Spawn(CanKind.Tin, new Vector2(0f, Look.ShelfY + 0.11f + CanKind.Tin.Height * 0.5f)));
             Sfx.Play(Sfx.Reload(), 0.4f, 2.0f);
-            if (bt != null) yield return bt.Say("어서 와. 서두를 거 없어… 시간은 아주 많으니까.", 1.2f);
-            else yield return new WaitForSecondsRealtime(0.45f);
+            yield return new WaitForSecondsRealtime(0.45f);
             // 가운데를 본 채로 띠·줌이 풀린다. 이때부터 쏠 수 있고 "좌클릭으로 쏘기"가 떠오른다
             Letterbox.Force = false;
             Gun.Enabled = true;
@@ -324,7 +320,7 @@ namespace TinCan
             var d = Save.Read(); if (d == null) return;
             Money = d.money; Bursts = d.bursts; BestCombo = d.bestCombo; BestPayout = d.bestPayout;
             Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst;
-            OwnedGuns.Clear(); OwnedGuns.UnionWith(d.ownedGuns); OwnedGuns.Add("revolver");
+            OwnedGuns.Clear(); OwnedGuns.UnionWith(d.ownedGuns); OwnedGuns.Add("rusty");
             OwnedCans.Clear(); OwnedCans.UnionWith(d.ownedCans); OwnedCans.Add("tin");
             for (int i = 0; i < d.nodeIds.Count && i < d.nodeLevels.Count; i++)
             {
@@ -460,7 +456,7 @@ namespace TinCan
         }
 
         /// <summary>슬롯 두 개: [0] 주무장, [1] 보조무기. 숫자키로 고른다 (FPS 도구 느낌)</summary>
-        public GunKind Primary { get; private set; } = GunKind.Revolver;
+        public GunKind Primary { get; private set; } = GunKind.Rusty;
         public int ActiveSlot { get; private set; } = 0;
 
         public void SelectSlot(int slot)

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 namespace TinCan
 {
     /// <summary>
-    /// 술집 주인 (사용자 10-15): 하스스톤 밥처럼 선반(바 카운터) 뒤에서 스르륵 올라와 짧게 말한다.
+    /// 술집 주인 (사용자 10-15): 하스스톤 밥처럼 선반(바 카운터) 뒤에서 스르륵 올라와 짧게 말하고 다시 내려간다 (평소엔 없음, 흐름만 잡아 줌).
     /// 평소엔 친절한 바텐더. 사실은 악마 — 플레이어가 주인을 쏘거나(엔터 더 건전 상점 주인), 현상금을 잡으면(영혼을 거둬 감)
     /// 잠깐 본색(빨간 눈·그림자 뿔)이 비쳤다가 바로 돌아온다 (언더테일 플라위처럼, 큰 반전 아님).
     /// 그림은 사용자 손: Assets/Art/bartender.png가 있으면 그걸 쓰고, 없으면 도형 임시 모습.
@@ -149,7 +149,18 @@ namespace TinCan
             for (float t = 1f; t > 0f; t -= Time.unscaledDeltaTime / 0.2f) { bubbleA = t; yield return null; }
             bubbleA = 0f;
         }
-        public void SayNow(string line) { if (!busy) StartCoroutine(Say(line)); }
+        /// <summary>올라와서 한마디 하고 다시 내려간다 (10-15 사용자: 평소엔 없고, 흐름만 잡아 주는 역할)</summary>
+        public void SayNow(string line) { if (!appearing) StartCoroutine(Appear(line)); }
+        bool appearing;
+        IEnumerator Appear(string line)
+        {
+            appearing = true;
+            yield return RiseCo();
+            yield return Say(line);
+            while (busy) yield return null;   // 그새 총에 맞아 반응 중이면 끝날 때까지
+            Sink();
+            appearing = false;
+        }
 
         // ---------- 본색 ----------
         void Reveal(float k, bool stare)
@@ -224,6 +235,7 @@ namespace TinCan
             Reveal(0f, false);
             busy = false;
             yield return Say("잘했어. 그 영혼은 내가 잘 보관하지.");
+            Sink();
         }
     }
 }

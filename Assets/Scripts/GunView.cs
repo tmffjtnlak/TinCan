@@ -156,6 +156,13 @@ namespace TinCan
         public void SetKind(GunKind k)
         {
             kind = k;
+            // 총마다 그림 (gun_{id}_side). 없으면 리볼버 그림, 녹슨 리볼버는 녹 빛으로 물들여 둔다 (그림이 오기 전 임시)
+            if (sideArt != null)
+            {
+                var art = LoadArt($"gun_{k.Id}_side");
+                sideArt.sprite = art != null ? art : sideSprite;
+                sideArt.color = art == null && k.Id == "rusty" ? new Color(0.9f, 0.62f, 0.45f) : Color.white;
+            }
             pump.gameObject.SetActive(k.HitAll);          // 샷건이면 펌프
             cylinderSwing.gameObject.SetActive(!k.HitAll);
             hammer.gameObject.SetActive(!k.HitAll);
