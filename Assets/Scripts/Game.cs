@@ -462,19 +462,29 @@ namespace TinCan
                 hud.Float("공중 깡통을 다 처리하면 소환", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (CansOnShelf >= MaxCans) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("선반이 꽉 찼다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (Money < cost) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("돈이 모자라다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
+            if (filling) return false;
+            // 10-14 사용자: Space 한 번에 선반이 꽉 차게, 하나씩 차례로 (둘 이상 띄울 기회가 늘어난다)
+            StartCoroutine(FillShelf());
+            return true;
+        }
+
+        bool filling;
+        const float FillInterval = 0.09f;
+        IEnumerator FillShelf()
+        {
+            filling = true;
             int n = 0;
-            for (int i = 0; i < SpawnCount; i++)
+            while (CansOnShelf < MaxCans)
             {
-                if (CansOnShelf >= MaxCans || Money < cost) break;
-                Money -= cost;
-                // 깡통 소환 중 20%는 병이 나온다 (사용자 10-13, 설정은 아직 없음. 값은 깡통 소환비 그대로)
                 var kind = SpawnKind == CanKind.Tin ? RollKind() : SpawnKind;
                 float x = FreeX(kind);   // 종류를 먼저 정해야 폭에 맞는 빈자리를 찾는다
                 Cans.Add(Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f)));
-                lastSpawnX = x; n++;
+                lastSpawnX = x;
+                Sfx.Play(Sfx.Reload(), 0.35f, 2.0f + n * 0.15f);   // 차곡차곡: 하나씩 음이 오른다
+                n++;
+                yield return new WaitForSeconds(FillInterval);
             }
-            Sfx.Play(Sfx.Reload(), 0.4f, 2.2f);
-            return n > 0;
+            filling = false;
         }
 
         /// <summary>

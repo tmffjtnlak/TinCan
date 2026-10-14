@@ -104,7 +104,7 @@ namespace TinCan
             Put("shelf1", 2, 0, (1, 0));                // 핵심
             Put("cluster", 3, 1, (2, 0));               // 핵심
             Put("shelf2", 3, 0, (2, 0));                // 핵심
-            Put("pair", 3, -1, (2, 0));                 // 핵심
+            // (짝 소환은 10-14 Space 한 번에 선반이 꽉 차게 되며 뺐다)
             // 아래 — 돈 (노랑) → 자동 사격 (초록)
             Put("value1", 0, -1, (0, 0));
             Put("payout1", 0, -2, (0, -1));
@@ -241,7 +241,6 @@ namespace TinCan
             C("shelf1", "넓은 선반", "선", Cyan, 80, "선반 자리 +1", g => g.MaxCans += 1),
             C("cluster", "붙여 놓기", "붙", Cyan, 150, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true),
             C("shelf2", "더 넓은 선반", "선", Cyan, 250, "선반 자리 +1 더", g => g.MaxCans += 1),
-            C("pair", "짝 소환", "짝", Cyan, 300, "Space 한 번에 2개 (비용도 2개)", g => g.SpawnCount = 2),
 
             // 돈 (노랑) — 아래
             N("value1", "비싼 깡통", "값", Vector2.zero, Yellow, 20, "깡통 값 +20%", g => g.ValueMult += 0.2f),
