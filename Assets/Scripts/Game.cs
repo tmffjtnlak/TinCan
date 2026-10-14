@@ -284,7 +284,7 @@ namespace TinCan
             }
             hud.Buttons(dtUnscaled: Time.unscaledDeltaTime, onTree: () => OpenMenu(2), onShop: () => OpenMenu(0));
             if (kb.spaceKey.wasPressedThisFrame) TrySpawn();
-            if (SetActive && !ending && Airborne == 0) StartCoroutine(EndSet());
+            if (SetActive && !ending && Airborne == 0) StartCoroutine(Settle());
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
             if (DebugMoney) { Money = 999_999_999; Tokens = 99; }
             if (kb.f2Key.wasPressedThisFrame) bounty.Summon();
@@ -607,6 +607,10 @@ namespace TinCan
             float k = Mathf.Clamp01((Mathf.Log10(Mathf.Max(1, total)) - 1f) / 2f);
             return best ? Mathf.Max(k, 0.7f) : k;
         }
+
+        /// <summary>세트 정산 중 (점수판·탄피가 날아가는 동안). 현상금은 이게 끝나야 나온다 (10-14)</summary>
+        public bool Settling { get; private set; }
+        IEnumerator Settle() { Settling = true; yield return EndSet(); Settling = false; }
 
         IEnumerator EndSet()
         {

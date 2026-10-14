@@ -85,7 +85,7 @@ namespace TinCan
         {
             if (busy || Game.I == null || Game.I.State != GameState.Play) return;
             if (nextAt == 0) nextAt = Game.I.Bursts + EveryBursts;
-            if (Game.I.Bursts >= nextAt) Summon();
+            if (Game.I.Bursts >= nextAt && !Game.I.SetActive && !Game.I.Settling && Game.I.Airborne == 0) Summon();   // 10-14 사용자: 조건이 차도 세트가 끝난 뒤에 (저글링 도중에 끼어들지 않게)
         }
 
         /// <summary>현상금 등장: 보스 종류 중 하나 (10-14: 보통 / 구르는 무법자 반반)</summary>
