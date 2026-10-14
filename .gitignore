@@ -111,3 +111,6 @@ InitTestScene*.unity*
 # Ä¸Ã³ (°³¹ß Áß È­¸é)
 Assets/Captures/
 Assets/Captures.meta
+
+# ë°¸ëŸ°ìŠ¤ ê¸°ë¡ (PlayLog.cs)
+/PlayLogs/

@@ -22,7 +22,8 @@ namespace TinCan
         static bool pendingPlay, pendingLoad;
 
         public GameState State { get; private set; } = GameState.Title;
-        public long Money { get; private set; }
+        long money;
+        public long Money { get => money; private set { long d = value - money; money = value; if (!DebugMoney) PlayLog.MoneyDelta(d); } }   // 들고 나는 돈은 밸런스 기록에
         public int BestCombo { get; private set; }
         public long BestPayout { get; private set; }
         public int Bursts { get; private set; }
@@ -209,10 +210,12 @@ namespace TinCan
         void BeginPlay(bool load)
         {
             State = GameState.Play;
+            PlayLog.Stop();
             if (title != null) { Destroy(title.gameObject); title = null; }
             Money = 10;
             hud.SetPlayVisible(false);   // 원형이 다 열린 뒤에 보인다 (OpenAfterLoad)
             if (load) Load();
+            PlayLog.Begin(this, load);
             Iris.Get().StartClosed();
             StartCoroutine(OpenAfterLoad());
         }
@@ -292,6 +295,7 @@ namespace TinCan
             AutoGun();
             saveTimer += Time.deltaTime;
             if (saveTimer > 5f) { saveTimer = 0f; Save.Write(this); }
+            PlayLog.Tick(this);
         }
 
         void OnApplicationQuit() { if (State == GameState.Play) Save.Write(this); }
@@ -319,7 +323,8 @@ namespace TinCan
             if (!OwnedGuns.Contains(k.Id))
             {
                 if (Tokens < k.Price) { Sfx.Play(Sfx.Click(), 0.5f, 0.8f); return; }
-                Tokens -= k.Price; OwnedGuns.Add(k.Id);   // 총값 = 증표 개수
+                Tokens -= k.Price; OwnedGuns.Add(k.Id);
+                PlayLog.Event("gun", k.Id, k.Price);   // 총값 = 증표 개수
                 Secondary = k;
                 Sfx.Play(Sfx.Reload(), 0.8f, 1.2f);
                 return;
@@ -570,6 +575,7 @@ namespace TinCan
             long total = (long)Mathf.Round(baseSum * burstMult * perfect * just);
             SetPending = 0; SetActive = false; ending = false;
             if (total <= 0) yield break;
+            PlayLog.Event("set", "", total);
             bool best = total > BestPayout;
             if (best) BestPayout = total;
             float k = Ceremony(total, best);
@@ -701,6 +707,7 @@ namespace TinCan
         public void BuyNode(SkillNode n)
         {
             if (n.Maxed || Money < n.NextCost) { Sfx.Play(Sfx.Click(), 0.5f, 0.8f); return; }
+            PlayLog.Event("node", n.Id, n.NextCost);
             Money -= n.NextCost;
             n.Level++;
             n.Apply(this, n.Level);

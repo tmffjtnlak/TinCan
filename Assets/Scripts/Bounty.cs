@@ -101,6 +101,7 @@ namespace TinCan
         IEnumerator SummonCo(CanKind kind)
         {
             busy = true;
+            PlayLog.Event("bounty", kind.Id, 0);
             long bounty = Game.I.BurstPay(kind);   // 10-14: 터뜨림 보상 (맞힐 때 돈은 없다)
             amount.text = $"${bounty:N0}";
             stamp.text = "";
@@ -177,7 +178,8 @@ namespace TinCan
             StartCoroutine(StampCo());
             Fx.Shake(1.2f);
             Sfx.Play(Sfx.Bang(), 1f, 0.4f);
-            Game.I.Tokens += 1;   // 현상금 증표: 잡을 때마다 1개 (도주하면 없음)
+            Game.I.Tokens += 1;
+            PlayLog.Event("busted", c.Kind.Id, 0);   // 현상금 증표: 잡을 때마다 1개 (도주하면 없음)
             Game.I.Hud.Float("현상금 획득!  증표 +1", (Vector2)c.transform.position + Vector2.up * 1.3f, 12);
         }
 
@@ -186,6 +188,7 @@ namespace TinCan
         {
             if (c != can) return;
             stamp.text = "ESCAPED";
+            PlayLog.Event("escaped", c.Kind.Id, 0);
             stamp.color = new Color(0.3f, 0.3f, 0.35f, 0.9f);
             StartCoroutine(StampCo());
         }

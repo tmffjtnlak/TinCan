@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>깡통 밸런스</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#f6f3ee; --panel:#fffdf9; --ink:#2b2420; --dim:#7a6e64; --line:#e3dbd0; --gold:#c08a1e; --red:#c0392b; --blue:#2d6cdf; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1b1816; --panel:#24201d; --ink:#eee6dc; --dim:#a39586; --line:#3a332d; --gold:#f0b94a; --red:#ff6b5b; --blue:#6aa0ff; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 system-ui, "Malgun Gothic", sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:15px; margin:0 0 8px; }
+  .sub { color:var(--dim); margin:0 0 16px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:14px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .stat { min-width:120px; } .stat b { display:block; font-size:18px; } .stat span { color:var(--dim); font-size:12px; }
+  select { font:inherit; padding:4px 6px; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:6px; }
+  canvas { max-width:100%; }
+  .chart { position:relative; height:320px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:5px 6px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--dim); font-weight:600; } td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .tablewrap { overflow-x:auto; }
+  .note { color:var(--dim); font-size:12px; margin-top:6px; }
+  #map { width:100%; height:520px; display:block; }
+</style>
+</head>
+<body>
+<main>
+  <h1>깡통 밸런스</h1>
+  <p class="sub">플레이 기록(PlayLogs)과 스킬트리 전체를 한 장에. 만든 시각 <span id="made"></span></p>
+
+  <div class="panel">
+    <div class="row"><label>플레이 기록 <select id="session"></select></label></div>
+    <div class="row" id="stats" style="margin-top:10px"></div>
+  </div>
+
+  <div class="panel">
+    <h2>시간대별 돈</h2>
+    <div class="chart"><canvas id="money"></canvas></div>
+    <p class="note">누적 수입 = 지금까지 들어온 돈 전부 (쓴 돈 포함). 점 = 노드 구매(노랑) · 현상금 잡음(빨강) · 총 구매(파랑).</p>
+  </div>
+
+  <div class="panel">
+    <h2>분당 수입 (최근 1분)</h2>
+    <div class="chart"><canvas id="rate"></canvas></div>
+  </div>
+
+  <div class="panel">
+    <h2>구매할 때마다: 몇 분 벌어서 샀나</h2>
+    <div class="tablewrap"><table id="buys"></table></div>
+    <p class="note">"모으는 데 걸린 분" = 가격 ÷ 그때 분당 수입. 이 값이 고르게 가면 강화가 일정한 간격으로 오고, 튀면 그 자리에서 흐름이 끊긴다.</p>
+  </div>
+
+  <div class="panel">
+    <h2>스킬트리 지도 (가격 색)</h2>
+    <canvas id="map"></canvas>
+    <p class="note">원 안 색 = 가격 (초록 쌈 → 빨강 비쌈, 로그). 테두리 = 계열 색. 굵은 테두리 = 이번 기록에서 산 노드. 숫자 = 산 순서.</p>
+  </div>
+
+  <div class="panel">
+    <h2>시작에서 멀어질수록 가격</h2>
+    <div class="chart"><canvas id="depth"></canvas></div>
+    <p class="note">가로 = 시작 노드에서 몇 칸, 세로 = 가격(로그). 계열마다 가격이 어떻게 오르는지(방향성).</p>
+  </div>
+</main>
+<script>
+const DATA = /*DATA*/null;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = n => '$' + Math.round(n).toLocaleString('en-US');
+document.getElementById('made').textContent = DATA.made;
+Chart.defaults.color = css('--dim'); Chart.defaults.borderColor = css('--line');
+Chart.defaults.font.family = 'system-ui, "Malgun Gothic", sans-serif';
+
+const tree = DATA.tree || [];
+const byId = Object.fromEntries(tree.map(n => [n.id, n]));
+const sel = document.getElementById('session');
+DATA.sessions.forEach((s, i) => { const o = document.createElement('option'); o.value = i; o.textContent = `${s.name}  (${(s.lines.at(-1)?.t/60 || 0).toFixed(1)}분)`; sel.appendChild(o); });
+sel.value = DATA.sessions.length - 1;
+let charts = [];
+sel.onchange = () => draw(DATA.sessions[sel.value]);
+draw(DATA.sessions[sel.value]);
+window.addEventListener('resize', () => drawMap(DATA.sessions[sel.value]));
+
+function draw(s) {
+  charts.forEach(c => c.destroy()); charts = [];
+  const L = (s ? s.lines : []).filter(l => !l.debug);
+  const samples = L.filter(l => l.e === 'sample' || l.e === 'start');
+  const m = l => l.t / 60;
+  // 분당 수입: 각 점에서 60초 전 기록과 비교
+  const rateAt = t => {
+    let a = null, b = null;
+    for (const p of samples) { if (p.t <= t) b = p; if (p.t <= t - 60) a = p; }
+    if (!b) return 0; if (!a) a = samples[0];
+    const dt = b.t - a.t; return dt > 0 ? (b.earned - a.earned) / dt * 60 : 0;
+  };
+  const ev = k => L.filter(l => l.e === k);
+  const nodes = ev('node'), busted = ev('busted'), guns = ev('gun'), sets = ev('set');
+  const last = L.at(-1) || { t:0, earned:0, money:0 };
+
+  document.getElementById('stats').innerHTML = [
+    ['플레이 시간', (last.t/60).toFixed(1) + '분'], ['누적 수입', fmt(last.earned)], ['평균 분당', fmt(last.t > 0 ? last.earned / last.t * 60 : 0)],
+    ['노드 구매', nodes.length + '개'], ['현상금', `${busted.length} 잡음 / ${ev('escaped').length} 놓침`], ['세트', sets.length + '번'], ['터뜨림', (last.bursts ?? 0) + '번']
+  ].map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
+
+  charts.push(new Chart(document.getElementById('money'), {
+    type: 'line',
+    data: { datasets: [
+      { label:'누적 수입', data: samples.map(p => ({ x:m(p), y:p.earned })), borderColor: css('--gold'), pointRadius:0, tension:0.2 },
+      { label:'보유 돈', data: samples.map(p => ({ x:m(p), y:p.money })), borderColor: css('--dim'), borderDash:[4,3], pointRadius:0, tension:0.2 },
+      { label:'노드 구매', type:'scatter', data: nodes.map(p => ({ x:m(p), y:p.earned, name:(byId[p.id]?.name || p.id), cost:p.amount })), backgroundColor:'#e8b923', pointRadius:5 },
+      { label:'현상금 잡음', type:'scatter', data: busted.map(p => ({ x:m(p), y:p.earned, name:'현상금' })), backgroundColor: css('--red'), pointStyle:'triangle', pointRadius:8 },
+      { label:'총 구매', type:'scatter', data: guns.map(p => ({ x:m(p), y:p.earned, name:p.id })), backgroundColor: css('--blue'), pointStyle:'rectRot', pointRadius:7 },
+    ]},
+    options: { maintainAspectRatio:false, interaction:{ mode:'nearest', intersect:false },
+      scales: { x:{ type:'linear', title:{ display:true, text:'분' } }, y:{ title:{ display:true, text:'$' } } },
+      plugins: { tooltip:{ callbacks:{ label: c => c.raw.name ? `${c.raw.name}${c.raw.cost ? '  ' + fmt(c.raw.cost) : ''}  (${c.raw.x.toFixed(1)}분)` : `${c.dataset.label} ${fmt(c.raw.y)}` } } } }
+  }));
+
+  charts.push(new Chart(document.getElementById('rate'), {
+    type: 'line',
+    data: { datasets: [{ label:'분당 수입', data: samples.map(p => ({ x:m(p), y:rateAt(p.t) })), borderColor: css('--gold'), backgroundColor:'rgba(192,138,30,0.12)', fill:true, pointRadius:0, tension:0.25 },
+      { label:'현상금 잡음', type:'scatter', data: busted.map(p => ({ x:m(p), y:rateAt(p.t) })), backgroundColor: css('--red'), pointStyle:'triangle', pointRadius:8 }] },
+    options: { maintainAspectRatio:false, scales:{ x:{ type:'linear', title:{ display:true, text:'분' } }, y:{ title:{ display:true, text:'$/분' } } } }
+  }));
+
+  const rows = [...nodes.map(p => ({ ...p, kind:'노드', name: byId[p.id]?.name || p.id })), ...guns.map(p => ({ ...p, kind:'총(증표)', name:p.id }))].sort((a, b) => a.t - b.t);
+  let prev = 0;
+  document.getElementById('buys').innerHTML = '<tr><th>분</th><th>종류</th><th>이름</th><th class="num">가격</th><th class="num">그때 분당 수입</th><th class="num">모으는 데 걸린 분</th><th class="num">지난 구매에서</th></tr>' +
+    rows.map(r => { const rate = rateAt(r.t), need = r.kind === '노드' && rate > 0 ? (r.amount / rate).toFixed(1) : '–', gap = ((r.t - prev) / 60).toFixed(1); prev = r.t;
+      return `<tr><td class="num">${(r.t/60).toFixed(1)}</td><td>${r.kind}</td><td>${r.name}</td><td class="num">${r.kind === '노드' ? fmt(r.amount) : '증표 ' + r.amount}</td><td class="num">${fmt(rate)}</td><td class="num">${need}</td><td class="num">${gap}분</td></tr>`; }).join('');
+
+  // 깊이 (시작에서 몇 칸)
+  const depth = {}; const root = tree.find(n => n.root);
+  if (root) { const q = [root.id]; depth[root.id] = 0; const nb = {}; tree.forEach(n => { nb[n.id] = nb[n.id] || new Set(); n.links.forEach(l => { nb[n.id].add(l); (nb[l] = nb[l] || new Set()).add(n.id); }); });
+    while (q.length) { const c = q.shift(); for (const x of nb[c] || []) if (!(x in depth)) { depth[x] = depth[c] + 1; q.push(x); } } }
+  const groups = {}; tree.filter(n => !n.root).forEach(n => (groups[n.color] = groups[n.color] || []).push({ x:(depth[n.id] ?? -1) + (Math.random() - 0.5) * 0.25, y:Math.max(1, n.cost), name:n.name }));
+  charts.push(new Chart(document.getElementById('depth'), {
+    type:'scatter', data:{ datasets: Object.entries(groups).map(([c, pts]) => ({ label:c, data:pts, backgroundColor:c, pointRadius:6 })) },
+    options:{ maintainAspectRatio:false, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: c => `${c.raw.name}  ${fmt(c.raw.y)}` } } },
+      scales:{ x:{ title:{ display:true, text:'시작에서 몇 칸' }, ticks:{ stepSize:1 } }, y:{ type:'logarithmic', title:{ display:true, text:'가격 $' } } } }
+  }));
+  drawMap(s);
+}
+
+function drawMap(s) {
+  const cv = document.getElementById('map'), dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr;
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  if (!tree.length) return;
+  const xs = tree.map(n => n.x), ys = tree.map(n => n.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const pad = 50, sc = Math.min((W - pad * 2) / Math.max(1, maxX - minX), (H - pad * 2) / Math.max(1, maxY - minY));
+  const P = n => [W / 2 + (n.x - (minX + maxX) / 2) * sc, H / 2 - (n.y - (minY + maxY) / 2) * sc];
+  const costs = tree.filter(n => n.cost > 0).map(n => Math.log(n.cost)); const lo = Math.min(...costs), hi = Math.max(...costs);
+  const heat = c => { if (c <= 0) return css('--panel'); const k = hi > lo ? (Math.log(c) - lo) / (hi - lo) : 0; return `hsl(${120 - 120 * k}, 65%, 50%)`; };
+  const order = {}; ((s ? s.lines : []).filter(l => l.e === 'node' && !l.debug)).forEach((l, i) => { if (!(l.id in order)) order[l.id] = i + 1; });
+  g.strokeStyle = css('--line'); g.lineWidth = 2;
+  tree.forEach(n => n.links.forEach(l => { const o = byId[l]; if (!o) return; const [a, b] = P(n), [c, d] = P(o); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }));
+  const r = Math.max(9, Math.min(18, sc * 0.28));
+  g.textAlign = 'center'; g.font = '11px system-ui, "Malgun Gothic", sans-serif';
+  tree.forEach(n => {
+    const [x, y] = P(n);
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fillStyle = heat(n.cost); g.fill();
+    g.lineWidth = n.id in order ? 5 : 2; g.strokeStyle = n.color; g.stroke();
+    if (n.key) { g.beginPath(); g.arc(x, y, r + 5, 0, Math.PI * 2); g.lineWidth = 1; g.strokeStyle = css('--dim'); g.stroke(); }
+    g.fillStyle = css('--ink'); g.fillText(n.name, x, y + r + 13); g.fillStyle = css('--dim'); g.fillText(n.cost > 0 ? fmt(n.cost) : '', x, y + r + 26);
+    if (n.id in order) { g.fillStyle = '#fff'; g.font = 'bold 11px system-ui'; g.fillText(order[n.id], x, y + 4); g.font = '11px system-ui, "Malgun Gothic", sans-serif'; }
+  });
+}
+</script>
+</body>
+</html>
