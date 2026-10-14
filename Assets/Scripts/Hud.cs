@@ -135,12 +135,12 @@ namespace TinCan
                 var c = cg.GetComponent<Canvas>(); c.renderMode = RenderMode.ScreenSpaceOverlay; c.sortingOrder = 50; c.pixelPerfect = true;
                 var sc = cg.GetComponent<CanvasScaler>(); sc.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize; sc.referenceResolution = new Vector2(1920f, 1080f);
                 introGroup = cg.GetComponent<CanvasGroup>(); introGroup.blocksRaycasts = false; introGroup.interactable = false;
-                introText = Ui.Text("IntroText", cg.transform, new Vector2(0f, -452f), new Vector2(1000f, 60f), 36, TextAnchor.MiddleCenter, Color.white);
+                introText = Ui.Text("IntroText", cg.transform, new Vector2(0f, -330f), new Vector2(1000f, 60f), 36, TextAnchor.MiddleCenter, Color.white);
             }
             introText.text = text;
             float e = alpha * alpha * (3f - 2f * alpha);
             introGroup.alpha = e;
-            introText.rectTransform.anchoredPosition = new Vector2(0f, -452f - (1f - e) * 12f);
+            introText.rectTransform.anchoredPosition = new Vector2(0f, -330f - (1f - e) * 12f);   // 10-15 2판: 띠가 풀린 뒤라 바닥 위 (Space 안내와 같은 자리)
             introText.gameObject.SetActive(alpha > 0.001f);
         }
 

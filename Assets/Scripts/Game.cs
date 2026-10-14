@@ -249,11 +249,11 @@ namespace TinCan
         }
 
         // ---------- 오프닝 (사용자 10-15: "부드러운 시작") ----------
-        // 레터박스 + 살짝 줌인 → 왼쪽에서 오른쪽으로 둘러보고 가운데로 → 가운데 선반에 깡통이 저절로 → "좌클릭으로 쏘기"
-        // → 첫 발을 쏘면 띠·줌·글자가 함께 풀리고 평소 화면(스킬트리 버튼 단계)으로
+        // 레터박스 + 우클릭 연출만큼(0.9배) 줌인 → 왼쪽에서 오른쪽으로 둘러보고 가운데로 (트윈) → 가운데 선반에 깡통이 저절로
+        // → 가운데를 본 채로 띠·줌이 풀리고 "좌클릭으로 쏘기" → 플레이어가 직접 쏘면 글자가 사라지고 스킬트리 버튼 단계로 (사용자 10-15 2판)
         bool introPending;
         public bool IntroRunning { get; private set; }
-        const float IntroZoom = 0.8f, IntroPan = 1.7f;
+        const float IntroZoom = 0.9f, IntroPan = 0.8f;   // 0.9 = 우클릭 줌과 같게. 둘러보는 폭은 그림 끝이 안 보이게 (줌 0.9면 여유 0.89)
         float introSize0;
         void IntroSetup()
         {
@@ -274,44 +274,43 @@ namespace TinCan
         IEnumerator Intro()
         {
             var cam = Camera.main;
-            // 둘러보기: 왼쪽 → 오른쪽 → 가운데 (부드럽게 출발·정지)
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 2.2f) { SetIntroCam(Mathf.Lerp(-IntroPan, IntroPan, Ease.InOutSine(t))); yield return null; }
-            yield return new WaitForSecondsRealtime(0.25f);
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 1.3f) { SetIntroCam(Mathf.Lerp(IntroPan, 0f, Ease.InOutSine(t))); yield return null; }
+            // 둘러보기 (트윈): 왼쪽 → 오른쪽은 천천히 출발해 천천히 멈추고(InOutCubic), 가운데로 올 땐 살짝 지나쳤다 자리 (OutBack)
+            yield return new WaitForSecondsRealtime(0.2f);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 2.0f) { SetIntroCam(Mathf.Lerp(-IntroPan, IntroPan, Ease.InOutCubic(t))); yield return null; }
+            yield return new WaitForSecondsRealtime(0.2f);
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 1.1f) { SetIntroCam(Mathf.LerpUnclamped(IntroPan, 0f, Ease.OutBack(t, 1.2f))); yield return null; }
             SetIntroCam(0f);
             // 가운데 선반에 깡통이 저절로 (소환 노드를 열기 전 단 한 번)
-            yield return new WaitForSecondsRealtime(0.3f);
             Cans.Add(Can.Spawn(CanKind.Tin, new Vector2(0f, Look.ShelfY + 0.11f + CanKind.Tin.Height * 0.5f)));
             Sfx.Play(Sfx.Reload(), 0.4f, 2.0f);
-            yield return new WaitForSecondsRealtime(0.6f);
-            // "좌클릭으로 쏘기": 아래 띠 위에 자막처럼
+            yield return new WaitForSecondsRealtime(0.45f);
+            // 가운데를 본 채로 띠·줌이 풀린다. 이때부터 쏠 수 있고 "좌클릭으로 쏘기"가 떠오른다
+            Letterbox.Force = false;
             Gun.Enabled = true;
             int shots0 = Gun.Shots;
-            float a = 0f;
+            float s0 = cam.orthographicSize, a = 0f;
+            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.6f)
+            {
+                cam.orthographicSize = Mathf.Lerp(s0, introSize0, Ease.OutCubic(t));
+                a = Mathf.MoveTowards(a, 1f, Time.unscaledDeltaTime / 0.5f);
+                hud.IntroText("좌클릭으로 쏘기", a);
+                yield return null;
+            }
+            cam.orthographicSize = introSize0;
+            Fx.CamFocus = null; cam.transform.position = new Vector3(0f, 0f, -10f);
+            Letterbox.HoldCamera = false;
+            // 플레이어가 직접 쏠 때까지 기다린다
             while (Gun.Shots == shots0)
             {
                 a = Mathf.MoveTowards(a, 1f, Time.unscaledDeltaTime / 0.5f);
                 hud.IntroText("좌클릭으로 쏘기", a);
                 yield return null;
             }
-            // 첫 발: 띠·줌·글자가 함께 풀린다
-            Letterbox.Force = false;
-            float s0 = cam.orthographicSize;
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.6f)
-            {
-                float e = 1f - Mathf.Pow(1f - t, 3f);
-                cam.orthographicSize = Mathf.Lerp(s0, introSize0, e);
-                hud.IntroText("좌클릭으로 쏘기", Mathf.Max(0f, a * (1f - t * 1.6f)));
-                yield return null;
-            }
-            cam.orthographicSize = introSize0;
+            for (; a > 0f; a -= Time.unscaledDeltaTime / 0.3f) { hud.IntroText("좌클릭으로 쏘기", a); yield return null; }
             hud.IntroText("", 0f);
-            Fx.CamFocus = null; cam.transform.position = new Vector3(0f, 0f, -10f);
-            Letterbox.HoldCamera = false;
             IntroRunning = false;
             uiReady = true; uiStage = -1;   // 스킬트리 버튼 단계로
         }
-
         void Load()
         {
             var d = Save.Read(); if (d == null) return;
