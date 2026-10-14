@@ -78,6 +78,8 @@ namespace TinCan
         public bool MenuOpen { get; private set; }
         /// <summary>디버그 (F1): 돈 무한</summary>
         public bool DebugMoney { get; private set; }
+        /// <summary>현상금 증표 (사용자 10-14): 현상금을 잡을 때마다 1개. 총은 증표로만 산다 → 총 바꾸는 순간 = 현상금 잡은 순간, 돈은 스킬트리로</summary>
+        public int Tokens { get; set; }
         public CanKind SpawnKind { get; set; } = CanKind.Tin;
         Hud hud;
         public Hud Hud => hud;
@@ -231,6 +233,7 @@ namespace TinCan
         {
             var d = Save.Read(); if (d == null) return;
             Money = d.money; Bursts = d.bursts; BestCombo = d.bestCombo; BestPayout = d.bestPayout;
+            Tokens = d.tokens;
             OwnedGuns.Clear(); OwnedGuns.UnionWith(d.ownedGuns); OwnedGuns.Add("revolver");
             OwnedCans.Clear(); OwnedCans.UnionWith(d.ownedCans); OwnedCans.Add("tin");
             for (int i = 0; i < d.nodeIds.Count && i < d.nodeLevels.Count; i++)
@@ -263,7 +266,7 @@ namespace TinCan
             if (kb.tabKey.wasPressedThisFrame) { if (MenuOpen) CloseMenu(); else OpenMenu(lastPage); }
             if (MenuOpen)
             {
-                if (DebugMoney) Money = 999_999_999;
+                if (DebugMoney) { Money = 999_999_999; Tokens = 99; }
                 if (kb.escapeKey.wasPressedThisFrame) CloseMenu();
                 return;
             }
@@ -271,7 +274,7 @@ namespace TinCan
             if (kb.spaceKey.wasPressedThisFrame) TrySpawn();
             if (SetActive && !ending && Airborne == 0) StartCoroutine(EndSet());
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
-            if (DebugMoney) Money = 999_999_999;
+            if (DebugMoney) { Money = 999_999_999; Tokens = 99; }
             if (kb.f2Key.wasPressedThisFrame) bounty.Summon();
             if (kb.f5Key.wasPressedThisFrame) Can.ThrowDynamite(Gun.MuzzlePos);   // 시험: 다이너마이트 투척
             if (kb.f6Key.wasPressedThisFrame) DebugSpawn(CanKind.Bundle);
@@ -315,8 +318,8 @@ namespace TinCan
         {
             if (!OwnedGuns.Contains(k.Id))
             {
-                if (Money < k.Price) { Sfx.Play(Sfx.Click(), 0.5f, 0.8f); return; }
-                Money -= k.Price; OwnedGuns.Add(k.Id);
+                if (Tokens < k.Price) { Sfx.Play(Sfx.Click(), 0.5f, 0.8f); return; }
+                Tokens -= k.Price; OwnedGuns.Add(k.Id);   // 총값 = 증표 개수
                 Secondary = k;
                 Sfx.Play(Sfx.Reload(), 0.8f, 1.2f);
                 return;

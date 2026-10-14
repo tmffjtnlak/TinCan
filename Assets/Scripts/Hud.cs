@@ -273,7 +273,7 @@ namespace TinCan
             float sq = moneyS - 1f;
             money.transform.localScale = new Vector3(1f + sq * 1.15f, 1f + sq * 0.7f, 1f);
             money.transform.localRotation = Quaternion.Euler(0f, 0f, moneyRot);
-            money.text = game.DebugMoney ? "$∞  <size=18><color=#ff8888>디버그</color></size>" : $"${shown:N0}";
+            money.text = game.DebugMoney ? "$∞  <size=18><color=#ff8888>디버그</color></size>" : $"${shown:N0}" + (game.Tokens > 0 ? $"  <size=24><color=#e8a060>증표 {game.Tokens}</color></size>" : "");
             money.supportRichText = true;
             int air = game.Airborne;
             stats.supportRichText = true;

@@ -177,7 +177,8 @@ namespace TinCan
             StartCoroutine(StampCo());
             Fx.Shake(1.2f);
             Sfx.Play(Sfx.Bang(), 1f, 0.4f);
-            Game.I.Hud.Float("현상금 획득!", (Vector2)c.transform.position + Vector2.up * 1.3f, 12);
+            Game.I.Tokens += 1;   // 현상금 증표: 잡을 때마다 1개 (도주하면 없음)
+            Game.I.Hud.Float("현상금 획득!  증표 +1", (Vector2)c.transform.position + Vector2.up * 1.3f, 12);
         }
 
         /// <summary>떨어져서 놓쳤다</summary>

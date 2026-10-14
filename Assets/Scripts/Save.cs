@@ -13,6 +13,7 @@ namespace TinCan
         public class Data
         {
             public long money;
+            public int tokens;
             public int bursts, bestCombo;
             public long bestPayout;
             public List<string> nodeIds = new List<string>();
@@ -28,7 +29,7 @@ namespace TinCan
 
         public static void Write(Game g)
         {
-            var d = new Data { money = g.Money, bursts = g.Bursts, bestCombo = g.BestCombo, bestPayout = g.BestPayout, gun = g.Primary.Id, spawn = g.SpawnKind.Id, secondary = g.Secondary != null ? g.Secondary.Id : "", volume = AudioListener.volume };
+            var d = new Data { money = g.Money, tokens = g.Tokens, bursts = g.Bursts, bestCombo = g.BestCombo, bestPayout = g.BestPayout, gun = g.Primary.Id, spawn = g.SpawnKind.Id, secondary = g.Secondary != null ? g.Secondary.Id : "", volume = AudioListener.volume };
             foreach (var n in g.Nodes) { d.nodeIds.Add(n.Id); d.nodeLevels.Add(n.Level); }
             d.ownedGuns.AddRange(g.OwnedGuns); d.ownedCans.AddRange(g.OwnedCans);
             PlayerPrefs.SetString(Key, JsonUtility.ToJson(d));

@@ -222,14 +222,14 @@ namespace TinCan
                 statRows[0].Value.text = $"{g.Capacity}";
                 statRows[1].Value.text = $"{g.ReloadSeconds:0.0}s";
                 state.text = primary ? "주무장" : secondary ? "보조무기" : owned ? "보유" : "";
-                bool afford = game.Money >= g.Price;
-                buyText.text = owned ? "보유" : $"BUY  ${g.Price:N0}";
+                bool afford = game.Tokens >= g.Price;   // 총은 현상금 증표로 산다 (10-14)
+                buyText.text = owned ? "보유" : $"BUY  증표 {g.Price}";
                 buyPill.color = owned ? new Color(0.75f, 0.9f, 0.7f) : afford ? new Color(1f, 0.92f, 0.6f) : new Color(0.95f, 0.65f, 0.6f);
                 bool overBuy = Inside(buyCard.rectTransform, canvasPt * Fit);
                 // BUY: 올리면 1도트 들림, 누르면 2도트 눌림 (기울임·확대 없음)
                 Ease.Spring(ref buyY, ref buyYV, overBuy && !owned ? Grid : 0f, 500f, 16f, dt);
                 buyCard.rectTransform.anchoredPosition = BuyHome + new Vector2(0f, Snap(buyY));
-                hintEquip.text = owned ? "1 = 주무장으로   ·   2 = 보조무기로" : afford ? "" : "<color=#ff8877>돈이 모자라다</color>";
+                hintEquip.text = owned ? "1 = 주무장으로   ·   2 = 보조무기로" : afford ? "" : $"<color=#ff8877>증표가 모자라다 (가진 것 {game.Tokens}) — 현상금을 잡으면 1개</color>";
                 bool buyClick = mouse != null && mouse.leftButton.wasPressedThisFrame && overBuy;
                 if (!owned && (buyClick || (kb != null && kb.bKey.wasPressedThisFrame))) Buy(g);
                 if (owned && kb != null && kb.digit1Key.wasPressedThisFrame) Equip(g, 0);
@@ -248,7 +248,7 @@ namespace TinCan
 
         void Buy(GunKind g)
         {
-            if (game.Money < g.Price) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); buyYV -= 300f; return; }
+            if (game.Tokens < g.Price) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); buyYV -= 300f; return; }
             game.PickGun(g);
             buyY = -8f; buyYV = 0f;                         // 도장 찍히듯 2도트 눌림
             gunY = 16f; gunYV = 0f; gunWhiteA = 0.08f; frontYV -= 200f;
