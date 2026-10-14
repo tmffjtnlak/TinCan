@@ -427,9 +427,11 @@ namespace TinCan
             // 쏠 때마다 낮은 확률로 다이너마이트를 공중에 던진다 (사용자 10-14: 소환 깡통이 아니라 공격 효과)
             if (!Cinematic && Random.value < Can.DynamiteChance) Can.ThrowDynamite(view.Muzzle);
             // 판정: 원 안의 깡통. 리볼버는 가장 가까운 하나, 샷건은 전부. 쏘는 버튼도 여기서
-            Can best = null; float bestD = float.MaxValue; bool any = false;
+            Can best = null; float bestD = float.MaxValue; bool any = false; Bartender keeper = null;
             foreach (var col in Physics2D.OverlapCircleAll(aim, Mathf.Max(Kind.AimRadius, 0.3f)))
             {
+                var bt = col.GetComponent<Bartender>();
+                if (bt != null) { keeper = bt; continue; }   // 주인은 깡통을 하나도 못 맞혔을 때만 (10-15)
                 var btn = col.GetComponent<ShootButton>();
                 if (btn != null) { btn.Shot(); any = true; continue; }
                 var can = col.GetComponent<Can>();
@@ -440,6 +442,7 @@ namespace TinCan
                 if (d < bestD) { bestD = d; best = can; }
             }
             if (best != null) { HitOne(best, aim); any = true; }
+            if (!any && keeper != null) keeper.Shot(aim);
             if (any) Hits++;   // 맞춤 마름모 표시는 뺐다 (사용자 10-13)
             Game.I?.Shot(any);
             if (Ammo == 0) StartCoroutine(AutoReload());

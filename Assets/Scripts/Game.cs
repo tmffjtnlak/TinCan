@@ -27,7 +27,10 @@ namespace TinCan
         public int BestCombo { get; private set; }
         public long BestPayout { get; private set; }
         public int Bursts { get; private set; }
-        public int MaxCans { get; set; } = 1;   // 10-15 사용자: 시작은 1칸 (하나만 확실히). "넓은 선반"을 사야 처음으로 저글링이 된다
+        public int MaxCans { get; set; } = 1;
+        /// <summary>술집 주인을 쏜 횟수 (반응이 점점 짙어진다), 첫 터뜨림 대사를 들었나 (10-15, 저장)</summary>
+        public int BartenderShots { get; set; }
+        public bool SeenFirstBurst { get; set; }   // 10-15 사용자: 시작은 1칸 (하나만 확실히). "넓은 선반"을 사야 처음으로 저글링이 된다
         /// <summary>스킬 "파편 튀기기" (10-15: 기본에서 뺐다 — 준비 안 된 저글링을 떠넘겨 불쾌했다): 터지면 선반 깡통이 다 튀어 오른다</summary>
         public bool ShrapnelPop { get; set; }
         public float ValueMult { get; set; } = 1f;
@@ -115,6 +118,7 @@ namespace TinCan
             new GameObject("AmmoHud").AddComponent<AmmoHud>().Build(hud.Canvas, Gun);
             new GameObject("CanDebug").AddComponent<CanDebug>();   // F9 디버그 표시 (10-14)
             Letterbox.Make(hud.Canvas);   // 우클릭 연출: 위아래 띠 + UI 흐리게 (사용자 10-13)
+            Bartender.Make();             // 술집 주인 (사용자 10-15): 카운터 뒤에서 올라와 짧게 말한다. 사실은 악마
             tree = new GameObject("Tree").AddComponent<TreeView>();
             tree.Build(this, Nodes, hud.Canvas);
             tree.SetOpen(false);
@@ -245,6 +249,7 @@ namespace TinCan
             yield return Iris.Get().Open(0.45f);
             if (State != GameState.Play) yield break;
             if (introPending) { introPending = false; StartCoroutine(Intro()); yield break; }
+            Bartender.I?.Rise();   // 이어 하기: 주인은 처음부터 카운터에
             uiReady = true; uiStage = -1;   // 보이는 UI는 단계대로 (UpdateStageUi)
         }
 
@@ -280,10 +285,13 @@ namespace TinCan
             yield return new WaitForSecondsRealtime(0.2f);
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 1.1f) { SetIntroCam(Mathf.LerpUnclamped(IntroPan, 0f, Ease.OutBack(t, 1.2f))); yield return null; }
             SetIntroCam(0f);
-            // 가운데 선반에 깡통이 저절로 (소환 노드를 열기 전 단 한 번)
+            // 주인이 카운터 뒤에서 올라와 가운데 선반에 깡통을 올려 두고 한마디 (10-15)
+            var bt = Bartender.I;
+            if (bt != null) yield return bt.RiseCo();
             Cans.Add(Can.Spawn(CanKind.Tin, new Vector2(0f, Look.ShelfY + 0.11f + CanKind.Tin.Height * 0.5f)));
             Sfx.Play(Sfx.Reload(), 0.4f, 2.0f);
-            yield return new WaitForSecondsRealtime(0.45f);
+            if (bt != null) yield return bt.Say("어서 와. 서두를 거 없어… 시간은 아주 많으니까.", 1.2f);
+            else yield return new WaitForSecondsRealtime(0.45f);
             // 가운데를 본 채로 띠·줌이 풀린다. 이때부터 쏠 수 있고 "좌클릭으로 쏘기"가 떠오른다
             Letterbox.Force = false;
             Gun.Enabled = true;
@@ -315,7 +323,7 @@ namespace TinCan
         {
             var d = Save.Read(); if (d == null) return;
             Money = d.money; Bursts = d.bursts; BestCombo = d.bestCombo; BestPayout = d.bestPayout;
-            Tokens = d.tokens;
+            Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst;
             OwnedGuns.Clear(); OwnedGuns.UnionWith(d.ownedGuns); OwnedGuns.Add("revolver");
             OwnedCans.Clear(); OwnedCans.UnionWith(d.ownedCans); OwnedCans.Add("tin");
             for (int i = 0; i < d.nodeIds.Count && i < d.nodeLevels.Count; i++)
@@ -814,7 +822,8 @@ namespace TinCan
             if (ShrapnelPop) foreach (var c in Cans) if (c != null && c != can && !c.Done && !c.Airborne && !c.Kind.IsBounty) c.Pop(can.transform.position);
             long pay = JugglePay(can, BurstPay(can.Kind), out bool dbl);
             SetPending += pay;
-            AddSetBurst();   // 한 세트에 둘째부터 배율 +0.5
+            AddSetBurst();
+            if (!SeenFirstBurst && !can.Kind.IsBounty) { SeenFirstBurst = true; Bartender.I?.SayNow("그렇지. 그 녀석도 이제 좀 편해졌겠군."); }   // 깡통 = 바뀐 영혼 (슬쩍만)   // 한 세트에 둘째부터 배율 +0.5
             Bursts++;
             hud.Float($"터짐!  +${pay:N0}{(dbl ? "  둘 ×" + JuggleScoreMult.ToString("0.#") : "")}{MultTag()}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));

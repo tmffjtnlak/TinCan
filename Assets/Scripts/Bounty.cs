@@ -181,7 +181,8 @@ namespace TinCan
             Fx.Shake(1.2f);
             Sfx.Play(Sfx.Bang(), 1f, 0.4f);
             Game.I.Tokens += 1;
-            PlayLog.Event("busted", c.Kind.Id, 0);   // 현상금 증표: 잡을 때마다 1개 (도주하면 없음)
+            PlayLog.Event("busted", c.Kind.Id, 0);
+            Bartender.I?.BountyBusted(c.transform.position);   // 영혼을 거둬 간다 (10-15)   // 현상금 증표: 잡을 때마다 1개 (도주하면 없음)
             Game.I.Hud.Float("현상금 획득!  증표 +1", (Vector2)c.transform.position + Vector2.up * 1.3f, 12);
         }
 
