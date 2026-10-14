@@ -201,6 +201,7 @@ namespace TinCan
         bool Preview(SkillNode n)
         {
             if (n.Root || n.Level >= 1 || Available(n)) return false;
+            var start = nodes.Find(x => x.Root); if (start != null && start.Level < 1) return false;   // 10-14 사용자: 시작 노드를 열기 전엔 그 하나만 보이게 (미리보기 없음)
             foreach (var o in nb[n.Id]) if (byId.TryGetValue(o, out var m) && m.Level < 1 && Available(m)) return true;
             return false;
         }
