@@ -85,6 +85,38 @@ namespace TinCan
         }
         public void SetButtonsVisible(bool v) { foreach (var b in btn) if (b != null) b.gameObject.SetActive(v); }
 
+        /// <summary>첫 흐름 단계 (10-14): 소환 전엔 스킬트리 버튼만, 소환을 열면 돈·숨 게이지, 증표가 생기면 총 상점. 새로 나타나는 버튼은 톡 튀어나온다</summary>
+        public void SetStage(bool summon, bool shop)
+        {
+            moneyBoard.gameObject.SetActive(summon);
+            slowBg.gameObject.SetActive(summon); slowLabel.gameObject.SetActive(summon);
+            ShowButton(0, true); ShowButton(1, shop);
+        }
+        void ShowButton(int i, bool v)
+        {
+            if (btn[i] == null) return;
+            if (v && !btn[i].gameObject.activeSelf) { btnS[i] = 0.2f; btnSV[i] = 0f; Sfx.Play(Sfx.Tang(), 0.4f, 1.6f); }
+            btn[i].gameObject.SetActive(v);
+        }
+        /// <summary>시작 노드를 아직 안 열었으면 스킬트리 버튼이 숨 쉬듯 뛴다</summary>
+        public bool PulseTree { get; set; }
+
+        Text prompt; float promptA;
+        /// <summary>"Space를 눌러 깡통 소환" — 소환을 열고 한참 안 부르면 부드럽게 나타나고, 부르면 부드럽게 사라진다</summary>
+        public void SpawnPrompt(bool on, float dt)
+        {
+            if (prompt == null)
+            {
+                prompt = Ui.Text("SpawnPrompt", canvas, new Vector2(0f, -330f), new Vector2(1000f, 60f), 36, TextAnchor.MiddleCenter, Ui.Gold);
+                prompt.text = "Space를 눌러 깡통 소환";
+            }
+            promptA = Mathf.MoveTowards(promptA, on ? 1f : 0f, dt / (on ? 0.5f : 0.35f));
+            float e = promptA * promptA * (3f - 2f * promptA);
+            var c = prompt.color; c.a = e; prompt.color = c;
+            prompt.rectTransform.anchoredPosition = new Vector2(0f, -330f + (1f - e) * -16f + Mathf.Round(Mathf.Sin(Time.unscaledTime * 3f)) * 4f * e);
+            prompt.gameObject.SetActive(promptA > 0.001f);
+        }
+
         /// <summary>버튼: 올리면 살짝 커지고 기울고, 누르면 납작했다 튕기며 연다. 매 프레임(플레이 중, 가게 닫힘) 부른다</summary>
         public void Buttons(float dtUnscaled, System.Action onTree, System.Action onShop)
         {
@@ -97,6 +129,7 @@ namespace TinCan
                 var rt = btn[i].rectTransform;
                 bool over = Mathf.Abs(pt.x - rt.anchoredPosition.x) < rt.sizeDelta.x * 0.5f && Mathf.Abs(pt.y - rt.anchoredPosition.y) < rt.sizeDelta.y * 0.5f;
                 float target = over ? 1.08f : 1f;
+                if (i == 0 && PulseTree && !over) target = 1f + 0.07f * Mathf.Max(0f, Mathf.Sin(Time.unscaledTime * 4f));   // 처음엔 여기를 눌러 보라고
                 if (over && mouse.leftButton.wasPressedThisFrame)
                 {
                     btnS[i] = 0.9f; btnSV[i] = 6f; btnRot[i] = Random.Range(-4f, 4f);
@@ -107,7 +140,7 @@ namespace TinCan
                 Ease.Spring(ref btnRot[i], ref btnRotV[i], over ? -2f : 0f, 300f, 12f, dtUnscaled);
                 rt.localScale = Vector3.one * btnS[i];
                 rt.localRotation = Quaternion.Euler(0f, 0f, btnRot[i]);
-                btn[i].color = over ? Ui.Gold : Ui.BoardEdge;
+                btn[i].color = over || (i == 0 && PulseTree && Mathf.Sin(Time.unscaledTime * 4f) > 0.6f) ? Ui.Gold : Ui.BoardEdge;
             }
         }
 

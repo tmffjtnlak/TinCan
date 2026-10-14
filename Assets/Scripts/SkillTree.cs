@@ -100,12 +100,11 @@ namespace TinCan
             Put("comboreload", -5, -1, (-4, -1));       // 핵심
             Put("holster", -6, -1, (-5, -1));           // 핵심
             // 오른쪽 — 선반 (하늘)
-            Put("cheap", 1, 0, (0, 0));
-            Put("perfect1", 2, 0, (1, 0));
-            Put("shelf1", 3, 0, (2, 0));                // 핵심
-            Put("cluster", 4, 1, (3, 0));               // 핵심
-            Put("shelf2", 4, 0, (3, 0));                // 핵심
-            Put("pair", 4, -1, (3, 0));                 // 핵심
+            Put("perfect1", 1, 0, (0, 0));             // (단골 할인은 10-14 소환이 공짜가 되며 뺐다)
+            Put("shelf1", 2, 0, (1, 0));                // 핵심
+            Put("cluster", 3, 1, (2, 0));               // 핵심
+            Put("shelf2", 3, 0, (2, 0));                // 핵심
+            Put("pair", 3, -1, (2, 0));                 // 핵심
             // 아래 — 돈 (노랑) → 자동 사격 (초록)
             Put("value1", 0, -1, (0, 0));
             Put("payout1", 0, -2, (0, -1));
@@ -211,8 +210,8 @@ namespace TinCan
         static List<SkillNode> Raw() => new List<SkillNode>
         {
             // 시작 노드: 눌러서 연다 (10-14 사용자: 꾹 누르는 연출 말고 그냥 클릭, 값 0)
-            new SkillNode { Id = "root", Name = "사수", Glyph = "총", Root = true, Core = true, Level = 0, Pos = Vector2.zero, Color = White,
-                Cost = l => 0, Desc = l => "모든 것의 시작. 눌러서 연다.", Apply = (g, l) => { } },
+            new SkillNode { Id = "root", Name = "깡통 소환", Glyph = "깡", Root = true, Core = true, Level = 0, Pos = Vector2.zero, Color = White,
+                Cost = l => 0, Desc = l => "Space를 누르면 선반에 깡통이 나온다. 모든 것의 시작.", Apply = (g, l) => { } },
 
             // 저글링 (하늘) — 위
             N("airslow1", "가벼운 낙하", "낙", Vector2.zero, Cyan, 15, "공중 깡통이 10% 느리게 떨어진다", g => Can.AirFall *= 0.81f),
@@ -238,7 +237,6 @@ namespace TinCan
             C("holster", "허리춤 장전", "허", Red, 400, "꺼내지 않은 보조무기가 1.5초마다 한 발씩 찬다", g => g.HolsterReloadSeconds = 1.5f),
 
             // 선반 (하늘) — 오른쪽
-            N("cheap", "단골 할인", "할", Vector2.zero, Cyan, 15, "소환 비용 -30%", g => g.SpawnDiscount = 0.3f),
             N("perfect1", "퍼펙트 배율", "퍼", Vector2.zero, Cyan, 30, "한 발도 안 놓친 세트 ×1.1 → ×1.2", g => g.PerfectMult += 0.1f),
             C("shelf1", "넓은 선반", "선", Cyan, 80, "선반 자리 +1", g => g.MaxCans += 1),
             C("cluster", "붙여 놓기", "붙", Cyan, 150, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true),

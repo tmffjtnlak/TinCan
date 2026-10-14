@@ -105,6 +105,7 @@ namespace TinCan
             Gun = new GameObject("Gun").AddComponent<Gun>();
             Gun.Build();
             Nodes = SkillTree.Make();
+            rootNode = Nodes.Find(n => n.Root);
             hud = new GameObject("Hud").AddComponent<Hud>();
             hud.Bind(this);
             new GameObject("AmmoHud").AddComponent<AmmoHud>().Build(hud.Canvas, Gun);
@@ -220,6 +221,7 @@ namespace TinCan
             if (title != null) { Destroy(title.gameObject); title = null; }
             Money = 10;
             hud.SetPlayVisible(false);   // 원형이 다 열린 뒤에 보인다 (OpenAfterLoad)
+            uiReady = false; spawnedOnce = false; summonIdle = 0f;
             if (load) Load();
             PlayLog.Begin(this, load);
             Iris.Get().StartClosed();
@@ -235,7 +237,7 @@ namespace TinCan
             yield return null; yield return null;
             yield return new WaitForSecondsRealtime(0.1f);
             yield return Iris.Get().Open(0.45f);
-            if (State == GameState.Play) hud.SetPlayVisible(true);
+            if (State == GameState.Play) { uiReady = true; uiStage = -1; }   // 보이는 UI는 단계대로 (UpdateStageUi)
         }
 
         void Load()
@@ -273,6 +275,7 @@ namespace TinCan
             }
             // 가게는 오른쪽 아래 버튼 둘(스킬트리·총 상점)로 연다 (사용자 10-12). Tab/Esc = 닫기 (Tab은 마지막 페이지 다시 열기도)
             if (kb.tabKey.wasPressedThisFrame) { if (MenuOpen) CloseMenu(); else OpenMenu(lastPage); }
+            UpdateStageUi();
             if (MenuOpen)
             {
                 if (DebugMoney) { Money = 999_999_999; Tokens = 99; }
@@ -307,7 +310,26 @@ namespace TinCan
         void OnApplicationQuit() { if (State == GameState.Play) Save.Write(this); }
 
         public void OpenMenu(int page) { MenuOpen = true; Gun.Enabled = false; hud.SetButtonsVisible(false); OpenPage(page); }
-        public void CloseMenu() { MenuOpen = false; Gun.Enabled = true; tree.SetOpen(false); armory.Hide(); booklet.Hide(); hud.SetButtonsVisible(true); Save.Write(this); }
+        public void CloseMenu() { MenuOpen = false; Gun.Enabled = true; tree.SetOpen(false); armory.Hide(); booklet.Hide(); uiStage = -1; Save.Write(this); }   // 버튼은 단계대로 다시 (UpdateStageUi)
+
+        // ---------- 첫 흐름 (사용자 10-14): 들어오면 총만 → 스킬트리 버튼 → 시작 노드 "깡통 소환" → Space ----------
+        SkillNode rootNode;
+        /// <summary>시작 노드를 열었나 = 깡통을 부를 수 있나. 그전엔 화면에 총과 스킬트리 버튼뿐</summary>
+        public bool SummonUnlocked => rootNode == null || rootNode.Level >= 1;
+        /// <summary>총 상점 버튼: 증표가 생기거나 총이 둘 이상일 때부터</summary>
+        public bool ShopUnlocked => Tokens > 0 || OwnedGuns.Count > 1;
+        const float SpawnPromptDelay = 8f;   // 소환을 열고 이만큼 안 부르면 "Space" 안내 (사용자: 10초 안에)
+        bool uiReady, spawnedOnce; int uiStage = -1; float summonIdle;
+        void UpdateStageUi()
+        {
+            if (!uiReady) return;
+            int stage = (SummonUnlocked ? 1 : 0) + (ShopUnlocked ? 2 : 0);
+            if (stage != uiStage && !MenuOpen) { uiStage = stage; hud.SetStage(SummonUnlocked, ShopUnlocked); }
+            hud.PulseTree = !SummonUnlocked;
+            bool waiting = SummonUnlocked && !spawnedOnce && !MenuOpen;
+            if (waiting) summonIdle += Time.unscaledDeltaTime;
+            hud.SpawnPrompt(waiting && summonIdle >= SpawnPromptDelay, Time.unscaledDeltaTime);
+        }
 
         void OpenPage(int p)
         {
@@ -375,7 +397,7 @@ namespace TinCan
         }
 
         // ---------- 깡통류 ----------
-        public long SpawnCost(CanKind k) => Mathf.Max(1, Mathf.RoundToInt(k.Cost * (1f - SpawnDiscount)));
+        public long SpawnCost(CanKind k) => 0;   // 10-14 사용자: 소환은 공짜 ("있으나 마나"). CanKind.Cost는 떨어짐 값 계산에만 쓴다
 
         public void PickCan(CanKind k)
         {
@@ -433,6 +455,8 @@ namespace TinCan
         }
         public bool TrySpawn()
         {
+            if (!SummonUnlocked) return false;   // 시작 노드(깡통 소환)를 열어야 부를 수 있다
+            spawnedOnce = true;
             long cost = SpawnCost(SpawnKind);
             if (Airborne > 0 && !BountyAlive) { Sfx.Play(Sfx.Click(), 0.5f, 0.6f);   // 현상금전엔 공중에 있어도 소환된다 (사용자 10-14: 터뜨린 깡통의 파편이 현상금을 깎으니 계속 깡통이 필요)
                 hud.Float("공중 깡통을 다 처리하면 소환", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
