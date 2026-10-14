@@ -76,6 +76,10 @@ namespace TinCan
 
             // 배치: 일직선이 아니라 뿌리 둘레에 **뭉쳐서** (사용자 10-12). 사슬은 꺾이고, 갈래는 덩어리로. 전체 -4..4 × -5..2 안
             Put("root", White, 0, 0);
+            // 10-14 사용자: 초반 저글링 유도 — 뿌리 바로 위에 셋 (두 배 → 왼쪽 가벼운 낙하 / 오른쪽 낮은 튐)
+            Put("air2x", Cyan, 0, 1, (0, 0));
+            Put("airslow", Cyan, -1, 1, (0, 1));
+            Put("lowbounce", Cyan, 1, 1, (0, 1));
             // 1단 — 장전 (왼쪽): 왼쪽으로 둘, 위로 꺾어 관문
             Put("reload1", Red, -1, 0, (0, 0));
             Put("reload2", Red, -2, 0, (-1, 0));
@@ -152,6 +156,10 @@ namespace TinCan
 
             // 뿌리 = 실린더 중심
             Put("root", White, 0, 0);
+            // 10-14 사용자: 초반 저글링 유도 — 뿌리 바로 위에 셋 (두 배 → 왼쪽 가벼운 낙하 / 오른쪽 낮은 튐)
+            Put("air2x", Cyan, 0, 1, (0, 0));
+            Put("airslow", Cyan, -1, 1, (0, 1));
+            Put("lowbounce", Cyan, 1, 1, (0, 1));
             // 실린더: 뿌리 둘레 여덟 칸 네모 고리 (장전 빨강). 뿌리는 상하좌우 넷에 닿는다
             Put("reload1", Red, 1, 0, (0, 0));
             Put("reload2", Red, 1, 1, (1, 0));
@@ -196,6 +204,11 @@ namespace TinCan
                 Cost = l => 0, Desc = l => "모든 것의 시작. 꾹 눌러 해방한다.", Apply = (g, l) => { },
                 Links = new[] { "reload1", "shelf1", "value1", "auto1", "slow1" } },
 
+            // 초반 저글링 (10-14 사용자: "초반에 저글링하기 쉬워지는 스킬과 배율") — 가격은 첫 세트 한두 번 값
+            N("air2x", "둘이면 두 배", "둘", Vector2.zero, Cyan, 15, "공중에 깡통이 둘 이상일 때 떨어지거나 터진 돈 ×2", g => g.JuggleScoreMult = Mathf.Max(g.JuggleScoreMult, 2f)),
+            N("airslow", "가벼운 낙하", "낙", Vector2.zero, Cyan, 30, "공중 깡통이 10% 느리게 떨어진다", g => Can.AirFall = 0.81f),
+            N("lowbounce", "낮은 튐", "통", Vector2.zero, Cyan, 45, "떨어진 깡통이 한 번 낮게 튀어오른다 (연속 유지)", g => { if (g.LandBounces == 0) { g.LandBounces = 1; g.LandBouncePower = 6.5f; } }),   // "다시 튐"을 이미 샀으면 그대로 (그쪽이 높다)
+
             // 장전 (빨강) — 왼쪽 위
             // 탄창 수는 총의 성격이라 트리에 없다 (사용자 10-10). 트리는 "그 탄창을 어떻게 쓰나"만
             N("reload1", "빠른 장전", "장", new Vector2(-1.4f, 1f), Red, 30, "장전 시간 -20%", g => g.Gun.ReloadScale *= 0.8f, "reload2", "firstshot", "comboreload"),
@@ -211,7 +224,7 @@ namespace TinCan
             N("shelf2", "더 넓은 선반", "선", new Vector2(1.9f, 2.1f), Cyan, 160, "선반 자리 +1 더", g => g.MaxCans += 1, "cheap"),
             N("cheap", "단골 할인", "할", new Vector2(2.6f, 3.1f), Cyan, 220, "소환 비용 -30%", g => g.SpawnDiscount = 0.3f),
             N("bounce", "가벼운 깡통", "경", new Vector2(2.8f, 1.3f), Cyan, 60, "맞으면 더 높이 튄다", g => Can.BounceBonus += 1.0f, "rebound"),
-            N("rebound", "다시 튐", "튐", new Vector2(4.1f, 1.7f), Cyan, 300, "떨어진 깡통이 혼자 한 번 다시 튀어오른다 (연속 유지)", g => g.LandBounces = 1),
+            N("rebound", "다시 튐", "튐", new Vector2(4.1f, 1.7f), Cyan, 300, "떨어진 깡통이 혼자 한 번 다시 튀어오른다 (연속 유지)", g => { g.LandBounces = 1; g.LandBouncePower = 11f; }),
             N("cluster", "붙여 놓기", "붙", new Vector2(0.5f, 2.2f), Cyan, 50, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true, "pair"),
             // 10-14 사용자: 저글링 중 낙하 완화를 기본에서 빼 스킬로 (초반은 아슬아슬, 사면 쉬워지는 성장)
             N("juggle", "공중 곡예", "곡", new Vector2(3.4f, 2.4f), Cyan, 180, "공중에 둘 이상이면 천천히 떨어진다 (2개 -30%, 3개 -45%, 4개+ -55%)", g => Can.JuggleFall = new[] { 1f, 0.7f, 0.55f, 0.45f }),

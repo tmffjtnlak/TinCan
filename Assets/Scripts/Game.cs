@@ -35,7 +35,13 @@ namespace TinCan
         public bool ClusterSpawn { get; set; } = false;
         public int SpawnCount { get; set; } = 1;
         public float BurstMult { get; set; } = 2f;
-        public int LandBounces { get; set; } = 0;        // 스킬 "다시 튐": 떨어진 깡통이 혼자 N번 다시 튀어오른다
+        public int LandBounces { get; set; } = 0;
+        public float LandBouncePower { get; set; } = 11f;   // 다시 튀는 세기 (스킬 "낮은 튐" 6.5 → "다시 튐" 11)
+        /// <summary>스킬 "둘이면 두 배" (10-14 초반 저글링 유도): 공중에 둘 이상 떠 있을 때 떨어짐·터뜨림 돈 ×N</summary>
+        public float JuggleScoreMult { get; set; } = 1f;
+        /// <summary>이 깡통까지 쳐서 지금 공중에 몇 개 (떨어지거나 터지는 순간 이미 빠졌을 수 있다)</summary>
+        int AirWith(Can can) { int n = Airborne; if (can.Done || !can.Airborne) n++; return n; }
+        long JugglePay(Can can, long pay, out bool doubled) { doubled = JuggleScoreMult > 1f && AirWith(can) >= 2; return doubled ? (long)Mathf.Round(pay * JuggleScoreMult) : pay; }        // 스킬 "다시 튐": 떨어진 깡통이 혼자 N번 다시 튀어오른다
         public float FloorSlow { get; set; } = 0f;       // 스킬 "바닥 근처 느려짐": 바닥 가까이에서 낙하 속도가 이만큼 줄어든다 (0.5 = 반)
 
         // ---------- 슬로우 (우클릭) ----------
@@ -91,7 +97,7 @@ namespace TinCan
         float lastSpawnX = float.NaN;
         int lastPage = 2;
 
-        void Awake() { I = this; Can.BounceBonus = 0f; Can.TimeScale = 1f; Can.JuggleFall = Can.NoJuggleFall; }   // 스킬로 바뀌는 정적 값은 씬마다 처음으로
+        void Awake() { I = this; Can.BounceBonus = 0f; Can.TimeScale = 1f; Can.JuggleFall = Can.NoJuggleFall; Can.AirFall = 1f; }   // 스킬로 바뀌는 정적 값은 씬마다 처음으로
 
         void Start()
         {
@@ -635,9 +641,9 @@ namespace TinCan
             if (can.Kind.NotScored) return;   // 계산 밖 물체: 떨어져도 정산 없음
             if (!can.Kind.NoCasings) SpillCasings(new Vector2(can.transform.position.x, Look.DropY + 0.4f), LandCasings, false, false);   // 떨어진 자리에 탄피를 조금 흘린다 (보조 깡통은 안 흘림)
             if (can.Cursed) { CurseLanded(can); return; }
-            long pay = LandPay(can.Kind);   // 소환비보다 조금 더
+            long pay = JugglePay(can, LandPay(can.Kind), out bool dbl);   // 소환비보다 조금 더
             SetPending += pay;
-            if (pay > 0) hud.Float($"+${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.8f, 2);
+            if (pay > 0) hud.Float(dbl ? $"+${pay:N0}  ×{JuggleScoreMult:0.#}" : $"+${pay:N0}", (Vector2)can.transform.position + Vector2.up * 0.8f, dbl ? 4 : 2);
             if (can.Kind.IsBounty) bounty.Escaped(can);
         }
 
@@ -675,11 +681,11 @@ namespace TinCan
         {
             if (can.Kind.NotScored) { StartCoroutine(HitStop(0.07f)); return; }   // 계산 밖 물체: 터져도 돈·터뜨림 수 없음 (폭발 자체는 Can.TraitBurst)
             if (!can.Kind.NoCasings) SpillCasings(can.transform.position, can.Kind.IsBounty ? BountyCasings : BurstCasings, true, can.Kind.IsBounty);   // 보조 깡통(다이너마이트)은 탄피 없음
-            long pay = BurstPay(can.Kind);
+            long pay = JugglePay(can, BurstPay(can.Kind), out bool dbl);
             SetPending += pay;
             AddSetBurst();   // 한 세트에 둘째부터 배율 +0.5
             Bursts++;
-            hud.Float($"터짐!  +${pay:N0}{MultTag()}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+            hud.Float($"터짐!  +${pay:N0}{(dbl ? "  둘 ×" + JuggleScoreMult.ToString("0.#") : "")}{MultTag()}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
             StartCoroutine(HitStop(can.Kind.IsBounty ? 0.18f : 0.07f));
             if (can.Kind.IsBounty) bounty.Busted(can);
             if (can.Kind.IsBounty && !Gun.Cinematic) Gun.StartChain(can.transform.position);   // 막타 연출이 아니었어도 공중 깡통들을 차례로 터뜨린다

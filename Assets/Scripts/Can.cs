@@ -125,7 +125,7 @@ namespace TinCan
             }
             // 저글링 낙하 완화: 떨어지는 동안만, 공중 수에 따라 중력을 줄인다 (다이너마이트는 계산 밖이라 제외)
             else if (Airborne && !held && !parked && !Kind.NotScored)
-                rb.gravityScale = Gravity * (rb.linearVelocity.y < 0f ? JuggleFallMul() : 1f);
+                rb.gravityScale = Gravity * (rb.linearVelocity.y < 0f ? JuggleFallMul() * AirFall : 1f);
             // 스킬 "바닥 근처 느려짐": 떨어지다 바닥 가까이 오면 속도가 반으로 (한 번만, 다시 맞으면 초기화)
             if (Airborne && !floorSlowed && Game.I != null && Game.I.FloorSlow > 0f && rb.linearVelocity.y < 0f && transform.position.y < Look.DropY + 1.6f)
             {
@@ -547,7 +547,9 @@ namespace TinCan
         /// </summary>
         // 시간은 중력의 제곱근으로 늘어서 0.8/0.7/0.6은 거의 안 느껴졌다 (셋: 체공 0.96 → 1.04초) → 더 내림
         public static readonly float[] NoJuggleFall = { 1f, 1f, 1f, 1f };   // (먼저 선언: 정적 초기화는 적힌 순서대로)
-        public static float[] JuggleFall = NoJuggleFall;   // 10-14: 기본은 완화 없음. 스킬 "공중 곡예"가 { 1, 0.7, 0.55, 0.45 }로
+        public static float[] JuggleFall = NoJuggleFall;
+        /// <summary>스킬 "가벼운 낙하" (10-14 초반 저글링 유도): 내려올 때 중력 배수. 0.81 = 떨어지는 속도 -10%</summary>
+        public static float AirFall = 1f;   // 10-14: 기본은 완화 없음. 스킬 "공중 곡예"가 { 1, 0.7, 0.55, 0.45 }로
         static float JuggleFallMul()
         {
             int air = Game.I != null ? Game.I.Airborne : 1;
@@ -766,7 +768,7 @@ namespace TinCan
                 bouncesLeft--;
                 floorSlowed = false;
                 SyncScale();
-                var v = rb.linearVelocity; v.y = (11f + BounceBonus) * Scale; v.x *= 0.5f; rb.linearVelocity = v;
+                var v = rb.linearVelocity; v.y = ((Game.I != null ? Game.I.LandBouncePower : 11f) + BounceBonus) * Scale;   // 낮은 튐 6.5 / 다시 튐 11 v.x *= 0.5f; rb.linearVelocity = v;
                 transform.position = new Vector3(transform.position.x, Look.DropY + 0.5f, 0f);
                 flashLeft = 0.06f;
                 StartCoroutine(Squash());
