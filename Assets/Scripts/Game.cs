@@ -102,7 +102,7 @@ namespace TinCan
         /// <summary>지금 연쇄에서 터진 수, 마지막 펄스에 터진 깡통들의 가운데 (연출 카메라가 따라간다)</summary>
         public int CascadeCount { get; private set; }
         public Vector2 CascadeFocus { get; private set; }
-        const float PulseDelay = 0.16f;
+        const float PulseDelay = 0.16f, FastPulse = 0.08f;
         static bool DefileTarget(Can c) => c != null && !c.Done && !c.IsMenu && !c.Kind.IsBounty && !c.Kind.IsMinion;
 
         List<Can> DefileVictims(Vector2 origin, Can except)
@@ -138,7 +138,8 @@ namespace TinCan
             {
                 while (again)
                 {
-                    yield return new WaitForSeconds(PulseDelay);
+                    // 최고 기록 연출 중엔 첫 박자만 한 숨(시간이 풀릴 때까지) 쉬고 그다음부터 빠르게 몰아친다 (파바바바방)
+                    yield return new WaitForSeconds(Gun.Cinematic ? (pulse == 0 ? 0.2f : FastPulse) : PulseDelay);
                     var victims = DefileVictims(origin, first);
                     if (victims.Count == 0) break;
                     pulse++;

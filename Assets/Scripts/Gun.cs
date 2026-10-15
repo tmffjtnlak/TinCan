@@ -368,12 +368,16 @@ namespace TinCan
                 StartCoroutine(Flash());
                 Sfx.Play(Sfx.Bang(), 1f, 0.35f);
                 // 탄피는 Game.CanBurst가 흘린다 (현상금은 금 탄피 48개, 바닥에 쌓였다가 세트 끝에 정산과 함께 흡수)
-                // 3-1) 모독: 연쇄가 이어지는 동안 느린 채로 카메라가 터지는 깡통들을 따라가며 조금씩 물러난다. 마지막 깡통쯤(예상 수 - 1)에 풀기 시작
+                // 3-1) 모독 (10-16 사용자: "우응--- 펑 - 파바바바바방"): 슬로우는 첫 터짐까지. 펑 하고 한 숨 머문 뒤 시간이 확 풀리고,
+                //      연쇄는 제 속도로 빠르게 몰아친다. 카메라는 터지는 깡통들을 따라가며 조금씩 물러나고, 마지막 깡통쯤(예상 수 - 1)에 풀기 시작
                 if (defile)
                 {
-                    SetTime(0.3f);
+                    for (float t = 0f; t < 0.15f; t += Time.unscaledDeltaTime) yield return null;
+                    float slow0 = Time.timeScale;
+                    for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.1f) { SetTime(Mathf.Lerp(slow0, 1f, Ease.OutQuad(t))); yield return null; }
+                    SetTime(1f);
                     var g = Game.I;
-                    for (float t = 0f; t < 6f && g != null && g.Cascading && g.CascadeCount < predicted - 1; t += Time.unscaledDeltaTime)
+                    for (float t = 0f; t < 4f && g != null && g.Cascading && g.CascadeCount < predicted - 1; t += Time.unscaledDeltaTime)
                     {
                         float s = Mathf.Lerp(size0 * FinisherZoom * 0.92f, size0 * 0.75f, Mathf.Clamp01(g.CascadeCount / (float)predicted));
                         var p = Vector2.Lerp(cam.transform.position, g.CascadeFocus, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 4f));
