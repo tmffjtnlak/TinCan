@@ -127,7 +127,14 @@ namespace TinCan
             }
             // 저글링 낙하 완화: 떨어지는 동안만, 공중 수에 따라 중력을 줄인다 (다이너마이트는 계산 밖이라 제외)
             else if (Airborne && !held && !parked && !Kind.NotScored)
-                rb.gravityScale = Gravity * (rb.linearVelocity.y < 0f ? JuggleFallMul() * AirFall : 1f);
+            {
+                float vy = rb.linearVelocity.y;
+                if (rising && vy <= 0f && ApexHang > 0f) hangLeft = ApexHang;   // 막 꼭대기
+                rising = vy > 0f;
+                float hang = 1f;
+                if (hangLeft > 0f) { hangLeft -= Time.fixedDeltaTime * Scale; hang = 0.25f; }
+                rb.gravityScale = Gravity * (vy < 0f ? JuggleFallMul() * AirFall : 1f) * hang;
+            }
             // 스킬 "바닥 근처 느려짐": 떨어지다 바닥 가까이 오면 속도가 반으로 (한 번만, 다시 맞으면 초기화)
             if (Airborne && !floorSlowed && Game.I != null && Game.I.FloorSlow > 0f && rb.linearVelocity.y < 0f && transform.position.y < Look.DropY + 1.6f)
             {
@@ -550,7 +557,10 @@ namespace TinCan
         /// </summary>
         // 시간은 중력의 제곱근으로 늘어서 0.8/0.7/0.6은 거의 안 느껴졌다 (셋: 체공 0.96 → 1.04초) → 더 내림
         public static readonly float[] NoJuggleFall = { 1f, 1f, 1f, 1f };   // (먼저 선언: 정적 초기화는 적힌 순서대로)
-        public static float[] JuggleFall = NoJuggleFall;
+        public static float[] JuggleFall = NoJuggleFall;   // (10-15부터 안 씀: 공중 곡예 → 꼭대기 체공)
+        /// <summary>스킬 "꼭대기 체공" (10-15): 올라가던 깡통이 꼭대기에 닿으면 이 초 동안 중력이 1/4 — 떠 있는 듯 머문다</summary>
+        public static float ApexHang = 0f;
+        float hangLeft; bool rising;
         /// <summary>스킬 "가벼운 낙하" (10-14 초반 저글링 유도): 내려올 때 중력 배수. 0.81 = 떨어지는 속도 -10%</summary>
         public static float AirFall = 1f;   // 10-14: 기본은 완화 없음. 스킬 "공중 곡예"가 { 1, 0.7, 0.55, 0.45 }로
         static float JuggleFallMul()
