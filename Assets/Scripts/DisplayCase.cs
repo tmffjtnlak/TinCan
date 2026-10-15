@@ -38,7 +38,7 @@ namespace TinCan
         // ---------- 벽 물러나기 (10-16 사용자: 가운데 벽에 물건이 차면 어수선, 옆으로 빼면 쏠림, 비우면 휑함 → 위치 대신 명암으로) ----------
         // 카운터 뒤 벽 전체에 어두운 막(위가 더 어둡게). 깡통이 떠 있는 동안(세트 중)은 짙게 = 무대 뒤로 물러나고, 쉬는 동안은 옅게 = 모은 것이 보인다.
         // 시험용: F12로 끔 → 고정 → 세트 따라 바뀜 순환
-        public static int WallDimMode = 2;   // 0 끔, 1 고정, 2 세트 따라
+        public static int WallDimMode = 0;   // 0 끔, 1 고정, 2 세트 따라 (10-16 사용자: "명암 빼고" → 기본 끔)
         SpriteRenderer wallDim; float dimK = 0.5f;
         void BuildWallDim()
         {
@@ -133,13 +133,21 @@ namespace TinCan
         // ---------- 벽 액자 (사용자 10-16: 사진처럼 "모인 물건 벽" — 현상금을 잡을 때마다 액자가 하나씩) ----------
         // 자리 = 480×270 그림 좌표(왼쪽 위 x, y)와 틀 종류. 가운데 큰 액자부터 둘레로, 간격은 모두 4픽셀 (정돈돼 보이게).
         // 돈판(7~93, 6~30)·현상수배 전단(22~98, 40~140)·탄(440~) 자리는 피하고, 아래 끝은 위 단 선반 물건 위(≤122)
-        static readonly (string art, int x, int y)[] WallSlots =
+        // 10-16 2판 (사용자: "명암 빼고 액자만 양옆으로"): 사격장 부스처럼 양옆 기둥 자리에 세로로 쌓는다. 가운데(깡통 무대)는 비운다.
+        // 오른쪽 열을 정하고 왼쪽은 거울로 (가운데 240 기준), 오른쪽 → 왼쪽 번갈아 걸어 좌우 수가 늘 비슷하다. 간격 4픽셀.
+        // 오른쪽 열 = 372~440 (탄 UI 440부터), 위 34부터 (돈판 아래), 아래 178까지 (카운터 위)
+        static readonly (string art, int x, int y, int w)[] RightColumn =
         {
-            ("frame_big", 185, 54), ("frame_mid", 300, 54), ("frame_small", 138, 54), ("frame_tall", 359, 54),
-            ("frame_small", 185, 23), ("frame_mid", 232, 13), ("frame_tall", 160, 85), ("frame_small", 300, 95),
-            ("frame_tall", 291, 21), ("frame_mid", 316, 13), ("frame_small", 375, 23), ("frame_tall", 113, 54),
+            ("frame_mid", 372, 34, 55), ("frame_tall", 372, 75, 21), ("frame_small", 397, 75, 43),
+            ("frame_small", 372, 108, 43), ("frame_tall", 419, 108, 21), ("frame_mid", 372, 141, 55),
         };
-        readonly HashSet<int> hung = new HashSet<int>();
+        static readonly (string art, int x, int y)[] WallSlots = BuildSides();
+        static (string, int, int)[] BuildSides()
+        {
+            var list = new System.Collections.Generic.List<(string, int, int)>();
+            foreach (var (art, x, y, w) in RightColumn) { list.Add((art, x, y)); list.Add((art, 480 - x - w, y)); }
+            return list.ToArray();
+        }        readonly HashSet<int> hung = new HashSet<int>();
 
         void HangFrame(int i)
         {
