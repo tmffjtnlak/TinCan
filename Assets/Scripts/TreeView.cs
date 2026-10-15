@@ -84,6 +84,7 @@ namespace TinCan
             bgFar.type = Image.Type.Tiled; bgFar.pixelsPerUnitMultiplier = Mult * 0.5f;   // 먼 건 두 배 크게
             bgNear = Img("BgNear", veil.transform, Vector2.zero, new Vector2(4400f, 3400f), "bg_tile", new Color(0.075f, 0.095f, 0.18f, 1f));
             bgNear.type = Image.Type.Tiled; bgNear.pixelsPerUnitMultiplier = Mult;
+            if (Mono) Gradient(veil.transform, new Color(0.17f, 0.26f, 0.45f, 0.6f), new Color(0.01f, 0.012f, 0.03f, 0.9f));   // 흑백: 위 파랑 → 아래 어둠
             world = Img("World", veil.transform, Vector2.zero, Vector2.zero, null, Color.clear).rectTransform;
             worldGroup = world.gameObject.AddComponent<CanvasGroup>();
 
@@ -144,6 +145,26 @@ namespace TinCan
             veil.gameObject.SetActive(false);
         }
 
+        // ---------- 흑백 (10-15 사용자: 컬러감을 흑백으로 — 순검정 말고 파랑에서 어둠으로, 노드는 흰색) ----------
+        public static bool Mono = true;
+        static readonly Color MonoNode = new Color(0.92f, 0.94f, 1f);
+        /// <summary>노드 색: 흑백이면 모두 흰색 (계열 구분은 아이콘 모양으로). 계열 판정(Family)은 원래 색 그대로 쓴다</summary>
+        static Color C(SkillNode n) => Mono ? MonoNode : n.Color;
+
+        /// <summary>세로 그라데이션 (위 파랑 → 아래 어둠). 1×64 텍스처를 화면 크기로 늘린다</summary>
+        Image Gradient(Transform parent, Color top, Color bottom)
+        {
+            var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < 64; y++) tex.SetPixel(0, y, Color.Lerp(bottom, top, y / 63f));
+            tex.Apply();
+            var img = new GameObject("Gradient", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            img.transform.SetParent(parent, false);
+            img.sprite = Sprite.Create(tex, new Rect(0, 0, 1, 64), new Vector2(0.5f, 0.5f));
+            img.rectTransform.sizeDelta = new Vector2(4400f, 3400f);
+            img.raycastTarget = false;
+            return img;
+        }
+
         NodeView MakeNode(SkillNode n)
         {
             var v = new NodeView { Node = n };
@@ -153,7 +174,7 @@ namespace TinCan
             v.Group = root.gameObject.AddComponent<CanvasGroup>();
             v.Fill = Img("Fill", root.transform, Vector2.zero, Vector2.one * size, "node_fill", new Color(0.08f, 0.1f, 0.2f));
             v.Bevel = Img("Bevel", root.transform, Vector2.zero, Vector2.one * size, "node_bevel", new Color(1f, 1f, 1f, 0.12f));
-            v.Frame = Img("Frame", root.transform, Vector2.zero, Vector2.one * size, "node_frame", n.Color);
+            v.Frame = Img("Frame", root.transform, Vector2.zero, Vector2.one * size, "node_frame", C(n));
             // 아이콘: 노드별 그림(icon_{id}) → 없으면 계열 그림 → 그것도 없으면 글자
             string iconName = TreeArt.Has("icon_" + n.Id) ? "icon_" + n.Id : "icon_" + Family(n);
             if (TreeArt.Has(iconName)) v.Icon = Img("Icon", root.transform, Vector2.zero, Vector2.one * IconPx * Px, iconName, Color.white);
@@ -273,8 +294,9 @@ namespace TinCan
                 v.Flash = Mathf.Max(0f, v.Flash - dt / 0.22f);          // 흰 네모: 4프레임 꽉 찬 흰색 → 3프레임 사라짐
                 v.Wake = Mathf.Max(0f, v.Wake - dt / 0.3f);
                 v.LvPop = Mathf.Max(0f, v.LvPop - dt / 0.25f);
-                var frame = owned ? n.Color : (avail ? Color.Lerp(n.Color, Color.white, 0.25f) : new Color(n.Color.r, n.Color.g, n.Color.b, 0.3f));
-                var fill = n.Maxed ? Color.Lerp(n.Color, Color.black, 0.45f) : (owned ? Color.Lerp(n.Color, new Color(0.08f, 0.1f, 0.2f), 0.7f) : new Color(0.08f, 0.1f, 0.2f));
+                var nc = C(n);
+                var frame = owned ? nc : (avail ? Color.Lerp(nc, Color.white, 0.25f) : new Color(nc.r, nc.g, nc.b, 0.3f));
+                var fill = n.Maxed ? Color.Lerp(nc, Color.black, 0.45f) : (owned ? Color.Lerp(nc, new Color(0.08f, 0.1f, 0.2f), 0.7f) : new Color(0.08f, 0.1f, 0.2f));
                 // 꽉 찬 흰색(0.4 위) → 섞이며 돌아옴(0.4 아래). 드러날 땐 1.6에서 시작해 더 오래 희다
                 float wf = v.Flash > 0.4f ? 1f : v.Flash / 0.4f;
                 bool white = v.Flash > 0.4f;
@@ -526,7 +548,7 @@ namespace TinCan
             var pick = pool[Random.Range(0, pool.Count)];
             var at = pick.Root.anchoredPosition + new Vector2(Random.Range(-1f, 1f), Random.Range(-0.6f, 0.6f)) * NodePx * Px * 0.9f;
             bool plus = Random.value < 0.3f;
-            var dot = Img(plus ? "Plus" : "Dot", world, at, Vector2.one * (plus ? 5f : 2f) * Px, plus ? "fx_spark" : "fx_dot", Color.Lerp(pick.Node.Color, Color.white, 0.3f));
+            var dot = Img(plus ? "Plus" : "Dot", world, at, Vector2.one * (plus ? 5f : 2f) * Px, plus ? "fx_spark" : "fx_dot", Color.Lerp(C(pick.Node), Color.white, 0.3f));
             dot.transform.SetSiblingIndex(pick.Root.GetSiblingIndex());
             StartCoroutine(DotCo(dot));
         }
@@ -742,7 +764,7 @@ namespace TinCan
             v.Rot = (Random.value < 0.5f ? -1f : 1f) * Random.Range(14f, 20f); v.RotV = 0f;   // 회전 킥
             Fx.Shake(0.08f);
             StartCoroutine(Rebound(v));
-            StartCoroutine(RingCo(Img("Ring", v.Root.parent, v.Root.anchoredPosition, Vector2.one * 16f * Px, "fx_ring", n.Color), 0.5f));
+            StartCoroutine(RingCo(Img("Ring", v.Root.parent, v.Root.anchoredPosition, Vector2.one * 16f * Px, "fx_ring", C(n)), 0.5f));
             for (int i = 0; i < 6; i++) StartCoroutine(ShardCo(v, i * 60f + Random.Range(-15f, 15f)));
             StartCoroutine(Puff(v));          // 흰 구름 → 점가루 → 반짝이
             StartCoroutine(Twinkle(v));
@@ -754,7 +776,7 @@ namespace TinCan
                 var ov = views[otherId];
                 bool reveal = !before.Contains(otherId) && ShouldShow(byId[otherId]);
                 if (reveal) ov.Visible = true;   // 선은 Refresh에서 켜진다
-                StartCoroutine(PulseAlong(n.Pos * Spacing, byId[otherId].Pos * Spacing, n.Color, reveal ? ov : null));
+                StartCoroutine(PulseAlong(n.Pos * Spacing, byId[otherId].Pos * Spacing, C(n), reveal ? ov : null));
             }
             // 새로 생긴 미리보기(두 칸 건너)는 펄스가 지나간 뒤 반투명으로 살며시 나타난다
             foreach (var o in nodes)
@@ -868,7 +890,7 @@ namespace TinCan
         /// <summary>점가루: 색색 점이 빽빽하게 터져 0.25초 안에 노드 두세 개 반경까지, 그 뒤 성긴 몇 개만 남아 떠다닌다</summary>
         void Confetti(NodeView v, int count)
         {
-            var c = v.Node.Color;
+            var c = C(v.Node);
             var palette = new[] { c, c, Color.white, Color.Lerp(c, Color.white, 0.5f), SkillTree.Green, new Color(1f, 0.5f, 0.8f), SkillTree.Cyan, SkillTree.Yellow };
             for (int i = 0; i < count; i++)
             {
@@ -987,7 +1009,7 @@ namespace TinCan
             for (int i = 0; i < 4; i++)
             {
                 float ang = i * 90f * Mathf.Deg2Rad;
-                var d = Img("CornerDot", v.Root.parent, v.Root.anchoredPosition + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * NodePx * Px * 0.55f, Vector2.one * 3f * Px, "fx_dot", v.Node.Color);
+                var d = Img("CornerDot", v.Root.parent, v.Root.anchoredPosition + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * NodePx * Px * 0.55f, Vector2.one * 3f * Px, "fx_dot", C(v.Node));
                 dots.Add(d);
             }
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.4f)
