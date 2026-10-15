@@ -137,7 +137,7 @@ namespace TinCan
 
         void Place(Item it, Sprite art, Color fallback)
         {
-            if (it.Kind != null) art = NoOutline(art);   // 깡통만 테두리 제거 (콧수염·권총 장신구는 몸이 거의 외곽선 색이라 지우면 사라진다)
+            // 테두리 제거(NoOutline)는 10-15 사용자가 보류 — "나중에 따로 말해 줄게". 지금은 원본 그대로
             placed.Add(it.Key);
             var sr = Look.Quad("Item_" + it.Key, it.Pos, Vector2.one, fallback, Order, transform);
             if (art != null) { sr.sprite = art; sr.color = Color.white; sr.transform.localScale = Vector3.one; }
