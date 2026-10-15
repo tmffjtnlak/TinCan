@@ -20,6 +20,9 @@ namespace TinCan
         public bool Key;
         /// <summary>핵심 노드 (10-14): 플레이가 달라지는 것. 크게 그린다. 아니면 수치 노드</summary>
         public bool Core;
+        /// <summary>첫 현상금이 끝나야 살 수 있다 (10-15: 깡통 종류 갈래). 그전엔 반투명 미리보기로만</summary>
+        public bool AfterBounty;
+        public bool Locked => AfterBounty && Game.I != null && !Game.I.FirstBountyDone;
         public bool Maxed => Level >= MaxLevel;
         public long NextCost => Cost(Level);
     }
@@ -37,6 +40,7 @@ namespace TinCan
         public static readonly Color Green = new Color(0.4f, 1f, 0.5f);
         public static readonly Color Purple = new Color(0.75f, 0.55f, 1f);
         public static readonly Color White = new Color(0.9f, 0.9f, 0.95f);
+        public static readonly Color Orange = new Color(1f, 0.58f, 0.25f);   // 깡통 종류 (10-15)
 
         static SkillNode N(string id, string name, string glyph, Vector2 pos, Color color, long cost, string desc, Action<Game> apply, params string[] links)
             => new SkillNode { Id = id, Name = name, Glyph = glyph, Pos = pos, Color = color, Cost = l => cost, Desc = l => desc, Apply = (g, l) => apply(g), Links = links };
@@ -78,6 +82,12 @@ namespace TinCan
             // 10-14 3판 (사용자: "수치 스킬과 핵심 스킬을 구분"): 갈래마다 수치(작은 노드) 몇 개 → 핵심(큰 노드, 플레이가 달라짐).
             // 꾹 눌러 해방하는 핵심 노드(Key)는 미사용 (사용자 10-14). 시작 노드는 클릭 한 번으로 연다.
             Put("root", 0, 0);
+            // 왼쪽 위 대각선 — 깡통 종류 (주황, 10-15: 첫 현상금 뒤에 열린다)
+            Put("can_bottle", -1, 1, (0, 0));           // 핵심
+            Put("can_bottle2", -2, 2, (-1, 1));
+            Put("can_bundle", -3, 3, (-2, 2));          // 핵심
+            Put("can_blue", -4, 4, (-3, 3));            // 핵심
+            Put("can_magnet", -5, 5, (-4, 4));          // 핵심
             // 위 — 저글링 (하늘)
             // 10-15 사용자: 저글링은 처음부터 주어지는 게 아니라 얻는 것. 선반 1칸으로 시작 → "넓은 선반"(2칸)이 첫 저글링
             Put("airslow1", 0, 1, (0, 0));
@@ -206,6 +216,7 @@ namespace TinCan
         }
 
         /// <summary>핵심 노드 (10-14 사용자: 플레이가 달라지는 것). 크게 그린다. 수치 노드(N)는 숫자만 오른다</summary>
+        static SkillNode Gate(SkillNode n) { n.AfterBounty = true; var d = n.Desc; n.Desc = l => (n.Locked ? "[첫 현상금을 끝내면 열린다]  " : "") + d(l); return n; }
         static SkillNode C(string id, string name, string glyph, Color color, long cost, string desc, Action<Game> apply)
         { var n = N(id, name, glyph, Vector2.zero, color, cost, desc, apply); n.Core = true; return n; }
 
@@ -254,6 +265,13 @@ namespace TinCan
             N("value2", "더 비싼 깡통", "값", Vector2.zero, Yellow, 210, "깡통 값 +30% 더", g => g.ValueMult += 0.3f),
             N("perfect2", "퍼펙트 배율 2", "퍼", Vector2.zero, Yellow, 540, "퍼펙트 ×1.2 → ×1.3", g => g.PerfectMult += 0.1f),
             N("value3", "아주 비싼 깡통", "값", Vector2.zero, Yellow, 900, "깡통 값 +50% 더", g => g.ValueMult += 0.5f),
+
+            // 깡통 종류 (주황) — 10-15 사용자: 첫 현상금 뒤 새 깡통을 여는 타이밍. 그전엔 잠긴 미리보기
+            Gate(C("can_bottle", "병", "병", Orange, 200, "깡통 소환에 병이 섞인다 (15%). 작고 무겁고, 값 3배", g => g.BottleChance += 0.15f)),
+            Gate(N("can_bottle2", "병 더", "병", Vector2.zero, Orange, 300, "병이 더 자주 (+10%)", g => g.BottleChance += 0.1f)),
+            Gate(C("can_bundle", "묶음 깡통", "묶", Orange, 500, "깡통 셋 묶음이 섞인다 (8%). 터지면 셋으로 풀린다", g => g.BundleChance = 0.08f)),
+            Gate(C("can_blue", "파란 깡통", "파", Orange, 700, "파란 깡통이 섞인다 (8%). 터지면 반투명 깡통이 날아오른다", g => g.BlueChance = 0.08f)),
+            Gate(C("can_magnet", "자석 깡통", "자", Orange, 900, "자석 깡통이 섞인다 (8%). 맞을 때마다 옆 깡통을 끌어당긴다", g => g.MagnetChance = 0.08f)),
 
             // 다이너마이트 (10-14 사용자: 공격 수단. 기본 0% → 이 스킬로 쏠 때 1% 투척)
             C("dynamite", "다이너마이트", "폭", Red, 360, "쏠 때 1% 확률로 화면 아래에서 다이너마이트가 날아온다. 3발 맞히면 크게 터진다", g => Can.DynamiteChance = 0.01f),

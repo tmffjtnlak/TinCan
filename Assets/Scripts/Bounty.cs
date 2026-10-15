@@ -86,7 +86,8 @@ namespace TinCan
         public void Tick()
         {
             if (busy || Game.I == null || Game.I.State != GameState.Play) return;
-            if (nextAt == 0) nextAt = Mathf.Max(FirstAt, Game.I.Bursts + EveryBursts);   // 새 게임은 FirstAt, 이어 하기는 지금부터 한 간격 뒤
+            if (!Game.I.FirstBountyDone) return;   // 10-15: 첫 현상금은 우클릭 배우기 끝에 Game이 부른다
+            if (nextAt == 0) nextAt = Game.I.Bursts + EveryBursts;   // 새 게임은 FirstAt, 이어 하기는 지금부터 한 간격 뒤
             if (Game.I.Bursts >= nextAt && !Game.I.SetActive && !Game.I.Settling && Game.I.Airborne == 0) Summon();   // 10-14 사용자: 조건이 차도 세트가 끝난 뒤에 (저글링 도중에 끼어들지 않게)
         }
 

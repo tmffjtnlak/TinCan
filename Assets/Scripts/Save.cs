@@ -14,7 +14,7 @@ namespace TinCan
         {
             public long money;
             public int tokens;
-            public int bartenderShots; public bool seenFirstBurst, firstBountyDone, treeNudged;
+            public int bartenderShots; public bool seenFirstBurst, firstBountyDone, treeNudged, slowUnlocked;
             public int bursts, bestCombo;
             public long bestPayout;
             public List<string> nodeIds = new List<string>();
@@ -30,7 +30,7 @@ namespace TinCan
 
         public static void Write(Game g)
         {
-            var d = new Data { money = g.Money, tokens = g.Tokens, bartenderShots = g.BartenderShots, seenFirstBurst = g.SeenFirstBurst, firstBountyDone = g.FirstBountyDone, treeNudged = g.TreeNudged, bursts = g.Bursts, bestCombo = g.BestCombo, bestPayout = g.BestPayout, gun = g.Primary.Id, spawn = g.SpawnKind.Id, secondary = g.Secondary != null ? g.Secondary.Id : "", volume = AudioListener.volume };
+            var d = new Data { money = g.Money, tokens = g.Tokens, bartenderShots = g.BartenderShots, seenFirstBurst = g.SeenFirstBurst, firstBountyDone = g.FirstBountyDone, treeNudged = g.TreeNudged, slowUnlocked = g.SlowUnlocked, bursts = g.Bursts, bestCombo = g.BestCombo, bestPayout = g.BestPayout, gun = g.Primary.Id, spawn = g.SpawnKind.Id, secondary = g.Secondary != null ? g.Secondary.Id : "", volume = AudioListener.volume };
             foreach (var n in g.Nodes) { d.nodeIds.Add(n.Id); d.nodeLevels.Add(n.Level); }
             d.ownedGuns.AddRange(g.OwnedGuns); d.ownedCans.AddRange(g.OwnedCans);
             PlayerPrefs.SetString(Key, JsonUtility.ToJson(d));

@@ -86,10 +86,10 @@ namespace TinCan
         public void SetButtonsVisible(bool v) { foreach (var b in btn) if (b != null) b.gameObject.SetActive(v); }
 
         /// <summary>첫 흐름 단계 (10-14): 소환 전엔 스킬트리 버튼만, 소환을 열면 돈·숨 게이지, 증표가 생기면 총 상점. 새로 나타나는 버튼은 톡 튀어나온다</summary>
-        public void SetStage(bool summon, bool shop)
+        public void SetStage(bool summon, bool shop, bool slow)
         {
             moneyBoard.gameObject.SetActive(summon);
-            slowBg.gameObject.SetActive(summon); slowLabel.gameObject.SetActive(summon);
+            slowBg.gameObject.SetActive(slow); slowLabel.gameObject.SetActive(slow);   // 우클릭 게이지는 배운 뒤에 (10-15)
             ShowButton(0, true); ShowButton(1, shop);
         }
         void ShowButton(int i, bool v)
@@ -153,6 +153,7 @@ namespace TinCan
                 prompt = Ui.Text("SpawnPrompt", canvas, new Vector2(0f, -330f), new Vector2(1000f, 60f), 36, TextAnchor.MiddleCenter, Ui.Gold);
                 prompt.text = "Space를 눌러 깡통 소환";
             }
+            if (introText != null && introText.gameObject.activeSelf) on = false;   // 다른 안내 글자가 떠 있으면 같은 자리라 양보
             promptA = Mathf.MoveTowards(promptA, on ? 1f : 0f, dt / (on ? 0.5f : 0.35f));
             float e = promptA * promptA * (3f - 2f * promptA);
             var c = prompt.color; c.a = e; prompt.color = c;

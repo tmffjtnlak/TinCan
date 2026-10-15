@@ -72,11 +72,12 @@ namespace TinCan
         /// </summary>
         void UpdateSlow(Keyboard kb)
         {
+            if (!SlowUnlocked) { Can.TimeScale = 1f; return; }   // 10-15: 우클릭은 첫 현상금 직전에 주인이 알려 준다
             var mouse = Mouse.current;
             bool held = mouse != null && mouse.rightButton.isPressed;
             if (!SlowActive && SlowReady && mouse != null && mouse.rightButton.wasPressedThisFrame)
             {
-                SlowActive = true; Sfx.Play(Sfx.Whoosh(), 0.5f, 0.6f);
+                SlowActive = true; SlowUses++; Sfx.Play(Sfx.Whoosh(), 0.5f, 0.6f);
             }
             if (SlowActive)
             {
@@ -86,7 +87,11 @@ namespace TinCan
             Can.TimeScale = SlowActive ? SlowStrength : 1f;
         }
 
-        public void FillSlow() { if (SlowActive) return; SlowGauge = Mathf.Min(SlowGaugeMax, SlowGauge + SlowFillPerHit); }
+        /// <summary>우클릭 능력을 배웠나 (10-15: 단조로워지는 3분쯤 주인이 알려 주고, 바로 첫 현상금)</summary>
+        public bool SlowUnlocked { get; set; }
+        /// <summary>우클릭을 켠 횟수 (이번 판). 배우기는 이게 오를 때까지 기다린다</summary>
+        public int SlowUses { get; set; }
+        public void FillSlow() { if (SlowActive || !SlowUnlocked) return; SlowGauge = Mathf.Min(SlowGaugeMax, SlowGauge + SlowFillPerHit); }
         public Gun Gun { get; private set; }
         public List<Can> Cans { get; } = new List<Can>();
         public List<SkillNode> Nodes { get; private set; }
@@ -324,7 +329,7 @@ namespace TinCan
         {
             var d = Save.Read(); if (d == null) return;
             Money = d.money; Bursts = d.bursts; BestCombo = d.bestCombo; BestPayout = d.bestPayout;
-            Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst; FirstBountyDone = d.firstBountyDone; TreeNudged = d.treeNudged;
+            Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst; FirstBountyDone = d.firstBountyDone; TreeNudged = d.treeNudged; SlowUnlocked = d.slowUnlocked || d.firstBountyDone;   // 옛 저장: 현상금을 이미 봤으면 우클릭도 연 것으로
             OwnedGuns.Clear(); OwnedGuns.UnionWith(d.ownedGuns); OwnedGuns.Add("rusty");
             OwnedCans.Clear(); OwnedCans.UnionWith(d.ownedCans); OwnedCans.Add("tin");
             for (int i = 0; i < d.nodeIds.Count && i < d.nodeLevels.Count; i++)
@@ -403,7 +408,7 @@ namespace TinCan
         {
             foreach (var n in Nodes)
             {
-                if (n.Maxed || n.NextCost > Money) continue;
+                if (n.Maxed || n.NextCost > Money || n.Locked) continue;
                 if (n.Root) return true;
                 foreach (var o in nodeNbr[n.Id]) if (nodeById.TryGetValue(o, out var m) && m.Level >= 1) return true;
             }
@@ -413,13 +418,38 @@ namespace TinCan
         public bool SummonUnlocked => rootNode == null || rootNode.Level >= 1;
         /// <summary>총 상점 버튼: 증표가 생기거나 총이 둘 이상일 때부터</summary>
         public bool ShopUnlocked => Tokens > 0 || OwnedGuns.Count > 1;
-        const float SpawnPromptDelay = 8f;   // 소환을 열고 이만큼 안 부르면 "Space" 안내 (사용자: 10초 안에)
+        const float SpawnPromptDelay = 8f;
+        const int SlowLessonAt = 24;
+        bool slowLesson;
+        /// <summary>
+        /// 우클릭 배우기 (10-15): 주인이 올라와 "숨 한번 참아 봐" → 게이지를 가득 채워 주고 "우클릭을 누르고 있으면 느려진다" →
+        /// 한 번 써 보면 글자가 사라지고 "그 숨이면 저 녀석도 잡지" → 첫 현상금 등장
+        /// </summary>
+        IEnumerator SlowLesson()
+        {
+            slowLesson = true;
+            var bt = Bartender.I;
+            if (bt != null) { yield return bt.RiseCo(); yield return bt.Say("숨 한번 참아 봐. 오른쪽을 꾹 누르면 돼.", 0.8f); bt.Sink(); }
+            SlowUnlocked = true; SlowGauge = SlowGaugeMax; uiStage = -1;   // 게이지가 가득 찬 채로 나타난다
+            Sfx.Play(Sfx.Whoosh(), 0.5f, 1.2f);
+            float a = 0f; int uses0 = SlowUses;
+            while (SlowUses == uses0) { a = Mathf.MoveTowards(a, 1f, Time.unscaledDeltaTime / 0.5f); hud.IntroText("우클릭을 누르고 있으면 느려진다", a); yield return null; }
+            for (; a > 0f; a -= Time.unscaledDeltaTime / 0.3f) { hud.IntroText("우클릭을 누르고 있으면 느려진다", a); yield return null; }
+            hud.IntroText("", 0f);
+            while (SlowActive) yield return null;
+            while (SetActive || Settling || Airborne > 0 || MenuOpen) yield return null;
+            if (bt != null) { yield return bt.RiseCo(); yield return bt.Say("좋아. 그 숨이면 저 녀석도 잡을 수 있지.", 0.8f); bt.Sink(); }
+            bounty.Summon();   // 첫 현상금 (체력 8)
+        }   // 소환을 열고 이만큼 안 부르면 "Space" 안내 (사용자: 10초 안에)
         bool uiReady, spawnedOnce; int uiStage = -1; float summonIdle;
         void UpdateStageUi()
         {
             if (!uiReady) return;
-            int stage = (SummonUnlocked ? 1 : 0) + (ShopUnlocked ? 2 : 0);
-            if (stage != uiStage && !MenuOpen) { uiStage = stage; hud.SetStage(SummonUnlocked, ShopUnlocked); }
+            int stage = (SummonUnlocked ? 1 : 0) + (ShopUnlocked ? 2 : 0) + (SlowUnlocked ? 4 : 0);
+            if (stage != uiStage && !MenuOpen) { uiStage = stage; hud.SetStage(SummonUnlocked, ShopUnlocked, SlowUnlocked); }
+            // 우클릭 배우기: 같은 흐름이 3분쯤 이어진 때(터뜨림 24) 화면이 조용하면 (10-15 사용자: 여기서 한 번 변주 → 바로 첫 현상금)
+            if (SummonUnlocked && !SlowUnlocked && !slowLesson && Bursts >= SlowLessonAt && !MenuOpen && !SetActive && !Settling && Airborne == 0 && !IntroRunning)
+                StartCoroutine(SlowLesson());
             bool canBuy = AnyAffordable();
             // 살 수 있는데 한참 안 열면 주인이 한 번 권한다 (10-15: 현상금 전엔 스킬트리로 유도)
             if (SummonUnlocked && !TreeNudged && canBuy && !MenuOpen && !SetActive && Airborne == 0) { treeWait += Time.unscaledDeltaTime; if (treeWait > 6f) { TreeNudged = true; Bartender.I?.SayNow("돈이 좀 모였군. 저기 스킬트리 한번 봐 둬."); } }
@@ -534,7 +564,9 @@ namespace TinCan
         /// <summary>돈을 내고 선반에 깡통. 짝 소환이면 여러 개, 붙여 놓기면 마지막 깡통 옆에. 공중에 깡통이 있으면 잠긴다 (세트 중)</summary>
         public float BottleChance { get; set; } = 0f;   // 10-14 사용자: 소환은 일단 기본 깡통만 (전 20%). 트리로 열 자리
         /// <summary>특성 깡통 각각의 확률 (사용자 10-14: 묶음·파랑·자석. 다이너마이트는 쏠 때 1% 투척). 설정·해금은 아직 없음</summary>
-        public float TraitChance { get; set; } = 0f;    // 10-14: 일단 0 (전 6%씩)
+        public float BundleChance { get; set; }   // 10-15: 종류별로, 첫 현상금 뒤 스킬트리 "깡통" 갈래에서 연다
+        public float BlueChance { get; set; }
+        public float MagnetChance { get; set; }
 
         /// <summary>깡통 소환 한 번에 나올 종류: 병 20%, 특성 깡통 각 6%, 나머지 깡통</summary>
         CanKind RollKind()
@@ -542,8 +574,10 @@ namespace TinCan
             float r = Random.value;
             if (r < BottleChance) return CanKind.Bottle;
             r -= BottleChance;
-            var traits = new[] { CanKind.Bundle, CanKind.Blue, CanKind.Magnet };   // 다이너마이트는 소환이 아니라 쏠 때 1% 투척 (Gun.Fire)
-            foreach (var t in traits) { if (r < TraitChance) return t; r -= TraitChance; }
+            // 다이너마이트는 소환이 아니라 쏠 때 1% 투척 (Gun.Fire)
+            if (r < BundleChance) return CanKind.Bundle; r -= BundleChance;
+            if (r < BlueChance) return CanKind.Blue; r -= BlueChance;
+            if (r < MagnetChance) return CanKind.Magnet;
             return CanKind.Tin;
         }
 
