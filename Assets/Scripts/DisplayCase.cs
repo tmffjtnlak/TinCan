@@ -89,8 +89,57 @@ namespace TinCan
                 var t = Trophies[i % Trophies.Length];
                 Place(new Item { Key = key, Name = $"{i + 1}번째 현상금의 {t.name}", Desc = "잡은 무법자에게서 거둔 장신구. 그 영혼은 주인이 보관한다.", Pos = new Vector2(0f, TrophyShelfY) }, GunView.LoadArt(t.art), new Color(0.6f, 0.4f, 0.25f));
             }
+            for (int i = 0; i < game.BountiesCaught && i < WallSlots.Length; i++)
+                if (!hung.Contains(i)) HangFrame(i);
             loaded = true;
             if (viewing) ViewInput();
+        }
+
+        // ---------- 벽 액자 (사용자 10-16: 사진처럼 "모인 물건 벽" — 현상금을 잡을 때마다 액자가 하나씩) ----------
+        // 자리 = 480×270 그림 좌표(왼쪽 위 x, y)와 틀 종류. 가운데 큰 액자부터 둘레로, 간격은 모두 4픽셀 (정돈돼 보이게).
+        // 돈판(7~93, 6~30)·현상수배 전단(22~98, 40~140)·탄(440~) 자리는 피하고, 아래 끝은 위 단 선반 물건 위(≤122)
+        static readonly (string art, int x, int y)[] WallSlots =
+        {
+            ("frame_big", 185, 54), ("frame_mid", 300, 54), ("frame_small", 138, 54), ("frame_tall", 359, 54),
+            ("frame_small", 185, 23), ("frame_mid", 232, 13), ("frame_tall", 160, 85), ("frame_small", 300, 95),
+            ("frame_tall", 291, 21), ("frame_mid", 316, 13), ("frame_small", 375, 23), ("frame_tall", 113, 54),
+        };
+        readonly HashSet<int> hung = new HashSet<int>();
+
+        void HangFrame(int i)
+        {
+            hung.Add(i);
+            var (artName, px, py) = WallSlots[i];
+            var art = GunView.LoadArt(artName);
+            float w = art != null ? art.rect.width : 30f, h = art != null ? art.rect.height : 24f;
+            var pos = new Vector2((px + w * 0.5f - 240f) * D, (135f - (py + h * 0.5f)) * D);
+            var sr = Look.Quad("Frame" + i, pos, Vector2.one, new Color(0.45f, 0.3f, 0.2f), Order, transform);
+            if (art != null) { sr.sprite = art; sr.color = Color.white; sr.transform.localScale = Vector3.one; }
+            else sr.transform.localScale = new Vector3(w * D, h * D, 1f);
+            sr.transform.localPosition = new Vector3(pos.x, pos.y, 0.01f);   // 선반 물건보다 뒤
+            if (loaded) StartCoroutine(HangCo(sr.transform));
+        }
+
+        /// <summary>걸리는 연출: 위에서 톡 내려와 못에 걸리고 좌우로 몇 번 흔들리다 선다</summary>
+        IEnumerator HangCo(Transform t)
+        {
+            var home = t.localPosition;
+            float rot = Random.value < 0.5f ? -14f : 14f, rv = 0f;
+            Sfx.Play(Sfx.Click(), 0.5f, 0.9f);
+            for (float k = 0f; k < 1f; k += Time.unscaledDeltaTime / 0.18f)
+            {
+                t.localPosition = home + Vector3.up * (1f - Ease.OutCubic(k)) * 0.4f;
+                yield return null;
+            }
+            t.localPosition = home;
+            Sfx.Play(Sfx.Tang(), 0.35f, 0.7f);
+            for (float k = 0f; k < 1.2f; k += Time.unscaledDeltaTime)
+            {
+                Ease.Spring(ref rot, ref rv, 0f, 220f, 6f, Time.unscaledDeltaTime);
+                t.localRotation = Quaternion.Euler(0f, 0f, Mathf.Round(rot / 3f) * 3f);   // 3도 단위로 끊어 도트처럼
+                yield return null;
+            }
+            t.localRotation = Quaternion.identity;
         }
 
         /// <summary>선반마다 놓인 순서대로, 물건 폭에 맞춰 나란히 가운데 정렬 (새 물건이 오면 다시 줄 세운다)</summary>
