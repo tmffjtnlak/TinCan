@@ -505,14 +505,18 @@ namespace TinCan
             if (HitsLeft <= 0) { Burst(hitPoint); return earned; }
             Vector2 off = hitPoint - (Vector2)transform.position;
             float side = Mathf.Clamp(-off.x / Mathf.Max(0.01f, Kind.Width * 0.5f), -1f, 1f);
-            var v = Cascade(off, bounceScale);   // 10-15 캐스케이드: 정해진 포물선이 가운데를 가로지른다
+            var v = rb.linearVelocity / Scale;   // 느려진 시간 안에서 계산하고 다시 줄인다
+            // 기본 튐은 보수적으로 (리볼버 한 발 = 선반에서 화면 중간쯤). 총 배수·스킬로 위로 갈라진다. 천장은 안전망
+            v.y = (Mathf.Max(0f, v.y * 0.3f) + 7.2f + BounceBonus + Random.Range(-0.4f, 0.6f)) * bounceScale * Kind.Bounce;   // 현상금은 낮게 (Bounce 0.7)
+            v.y *= AltitudeFactor(transform.position.y);   // 높이 있을수록 한 발이 덜 띄운다 (천장에서 노는 것 방지, 중간 높이 저글링은 그대로)
+            v.x = v.x * 0.4f + side * 2.2f + Random.Range(-0.6f, 0.6f);
             // 천장 한계 (사용자 10-11): 화면 밖으로 나가면 연속이 끊기니, 꼭대기가 화면 위 끝 바로 아래가 되도록 자른다
             float top = Look.CeilingY - Kind.Height * 0.5f - transform.position.y;
             float g = -Physics2D.gravity.y * BaseGravity * Kind.Weight;
             float vmax = top > 0f ? Mathf.Sqrt(2f * g * top) : 0f;
             if (v.y > vmax) v.y = vmax;
             rb.linearVelocity = v * Scale;
-            rb.angularVelocity = (-Mathf.Sign(v.x) * Random.Range(300f, 520f)) * Scale * Kind.Spin;   // 날아가는 쪽으로 돈다 (현상금은 천천히)
+            rb.angularVelocity = (-side * Random.Range(400f, 800f) + Random.Range(-200f, 200f)) * Scale * Kind.Spin;   // 현상금은 천천히 돈다
             flashLeft = 0.06f;
             StopAllCoroutines(); StartCoroutine(Squash());
             // 저글링 감각 (사용자 10-14): 공중에 동시에 뜬 깡통 수(1·2·3·4+)로 소리·구름·불꽃·흔들림이 한 단계씩 커진다.
@@ -536,36 +540,6 @@ namespace TinCan
         /// </summary>
         // 시험 (꼭대기마다 계속 친 깡통의 꼭대기): 끔 0.9→4.4(천장) / 0.5·0.45 → 4.0 / 0·0.3 → 3.5에서 멈춤 (천장보다 1.2 아래). 중간(y≤1) 저글링은 90% 이상 그대로
         public static float AltitudeLow = 0f, AltitudeMin = 0.3f;
-
-        // ---------- 캐스케이드 (사용자 10-15: "궤적이 제각각이라 아쉽다 → 포물선이 이쁘게") ----------
-        // 맞으면 정해진 포물선: 꼭대기 높이(절대 y)와 떨어질 자리(가운데 건너편)가 정해져 있다.
-        // 둘을 띄우면 저글러처럼 가운데에서 X자로 엇갈린다. 조작감: 아래를 맞히면 높고 짧게, 위를 맞히면 낮고 길게
-        public static float ApexHigh = 1.6f, ApexLow = 0.2f;     // 꼭대기 높이 (아래 맞힘 / 위 맞힘), 화면 가운데 = 0
-        public static float MirrorShort = 0.55f, MirrorLong = 1.0f; // 건너편 어디로: 지금 x의 반대편 × 이 배수
-        public static float MinRise = 0.9f, MinTravel = 1.2f;    // 이미 높이 있어도 이만큼은 솟고, 옆으로 이만큼은 간다
-
-        /// <summary>정해진 포물선의 처음 속도 (느려지기 배수 빼고). off = 맞은 자리 - 깡통 중심</summary>
-        Vector2 Cascade(Vector2 off, float bounceScale)
-        {
-            float x = transform.position.x, y = transform.position.y;
-            float g = -Physics2D.gravity.y * BaseGravity * Kind.Weight;
-            // 세로: 맞은 높이 0(아래) … 1(위)
-            float t = Mathf.Clamp01((off.y / Mathf.Max(0.01f, Kind.Height * 0.5f) + 1f) * 0.5f);
-            float apex = Mathf.Lerp(ApexHigh, ApexLow, t);
-            apex += (bounceScale - 1f) * 2f + BounceBonus * 0.35f;     // 총(레버·단발)과 "가벼운 깡통"은 더 높이
-            float rise = Mathf.Max(apex - y, MinRise * AltitudeFactor(y)) * Kind.Bounce * Kind.Bounce;   // 현상금(Bounce 0.7)은 낮게
-            float vy = Mathf.Sqrt(2f * g * Mathf.Max(0.05f, rise));
-            // 가로: 가운데 건너편으로. 가운데 가까우면 맞은 쪽 반대로 최소 거리
-            float mirror = Mathf.Lerp(MirrorShort, MirrorLong, t);
-            float targetX = -x * mirror;
-            float dir = Mathf.Abs(x) > 0.15f ? -Mathf.Sign(x) : (off.x > 0f ? -1f : 1f);
-            if (Mathf.Abs(targetX - x) < MinTravel) targetX = x + dir * MinTravel;
-            float lim = Look.PlayHalfW - 0.8f;
-            targetX = Mathf.Clamp(targetX, -lim, lim);
-            float flight = 2f * vy / g;                                  // 같은 높이로 돌아오는 데 걸리는 시간
-            float vx = (targetX - x) / Mathf.Max(0.2f, flight) + Random.Range(-0.08f, 0.08f);
-            return new Vector2(vx, vy);
-        }
         static float AltitudeHigh => Look.CeilingY - 0.5f;
         public static float AltitudeFactor(float y)
         {
