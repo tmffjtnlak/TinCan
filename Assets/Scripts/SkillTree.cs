@@ -90,28 +90,32 @@ namespace TinCan
             Put("can_magnet", -5, 5, (-4, 4));          // 핵심
             // 위 — 저글링 (하늘)
             // 10-15 사용자: 저글링은 처음부터 주어지는 게 아니라 얻는 것. 선반 1칸으로 시작 → "넓은 선반"(2칸)이 첫 저글링
-            Put("airslow1", 0, 1, (0, 0));
-            Put("shelf1", 0, 2, (0, 1));                // 핵심: 처음으로 둘
-            Put("burst1", 0, 3, (0, 2));
-            Put("air2x", 0, 4, (0, 3));                 // 핵심
-            Put("airslow2", -1, 5, (0, 4));
-            Put("lowbounce", -1, 6, (-1, 5));           // 핵심
-            Put("bounce", -1, 7, (-1, 6));
-            Put("rebound", -1, 8, (-1, 7));             // 핵심
-            Put("burst2", 1, 5, (0, 4));
-            Put("popchain", 1, 6, (1, 5));              // 핵심: 파편 튀기기 (10-15 기본에서 옮김)
-            Put("juggle", 1, 7, (1, 6));                // 핵심
-            Put("burst3", 1, 8, (1, 7));
-            // 왼쪽 — 장전 (빨강)
-            Put("reload1", -1, 0, (0, 0));
-            Put("just1", -2, 0, (-1, 0));
-            Put("firstshot", -3, 0, (-2, 0));           // 핵심
-            Put("reload2", -4, 1, (-3, 0));
-            Put("lastshot", -5, 1, (-4, 1));            // 핵심
-            Put("reload3", -6, 1, (-5, 1));
-            Put("just2", -4, -1, (-3, 0));
-            Put("comboreload", -5, -1, (-4, -1));       // 핵심
-            Put("holster", -6, -1, (-5, -1));           // 핵심
+            // 10-15 2차 (사용자, Click the Button식): 초반은 "손 풀기" — 쏘는 간격·장전 줄이기를 번갈아 → 빨라졌으니 둘이 된다 = 넓은 선반
+            Put("quick1", 0, 1, (0, 0));
+            Put("reload1", 0, 2, (0, 1));
+            Put("quick2", 0, 3, (0, 2));
+            Put("reload2", 0, 4, (0, 3));
+            Put("shelf1", 0, 5, (0, 4));                // 핵심: 처음으로 둘
+            Put("airslow1", 0, 6, (0, 5));
+            Put("burst1", 0, 7, (0, 6));
+            Put("air2x", 0, 8, (0, 7));                 // 핵심
+            Put("airslow2", -1, 9, (0, 8));
+            Put("lowbounce", -1, 10, (-1, 9));          // 핵심
+            Put("bounce", -1, 11, (-1, 10));
+            Put("rebound", -1, 12, (-1, 11));           // 핵심
+            Put("burst2", 1, 9, (0, 8));
+            Put("popchain", 1, 10, (1, 9));             // 핵심: 파편 튀기기
+            Put("juggle", 1, 11, (1, 10));              // 핵심
+            Put("burst3", 1, 12, (1, 11));
+            // 왼쪽 — 장전 응용 (빨강)
+            Put("just1", -1, 0, (0, 0));
+            Put("firstshot", -2, 0, (-1, 0));           // 핵심
+            Put("quick3", -3, 1, (-2, 0));
+            Put("lastshot", -4, 1, (-3, 1));            // 핵심
+            Put("reload3", -5, 1, (-4, 1));
+            Put("just2", -3, -1, (-2, 0));
+            Put("comboreload", -4, -1, (-3, -1));       // 핵심
+            Put("holster", -5, -1, (-4, -1));           // 핵심
             // 오른쪽 — 선반 (하늘)
             Put("perfect1", 1, 0, (0, 0));             // (단골 할인은 10-14 소환이 공짜가 되며 뺐다)
             Put("shelf2", 2, 0, (1, 0));                // 핵심: 셋
@@ -229,22 +233,26 @@ namespace TinCan
                 Cost = l => 0, Desc = l => "Space를 누르면 선반에 깡통이 나온다. 모든 것의 시작.", Apply = (g, l) => { } },
 
             // 저글링 (하늘) — 위
-            N("airslow1", "가벼운 낙하", "낙", Vector2.zero, Cyan, 40, "공중 깡통이 10% 느리게 떨어진다", g => Can.AirFall *= 0.81f),
-            N("burst1", "터뜨림 배율", "배", Vector2.zero, Cyan, 150, "한 세트에 둘째부터 터뜨릴 때마다 배율 +0.2 → +0.3", g => g.BurstMultStep += 0.1f),
-            C("air2x", "둘이면 두 배", "둘", Cyan, 300, "공중에 깡통이 둘 이상일 때 떨어지거나 터진 돈 ×2", g => g.JuggleScoreMult = Mathf.Max(g.JuggleScoreMult, 2f)),
-            N("airslow2", "더 가벼운 낙하", "낙", Vector2.zero, Cyan, 300, "공중 깡통이 10% 더 느리게 떨어진다", g => Can.AirFall *= 0.81f),
+            N("airslow1", "가벼운 낙하", "낙", Vector2.zero, Cyan, 180, "공중 깡통이 10% 느리게 떨어진다", g => Can.AirFall *= 0.81f),
+            N("burst1", "터뜨림 배율", "배", Vector2.zero, Cyan, 220, "한 세트에 둘째부터 터뜨릴 때마다 배율 +0.2 → +0.3", g => g.BurstMultStep += 0.1f),
+            C("air2x", "둘이면 두 배", "둘", Cyan, 350, "공중에 깡통이 둘 이상일 때 떨어지거나 터진 돈 ×2", g => g.JuggleScoreMult = Mathf.Max(g.JuggleScoreMult, 2f)),
+            N("airslow2", "더 가벼운 낙하", "낙", Vector2.zero, Cyan, 350, "공중 깡통이 10% 더 느리게 떨어진다", g => Can.AirFall *= 0.81f),
             C("lowbounce", "낮은 튐", "통", Cyan, 450, "떨어진 깡통이 한 번 낮게 튀어오른다 (연속 유지)", g => { if (g.LandBounces == 0) { g.LandBounces = 1; g.LandBouncePower = 6.5f; } }),   // "다시 튐"을 이미 샀으면 그대로 (그쪽이 높다)
             N("bounce", "가벼운 깡통", "경", Vector2.zero, Cyan, 600, "맞으면 더 높이 튄다", g => Can.BounceBonus += 1.0f),
             C("rebound", "다시 튐", "튐", Cyan, 1200, "떨어진 깡통이 높게 다시 튀어오른다 (낮은 튐 → 높은 튐)", g => { g.LandBounces = 1; g.LandBouncePower = 11f; }),
-            N("burst2", "터뜨림 배율 2", "배", Vector2.zero, Cyan, 350, "터뜨림 배율 +0.3 → +0.4", g => g.BurstMultStep += 0.1f),
+            N("burst2", "터뜨림 배율 2", "배", Vector2.zero, Cyan, 400, "터뜨림 배율 +0.3 → +0.4", g => g.BurstMultStep += 0.1f),
             C("juggle", "공중 곡예", "곡", Cyan, 800, "공중에 많을수록 천천히 떨어진다 (2개 -30%, 3개 -45%, 4개+ -55%)", g => Can.JuggleFall = new[] { 1f, 0.7f, 0.55f, 0.45f }),
             N("burst3", "터뜨림 배율 3", "배", Vector2.zero, Cyan, 1000, "터뜨림 배율 +0.4 → +0.5", g => g.BurstMultStep += 0.1f),
 
             // 장전 (빨강) — 왼쪽. 탄창 수는 총의 성격이라 트리에 없다 (사용자 10-10)
+            // 손 풀기 (10-15): 간격과 장전을 번갈아 줄인다. 녹슨 리볼버 0.6초/3초 → 둘 다 사면 0.43초/1.9초
+            N("quick1", "빠른 손", "손", Vector2.zero, Red, 25, "쏘는 간격 -15%", g => g.Gun.FireIntervalScale *= 0.85f),
             N("reload1", "빠른 장전", "장", Vector2.zero, Red, 40, "장전 시간 -20%", g => g.Gun.ReloadScale *= 0.8f),
+            N("quick2", "더 빠른 손", "손", Vector2.zero, Red, 60, "쏘는 간격 -15% 더", g => g.Gun.FireIntervalScale *= 0.85f),
+            N("quick3", "번개 손", "손", Vector2.zero, Red, 260, "쏘는 간격 -20% 더", g => g.Gun.FireIntervalScale *= 0.8f),
             N("just1", "저스트 배율", "저", Vector2.zero, Red, 70, "저스트 장전 연속마다 +0.1 → +0.15", g => g.JustPerStreak += 0.05f),
             C("firstshot", "첫 발", "첫", Red, 220, "장전 직후 첫 발은 값 2배 (어느 총이든)", g => g.Gun.FirstShotMult = 2f),
-            N("reload2", "더 빠른 장전", "장", Vector2.zero, Red, 260, "장전 시간 -20% 더", g => g.Gun.ReloadScale *= 0.8f),
+            N("reload2", "더 빠른 장전", "장", Vector2.zero, Red, 90, "장전 시간 -20% 더", g => g.Gun.ReloadScale *= 0.8f),
             C("lastshot", "마지막 발", "끝", Red, 600, "탄창의 마지막 한 발은 더 높이 띄운다", g => g.Gun.LastShotBounce = 1.5f),
             N("reload3", "번개 장전", "번", Vector2.zero, Red, 900, "장전 시간 -25% 더", g => g.Gun.ReloadScale *= 0.75f),
             N("just2", "저스트 배율 2", "저", Vector2.zero, Red, 330, "저스트 연속마다 +0.15 → +0.2, 최대 ×1.5 → ×2", g => { g.JustPerStreak += 0.05f; g.JustMax = 2f; }),
@@ -253,7 +261,7 @@ namespace TinCan
 
             // 선반 (하늘) — 오른쪽
             N("perfect1", "퍼펙트 배율", "퍼", Vector2.zero, Cyan, 90, "한 발도 안 놓친 세트 ×1.1 → ×1.2", g => g.PerfectMult += 0.1f),
-            C("shelf1", "넓은 선반", "선", Cyan, 120, "선반 자리 +1 (1칸 → 2칸). 이제 둘을 띄울 수 있다", g => g.MaxCans += 1),
+            C("shelf1", "넓은 선반", "선", Cyan, 150, "선반 자리 +1 (1칸 → 2칸). 이제 둘을 띄울 수 있다", g => g.MaxCans += 1),
             C("cluster", "붙여 놓기", "붙", Cyan, 450, "소환하면 마지막 깡통 바로 옆에 붙어 나온다", g => g.ClusterSpawn = true),
             C("shelf2", "더 넓은 선반", "선", Cyan, 500, "선반 자리 +1 더 (→ 3칸)", g => g.MaxCans += 1),
             C("shelf3", "선반 확장", "선", Cyan, 1500, "선반 자리 +1 더 (→ 4칸)", g => g.MaxCans += 1),

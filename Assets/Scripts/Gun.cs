@@ -18,6 +18,8 @@ namespace TinCan
         public bool Reloading { get; private set; }
         /// <summary>스킬 "빠른 장전": 장전 시간 배수 (1 = 그대로)</summary>
         public float ReloadScale { get; set; } = 1f;
+        /// <summary>스킬 "빠른 손": 쏘는 간격 배수 (10-15 사용자: 초반 노드는 간격·장전 줄이기에 집중 — Click the Button식)</summary>
+        public float FireIntervalScale { get; set; } = 1f;
         public float ReloadSeconds => Kind.ReloadSeconds * ReloadScale;
         public int Shots { get; private set; }
         public int Hits { get; private set; }
@@ -234,7 +236,7 @@ namespace TinCan
                 if (mouse != null)
                 {
                     bool want = Kind.Auto ? mouse.leftButton.isPressed : mouse.leftButton.wasPressedThisFrame;
-                    if (want && Time.time >= nextFire) { Fire(aim); nextFire = Time.time + Kind.FireInterval; }
+                    if (want && Time.time >= nextFire) { Fire(aim); nextFire = Time.time + Kind.FireInterval * FireIntervalScale; }
                 }
             }
             // 장전 칸 그리기
