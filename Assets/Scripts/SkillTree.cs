@@ -127,10 +127,11 @@ namespace TinCan
             Put("payout1", 0, -2, (0, -1));
             Put("value2", 0, -3, (0, -2));
             Put("dynamite", -1, -3, (0, -3));          // 핵심 (10-14: 기본에서 빼 스킬로)
-            Put("auto1", 0, -4, (0, -3));               // 핵심
-            Put("auto2", -1, -5, (0, -4));
-            Put("auto_lever", -2, -6, (-1, -5));        // 핵심
-            Put("auto_shotgun", -3, -7, (-2, -6));      // 핵심
+            // 10-16 사용자: 자동 사격은 컨셉에 안 맞아 뺐다 → 그 자리에 모독 연쇄 (첫 노드로 시스템이 열리고, 뒤로 갈수록 범위가 넓어진다)
+            Put("defile", 0, -4, (0, -3));              // 핵심
+            Put("defile_r1", -1, -5, (0, -4));
+            Put("defile_wide", -2, -6, (-1, -5));       // 핵심
+            Put("defile_r2", -3, -7, (-2, -6));
             Put("perfect2", 1, -5, (0, -4));
             Put("value3", 2, -6, (1, -5));
             // 오른쪽 아래 — 숨 (보라, 우클릭 슬로우)
@@ -285,10 +286,11 @@ namespace TinCan
             C("dynamite", "다이너마이트", "폭", Red, 360, "쏠 때 1% 확률로 화면 아래에서 다이너마이트가 날아온다. 3발 맞히면 크게 터진다", g => Can.DynamiteChance = 0.01f),
 
             // 자동 사격 (초록) — 돈 아래. 총 종류를 뚫을수록 화면 아래에 총이 늘어난다 (값 절반)
-            C("auto1", "자동 리볼버", "자", Green, 450, "화면 아래에 리볼버가 서서 쏜다. 빠르고 넓게 쫓는다 (값 절반)", g => g.AddAutoGun(GunKind.Revolver)),
-            N("auto2", "빠른 사격기", "속", Vector2.zero, Green, 750, "자동 총들의 간격 -40%", g => g.AutoRate = 0.6f),
-            C("auto_lever", "자동 레버액션", "레", Green, 1200, "아래에 레버액션 소총이 합류. 중간 속도로 꾸준히", g => g.AddAutoGun(GunKind.LeverAction)),
-            C("auto_shotgun", "자동 샷건", "샷", Green, 1800, "아래에 샷건이 합류. 느리게 쫓지만 원 안을 전부 띄운다", g => g.AddAutoGun(GunKind.Shotgun)),
+            // 모독 (10-16 사용자: 하스스톤 "모독"처럼 — 무작위 체력 깡통의 계단을 맞춰 한 발로 연쇄). 스킬트리는 "더 쉽게, 더 많은 깡통으로"
+            C("defile", "모독", "독", Green, 250, "깡통이 터지면 둘레 깡통(선반·공중)이 모두 피해 1. 그걸로 또 터지면 다시. 이제 깡통 체력이 1~4로 제각각 나온다", g => g.DefileRange = Mathf.Max(g.DefileRange, 2.2f)),
+            N("defile_r1", "모독 범위", "범", Vector2.zero, Green, 350, "모독이 닿는 범위 +0.8", g => g.DefileRange += 0.8f),
+            C("defile_wide", "넓은 모독", "넓", Green, 600, "모독이 닿는 범위 +1.5", g => g.DefileRange += 1.5f),
+            N("defile_r2", "모독 범위 2", "범", Vector2.zero, Green, 900, "모독이 닿는 범위 +1", g => g.DefileRange += 1f),
 
             // 숨 (보라) — 우클릭 슬로우
             N("slow1", "긴 숨", "숨", Vector2.zero, Purple, 180, "슬로우 3초 → 4.5초 (꽉 채워야 쓸 수 있다)", g => g.SlowGaugeMax += 0.5f),

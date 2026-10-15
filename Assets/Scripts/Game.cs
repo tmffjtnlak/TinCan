@@ -91,6 +91,92 @@ namespace TinCan
         public bool SlowUnlocked { get; set; }
         /// <summary>우클릭을 켠 횟수 (이번 판). 배우기는 이게 오를 때까지 기다린다</summary>
         public int SlowUses { get; set; }
+        // ---------- 모독 연쇄 (사용자 10-16: 하스스톤 "모독"처럼 — 무작위 체력 깡통들의 계단을 맞춰 한 발로 연쇄) ----------
+        // 깡통이 터지면 그 자리에서 DefileRange 안의 모든 깡통(선반·공중)이 피해 1 (튀지 않고 제자리에서). 그걸로 하나라도 터지면 다시.
+        // 첫 펄스는 처음 터진 깡통의 죽음으로 한 번 더 이어진다 (모독 = 첫 펄스가 그 깡통도 친 셈) → 체력 1·2·3·4… 계단이 한 발에 다 터진다.
+        // 스킬 첫 노드로 열리고(범위 > 0), 뒤 노드들이 범위를 넓힌다. 현상금·부하는 제외 (따로 규칙)
+        public float DefileRange { get; set; }
+        /// <summary>최고 연쇄 (터진 깡통 수, 처음 것 포함). 넘을 것 같으면 막타처럼 연출 (Gun)</summary>
+        public int BestChain { get; set; }
+        public bool Cascading { get; private set; }
+        /// <summary>지금 연쇄에서 터진 수, 마지막 펄스에 터진 깡통들의 가운데 (연출 카메라가 따라간다)</summary>
+        public int CascadeCount { get; private set; }
+        public Vector2 CascadeFocus { get; private set; }
+        const float PulseDelay = 0.16f;
+        static bool DefileTarget(Can c) => c != null && !c.Done && !c.IsMenu && !c.Kind.IsBounty && !c.Kind.IsMinion;
+
+        List<Can> DefileVictims(Vector2 origin, Can except)
+        {
+            var list = new List<Can>();
+            foreach (var c in Cans) if (DefileTarget(c) && c != except && ((Vector2)c.transform.position - origin).sqrMagnitude <= DefileRange * DefileRange) list.Add(c);
+            return list;
+        }
+
+        /// <summary>이 깡통을 지금 터뜨리면 몇 개가 연쇄로 터질지 (처음 것 포함) — 위치는 지금 그대로라고 보고 셈</summary>
+        public int PredictDefile(Can first)
+        {
+            if (DefileRange <= 0f || first == null) return 1;
+            var victims = DefileVictims(first.transform.position, first);
+            var hp = new List<int>(); foreach (var c in victims) hp.Add(c.HitsLeft);
+            int count = 1, pulse = 0; bool again = true;
+            while (again && hp.Count > 0)
+            {
+                pulse++;
+                int deaths = 0;
+                for (int i = hp.Count - 1; i >= 0; i--) { hp[i]--; if (hp[i] <= 0) { deaths++; hp.RemoveAt(i); } }
+                count += deaths;
+                again = deaths > 0 || pulse == 1;
+            }
+            return count;
+        }
+
+        IEnumerator Defile(Vector2 origin, Can first)
+        {
+            Cascading = true; CascadeCount = 1; CascadeFocus = origin;
+            int pulse = 0; bool again = true;
+            try
+            {
+                while (again)
+                {
+                    yield return new WaitForSeconds(PulseDelay);
+                    var victims = DefileVictims(origin, first);
+                    if (victims.Count == 0) break;
+                    pulse++;
+                    Fx.Cloud(origin, 0.5f + pulse * 0.08f);   // 물결: 터진 자리에서 퍼진다
+                    Sfx.Play(Sfx.Drop(), 0.5f, 0.7f + pulse * 0.06f);
+                    int deaths = 0; Vector2 sum = Vector2.zero;
+                    foreach (var c in victims) { Vector2 p = c.transform.position; if (c.DefileHit()) { deaths++; sum += p; } }
+                    if (deaths > 0)
+                    {
+                        CascadeCount += deaths; CascadeFocus = sum / deaths;
+                        hud.Float($"모독 ×{CascadeCount}", CascadeFocus + Vector2.up * 0.9f, 4 + Mathf.Min(CascadeCount, 8));
+                        Fx.Shake(0.15f + deaths * 0.08f);
+                    }
+                    again = deaths > 0 || pulse == 1;
+                }
+            }
+            finally
+            {
+                if (CascadeCount > BestChain && CascadeCount >= 2) { BestChain = CascadeCount; hud.Float($"최고 연쇄 {BestChain}!", CascadeFocus + Vector2.up * 1.5f, 12); }
+                PlayLog.Event("defile", "", CascadeCount);
+                Cascading = false;
+            }
+        }
+
+        /// <summary>시험 (F12): 공중에 체력 1~6 깡통을 가운데 둥글게 띄워 두고 멈춘다. 1을 쏘면 모독이 6개를 다 터뜨려야 한다</summary>
+        void DefileTest()
+        {
+            if (DefileRange < 7f) DefileRange = 7f;   // 시험은 6개가 다 범위 안에 (맨 왼쪽에서 맨 오른쪽까지 6)
+            BestChain = 0;
+            for (int i = 0; i < 6; i++)
+            {
+                float x = -3f + i * 1.2f, y = 1.2f + Mathf.Sin(i / 5f * Mathf.PI) * 0.6f;
+                var c = Can.SpawnAirborne(CanKind.Tin, new Vector2(x, y), Vector2.zero, 30f, 0f);
+                c.SetHits(i + 1);
+            }
+            hud.Float("모독 시험: 체력 1을 쏴라", new Vector2(0f, 3f), 8);
+        }
+
         public void FillSlow() { if (SlowActive || !SlowUnlocked) return; SlowGauge = Mathf.Min(SlowGaugeMax, SlowGauge + SlowFillPerHit); }
         public Gun Gun { get; private set; }
         public List<Can> Cans { get; } = new List<Can>();
@@ -331,7 +417,7 @@ namespace TinCan
         {
             var d = Save.Read(); if (d == null) return;
             Money = d.money; Bursts = d.bursts; BestCombo = d.bestCombo; BestPayout = d.bestPayout;
-            Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst; FirstBountyDone = d.firstBountyDone; TreeNudged = d.treeNudged; SlowUnlocked = d.slowUnlocked || d.firstBountyDone; BountiesCaught = d.bountiesCaught;   // 옛 저장: 현상금을 이미 봤으면 우클릭도 연 것으로
+            Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst; FirstBountyDone = d.firstBountyDone; TreeNudged = d.treeNudged; SlowUnlocked = d.slowUnlocked || d.firstBountyDone; BountiesCaught = d.bountiesCaught; BestChain = d.bestChain;   // 옛 저장: 현상금을 이미 봤으면 우클릭도 연 것으로
             OwnedGuns.Clear(); OwnedGuns.UnionWith(d.ownedGuns); OwnedGuns.Add("rusty");
             OwnedCans.Clear(); OwnedCans.UnionWith(d.ownedCans); OwnedCans.Add("tin");
             for (int i = 0; i < d.nodeIds.Count && i < d.nodeLevels.Count; i++)
@@ -380,7 +466,8 @@ namespace TinCan
             if (kb.f6Key.wasPressedThisFrame) DebugSpawn(CanKind.Bundle);
             if (kb.f7Key.wasPressedThisFrame) DebugSpawn(CanKind.Blue);
             if (kb.f8Key.wasPressedThisFrame) DebugSpawn(CanKind.Magnet);
-            if (kb.f11Key.wasPressedThisFrame) DebugSpawn(CanKind.Bottle);   // 시험: 유리병 (10-15, 코르크 확인용)
+            if (kb.f11Key.wasPressedThisFrame) DebugSpawn(CanKind.Bottle);
+            if (kb.f12Key.wasPressedThisFrame) DefileTest();   // 시험: 모독 연쇄 (10-16)   // 시험: 유리병 (10-15, 코르크 확인용)
             if (kb.f4Key.wasPressedThisFrame) bounty.Summon(kb.shiftKey.isPressed ? CanKind.BountyRoller : CanKind.BountyTest);   // 시험: F4 체력 3 현상금 / Shift+F4 구르는 무법자
             if (kb.f10Key.wasPressedThisFrame) CycleDebugTime();   // 디버그 슬로우
             if (kb.digit1Key.wasPressedThisFrame) SelectSlot(0);
@@ -620,7 +707,9 @@ namespace TinCan
             {
                 var kind = SpawnKind == CanKind.Tin ? RollKind() : SpawnKind;
                 float x = FreeX(kind);   // 종류를 먼저 정해야 폭에 맞는 빈자리를 찾는다
-                Cans.Add(Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f)));
+                var spawned = Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f));
+                if (DefileRange > 0f && kind == CanKind.Tin) spawned.SetHits(Random.Range(1, 5));   // 10-16 모독: 체력이 제각각이어야 계단이 생긴다 (1~4)
+                Cans.Add(spawned);
                 lastSpawnX = x;
                 Sfx.Play(Sfx.Reload(), 0.35f, 2.0f + n * 0.15f);   // 차곡차곡: 하나씩 음이 오른다
                 n++;
@@ -866,6 +955,7 @@ namespace TinCan
             if (can.Kind.NotScored) { StartCoroutine(HitStop(0.07f)); return; }   // 계산 밖 물체: 터져도 돈·터뜨림 수 없음 (폭발 자체는 Can.TraitBurst)
             if (!can.Kind.NoCasings) SpillCasings(can.transform.position, can.Kind.IsBounty ? BountyCasings : BurstCasings, true, can.Kind.IsBounty);   // 보조 깡통(다이너마이트)은 탄피 없음
             // 스킬 "파편 튀기기": 하나가 터지면 선반의 모든 깡통이 파편에 튀어 오른다. 현상금은 제외 (파편 피해 규칙이 따로 있다)
+            if (DefileRange > 0f && !Cascading && !can.Kind.IsBounty && !can.Kind.IsMinion) StartCoroutine(Defile(can.transform.position, can));   // 모독 연쇄 (10-16)
             if (ShrapnelPop) foreach (var c in Cans) if (c != null && c != can && !c.Done && !c.Airborne && !c.Kind.IsBounty) c.Pop(can.transform.position);
             long pay = JugglePay(can, BurstPay(can.Kind), out bool dbl);
             SetPending += pay;

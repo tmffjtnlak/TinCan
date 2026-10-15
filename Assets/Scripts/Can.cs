@@ -225,6 +225,35 @@ namespace TinCan
         }
 
         /// <summary>selfSlow &lt; 1이면 처음 맞기 전까지 이 깡통만 그 배수로 느리다 (묶음에서 풀린 깡통)</summary>
+        /// <summary>체력 점을 n개로 다시 만든다 (깡통 위에 남은 횟수만큼, 맞을 때마다 하나씩 꺼진다)</summary>
+        void BuildPips(int n)
+        {
+            if (pips != null) foreach (var p in pips) if (p != null) Destroy(p.gameObject);
+            pips = new SpriteRenderer[n];
+            int perRow = Mathf.Max(1, Mathf.Min(n, 10));
+            float pw = n > 10 ? 0.06f : 0.08f, gap = 0.03f, total = perRow * pw + (perRow - 1) * gap;
+            for (int i = 0; i < n; i++)
+                pips[i] = Look.Quad("Pip", new Vector2(-total * 0.5f + pw * 0.5f + (i % perRow) * (pw + gap), Kind.Height * 0.5f + 0.14f + (i / perRow) * (pw + gap)), new Vector2(pw, pw), new Color(1f, 1f, 1f, 0.9f), 6, visual);
+        }
+
+        /// <summary>체력을 바꾼다 (모독 연쇄: 소환 체력 무작위, 시험 깡통 1~6). 점도 그 수로</summary>
+        public void SetHits(int n) { HitsLeft = Mathf.Max(1, n); BuildPips(HitsLeft); }
+
+        /// <summary>
+        /// 모독 피해 (사용자 10-16): 튀어 오르지 않고 제자리에서 피해만 — 번쩍 + 찌그러짐 + 체력 점 하나 꺼짐. 0이 되면 터진다.
+        /// 돌려주는 값 = 이번에 터졌나
+        /// </summary>
+        public bool DefileHit()
+        {
+            if (Done || ramming) return false;
+            HitsLeft--;
+            for (int i = 0; i < pips.Length; i++) pips[i].color = i < HitsLeft ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 0.4f, 0.3f, 0.35f);
+            flashLeft = 0.08f;
+            StartCoroutine(Squash());
+            if (HitsLeft <= 0) { SyncScale(); Burst(transform.position); return true; }
+            return false;
+        }
+
         public static Can SpawnAirborne(CanKind kind, Vector2 at, Vector2 vel, float floatSeconds, float floatMul, bool ghost = false, float selfSlow = 1f)
         {
             var c = Spawn(kind, at);
@@ -301,11 +330,7 @@ namespace TinCan
             // 체력 점: 깡통 위에 남은 횟수만큼 (맞을 때마다 하나씩 꺼진다)
             HitsLeft = kind.Hits;
             if (Game.I != null && Game.I.Hud != null) earnedLabel = Game.I.Hud.CanLabel();
-            pips = new SpriteRenderer[kind.Hits];
-            int perRow = Mathf.Min(kind.Hits, 10);
-            float pw = kind.Hits > 10 ? 0.06f : 0.08f, gap = 0.03f, total = perRow * pw + (perRow - 1) * gap;
-            for (int i = 0; i < kind.Hits; i++)
-                pips[i] = Look.Quad("Pip", new Vector2(-total * 0.5f + pw * 0.5f + (i % perRow) * (pw + gap), kind.Height * 0.5f + 0.14f + (i / perRow) * (pw + gap)), new Vector2(pw, pw), new Color(1f, 1f, 1f, 0.9f), 6, visual);
+            BuildPips(kind.Hits);
             if (kind.IsBounty) AddProps();
             if (kind.IsMinion) AddProp(Random.value < 0.5f ? "prop_stache_wavy" : "prop_stache_flat", new Vector2(0f, -1f), 4, false, 0.15f);   // 부하: 콧수염만
             visual.localScale = Vector3.zero;

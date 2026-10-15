@@ -60,12 +60,7 @@ namespace TinCan
             if (viewing) target = 0f;   // 진열장 볼 땐 밝게
             dimK = Mathf.MoveTowards(dimK, target, Time.unscaledDeltaTime * 1.5f);
             wallDim.color = new Color(1f, 1f, 1f, dimK);
-            var kb = Keyboard.current;
-            if (kb != null && kb.f12Key.wasPressedThisFrame)
-            {
-                WallDimMode = (WallDimMode + 1) % 3;
-                game.Hud.Float(WallDimMode == 0 ? "벽 막: 끔" : WallDimMode == 1 ? "벽 막: 고정" : "벽 막: 세트 따라", new Vector2(0f, 2.5f), 6);
-            }
+            // (F12 순환은 10-16 모독 시험 키로 넘겼다. 켜려면 WallDimMode 값)
         }
 
         void BuildShelves()

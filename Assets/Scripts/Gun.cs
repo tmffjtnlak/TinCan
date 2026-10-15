@@ -274,7 +274,21 @@ namespace TinCan
         bool IsFinisher(Can can) => !Cinematic && can.Kind.IsBounty && can.HitsLeft <= 1 && !can.Done && !can.IsMenu;
         const float FinisherZoom = 0.5f;      // 깡통에 닿을 때 카메라 크기 (기본의 0.5배 = 2배 확대)
 
-        IEnumerator Finisher(Can can)
+        /// <summary>
+        /// 모독 막타 (사용자 10-16): 이 한 발로 터질 연쇄가 최고 기록을 넘으면 현상금 막타처럼 — 레터박스, 느린 총알, 첫 깡통으로 줌인,
+        /// 이어 터지는 깡통들을 카메라가 따라가다 마지막 깡통쯤에 풀린다
+        /// </summary>
+        bool IsDefileFinisher(Can can, out int predicted)
+        {
+            predicted = 0;
+            var g = Game.I;
+            if (Cinematic || g == null || g.DefileRange <= 0f || can.HitsLeft > 1 || can.Done || can.IsMenu || can.Kind.IsBounty || can.Kind.IsMinion) return false;
+            predicted = g.PredictDefile(can);
+            return predicted >= 3 && predicted > g.BestChain;
+        }
+
+        IEnumerator Finisher(Can can) => Finisher(can, false, 0);
+        IEnumerator Finisher(Can can, bool defile, int predicted)
         {
             Cinematic = true;
             Letterbox.Force = true;
@@ -347,13 +361,26 @@ namespace TinCan
                 Vector2 at = can.transform.position;
                 SetCam(at, size0 * FinisherZoom * 0.92f);   // 맞는 순간 한 번 더 당긴다 (펀치)
                 HitOne(can, at);
-                StartCoroutine(ChainBursts(at));   // 연출 동안 조준을 못 했으니 공중의 다른 깡통들은 가까운 것부터 차례로 터진다
+                if (!defile) StartCoroutine(ChainBursts(at));   // 연출 동안 조준을 못 했으니 공중의 다른 깡통들은 가까운 것부터 차례로 터진다
                 Fx.Spark(at, 26, 1.8f);
                 Fx.Cloud(at, 1.6f);
                 Fx.Shake(1.5f);
                 StartCoroutine(Flash());
                 Sfx.Play(Sfx.Bang(), 1f, 0.35f);
                 // 탄피는 Game.CanBurst가 흘린다 (현상금은 금 탄피 48개, 바닥에 쌓였다가 세트 끝에 정산과 함께 흡수)
+                // 3-1) 모독: 연쇄가 이어지는 동안 느린 채로 카메라가 터지는 깡통들을 따라가며 조금씩 물러난다. 마지막 깡통쯤(예상 수 - 1)에 풀기 시작
+                if (defile)
+                {
+                    SetTime(0.3f);
+                    var g = Game.I;
+                    for (float t = 0f; t < 6f && g != null && g.Cascading && g.CascadeCount < predicted - 1; t += Time.unscaledDeltaTime)
+                    {
+                        float s = Mathf.Lerp(size0 * FinisherZoom * 0.92f, size0 * 0.75f, Mathf.Clamp01(g.CascadeCount / (float)predicted));
+                        var p = Vector2.Lerp(cam.transform.position, g.CascadeFocus, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 4f));
+                        SetCam(p, Mathf.Lerp(cam.orthographicSize, s, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 3f)));
+                        yield return null;
+                    }
+                }
                 // 4) 시간은 확(0.12초, OutQuad), 카메라는 조금 늦게 빠르게(0.5초, OutCubic) 원래대로. 레터박스는 0.25초에 빠지기 시작
                 Vector2 camFrom = cam.transform.position; float sizeFrom = cam.orthographicSize;
                 float slowFrom = Time.timeScale;
@@ -443,6 +470,7 @@ namespace TinCan
                 float d = ((Vector2)can.transform.position - aim).sqrMagnitude;
                 if (d < bestD) { bestD = d; best = can; }
             }
+            if (best != null && IsDefileFinisher(best, out int predicted)) { StartCoroutine(Finisher(best, true, predicted)); any = true; best = null; }   // 모독 최고 기록 연출 (10-16)
             if (best != null) { HitOne(best, aim); any = true; }
             if (!any && keeper != null) keeper.Shot(aim);
             if (any) Hits++;   // 맞춤 마름모 표시는 뺐다 (사용자 10-13)
