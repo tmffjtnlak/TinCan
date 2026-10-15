@@ -35,8 +35,42 @@ namespace TinCan
             return d;
         }
 
+        // ---------- 벽 물러나기 (10-16 사용자: 가운데 벽에 물건이 차면 어수선, 옆으로 빼면 쏠림, 비우면 휑함 → 위치 대신 명암으로) ----------
+        // 카운터 뒤 벽 전체에 어두운 막(위가 더 어둡게). 깡통이 떠 있는 동안(세트 중)은 짙게 = 무대 뒤로 물러나고, 쉬는 동안은 옅게 = 모은 것이 보인다.
+        // 시험용: F12로 끔 → 고정 → 세트 따라 바뀜 순환
+        public static int WallDimMode = 2;   // 0 끔, 1 고정, 2 세트 따라
+        SpriteRenderer wallDim; float dimK = 0.5f;
+        void BuildWallDim()
+        {
+            const int N = 64;
+            var tex = new Texture2D(1, N, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            for (int i = 0; i < N; i++) { float t = i / (N - 1f); tex.SetPixel(0, i, new Color(0.1f, 0.05f, 0.05f, Mathf.Lerp(0.25f, 0.7f, t))); }   // 아래(카운터) 옅게 → 위 짙게
+            tex.Apply();
+            float bottom = (135f - 213f) / 27f, top = Look.PlayHalfH * 1.5f + 1f, h = top - bottom;
+            wallDim = new GameObject("WallDim").AddComponent<SpriteRenderer>();
+            wallDim.sprite = Sprite.Create(tex, new Rect(0, 0, 1, N), new Vector2(0.5f, 0f), 1f);
+            wallDim.transform.position = new Vector3(0f, bottom, -1f);   // 벽·액자·선반 물건 앞, 탄피·깡통 뒤
+            wallDim.transform.localScale = new Vector3(Look.PlayHalfW * 2f + 2f, h / N, 1f);
+            wallDim.sortingOrder = Order;
+        }
+        void UpdateWallDim()
+        {
+            if (wallDim == null) return;
+            float target = WallDimMode == 0 ? 0f : WallDimMode == 1 ? 0.75f : (game.SetActive || game.Airborne > 0 ? 1f : 0.45f);
+            if (viewing) target = 0f;   // 진열장 볼 땐 밝게
+            dimK = Mathf.MoveTowards(dimK, target, Time.unscaledDeltaTime * 1.5f);
+            wallDim.color = new Color(1f, 1f, 1f, dimK);
+            var kb = Keyboard.current;
+            if (kb != null && kb.f12Key.wasPressedThisFrame)
+            {
+                WallDimMode = (WallDimMode + 1) % 3;
+                game.Hud.Float(WallDimMode == 0 ? "벽 막: 끔" : WallDimMode == 1 ? "벽 막: 고정" : "벽 막: 세트 따라", new Vector2(0f, 2.5f), 6);
+            }
+        }
+
         void BuildShelves()
         {
+            BuildWallDim();
             if (GunView.LoadArt("bg_range") != null) return;   // 10-16: 배경 그림에 선반이 있다 → 임시 판은 그림이 없을 때만
             // 임시 나무 선반 두 장 (그림자 + 판)
             foreach (var y in new[] { CanShelfY, TrophyShelfY })
@@ -72,6 +106,7 @@ namespace TinCan
         void Update()
         {
             if (game == null || game.State != GameState.Play) return;
+            UpdateWallDim();
             // 새로 연 것이 있으면 선반에 나타난다 (불러온 판의 처음엔 조용히 놓기만)
             int ci = 0;
             foreach (var (k, effect) in CanInfo)
