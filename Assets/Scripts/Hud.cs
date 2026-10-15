@@ -71,12 +71,12 @@ namespace TinCan
         }
 
         // ---------- 오른쪽 아래 버튼 둘: 스킬트리 / 총 상점 (사용자 10-12) ----------
-        Image[] btn = new Image[2]; Text[] btnLabel = new Text[2];
-        readonly float[] btnS = { 1f, 1f }, btnSV = { 0f, 0f }, btnRot = { 0f, 0f }, btnRotV = { 0f, 0f };
-        static readonly string[] btnNames = { "스킬트리", "총 상점" };
+        Image[] btn = new Image[3]; Text[] btnLabel = new Text[3];
+        readonly float[] btnS = { 1f, 1f, 1f }, btnSV = { 0f, 0f, 0f }, btnRot = { 0f, 0f, 0f }, btnRotV = { 0f, 0f, 0f };
+        static readonly string[] btnNames = { "스킬트리", "총 상점", "진열장" };   // 10-15: 진열장 = 모은 것의 세부 정보
         void BuildButtons()
         {
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < 3; i++)
             {
                 btn[i] = Ui.Panel($"Btn{i}", canvas, new Vector2(760f, -470f + i * 84f), new Vector2(300f, 72f), nails: false);
                 btnLabel[i] = Ui.Text("Label", btn[i].transform, Vector2.zero, new Vector2(280f, 50f), 24, TextAnchor.MiddleCenter, Ui.Gold);
@@ -86,11 +86,11 @@ namespace TinCan
         public void SetButtonsVisible(bool v) { foreach (var b in btn) if (b != null) b.gameObject.SetActive(v); }
 
         /// <summary>첫 흐름 단계 (10-14): 소환 전엔 스킬트리 버튼만, 소환을 열면 돈·숨 게이지, 증표가 생기면 총 상점. 새로 나타나는 버튼은 톡 튀어나온다</summary>
-        public void SetStage(bool summon, bool shop, bool slow)
+        public void SetStage(bool summon, bool shop, bool slow, bool display = false)
         {
             moneyBoard.gameObject.SetActive(summon);
             slowBg.gameObject.SetActive(slow); slowLabel.gameObject.SetActive(slow);   // 우클릭 게이지는 배운 뒤에 (10-15)
-            ShowButton(0, true); ShowButton(1, shop);
+            ShowButton(0, true); ShowButton(1, shop); ShowButton(2, display);
         }
         void ShowButton(int i, bool v)
         {
@@ -162,12 +162,12 @@ namespace TinCan
         }
 
         /// <summary>버튼: 올리면 살짝 커지고 기울고, 누르면 납작했다 튕기며 연다. 매 프레임(플레이 중, 가게 닫힘) 부른다</summary>
-        public void Buttons(float dtUnscaled, System.Action onTree, System.Action onShop)
+        public void Buttons(float dtUnscaled, System.Action onTree, System.Action onShop, System.Action onDisplay = null)
         {
             var mouse = UnityEngine.InputSystem.Mouse.current; if (mouse == null) return;
             var mp = mouse.position.ReadValue();
             var pt = new Vector2(mp.x - Screen.width * 0.5f, mp.y - Screen.height * 0.5f) * (1080f / Screen.height);
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < 3; i++)
             {
                 if (btn[i] == null || !btn[i].gameObject.activeSelf) continue;
                 var rt = btn[i].rectTransform;
@@ -178,7 +178,7 @@ namespace TinCan
                 {
                     btnS[i] = 0.9f; btnSV[i] = 6f; btnRot[i] = Random.Range(-4f, 4f);
                     Sfx.Play(Sfx.Click(), 0.5f, 1.4f);
-                    if (i == 0) onTree?.Invoke(); else onShop?.Invoke();
+                    if (i == 0) onTree?.Invoke(); else if (i == 1) onShop?.Invoke(); else onDisplay?.Invoke();
                 }
                 Ease.Spring(ref btnS[i], ref btnSV[i], target, 500f, 16f, dtUnscaled);
                 Ease.Spring(ref btnRot[i], ref btnRotV[i], over ? -2f : 0f, 300f, 12f, dtUnscaled);

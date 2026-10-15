@@ -329,7 +329,7 @@ namespace TinCan
         {
             var d = Save.Read(); if (d == null) return;
             Money = d.money; Bursts = d.bursts; BestCombo = d.bestCombo; BestPayout = d.bestPayout;
-            Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst; FirstBountyDone = d.firstBountyDone; TreeNudged = d.treeNudged; SlowUnlocked = d.slowUnlocked || d.firstBountyDone;   // 옛 저장: 현상금을 이미 봤으면 우클릭도 연 것으로
+            Tokens = d.tokens; BartenderShots = d.bartenderShots; SeenFirstBurst = d.seenFirstBurst; FirstBountyDone = d.firstBountyDone; TreeNudged = d.treeNudged; SlowUnlocked = d.slowUnlocked || d.firstBountyDone; BountiesCaught = d.bountiesCaught;   // 옛 저장: 현상금을 이미 봤으면 우클릭도 연 것으로
             OwnedGuns.Clear(); OwnedGuns.UnionWith(d.ownedGuns); OwnedGuns.Add("rusty");
             OwnedCans.Clear(); OwnedCans.UnionWith(d.ownedCans); OwnedCans.Add("tin");
             for (int i = 0; i < d.nodeIds.Count && i < d.nodeLevels.Count; i++)
@@ -368,7 +368,7 @@ namespace TinCan
                 if (kb.escapeKey.wasPressedThisFrame) CloseMenu();
                 return;
             }
-            hud.Buttons(dtUnscaled: Time.unscaledDeltaTime, onTree: () => OpenMenu(2), onShop: () => OpenMenu(0));
+            hud.Buttons(dtUnscaled: Time.unscaledDeltaTime, onTree: () => OpenMenu(2), onShop: () => OpenMenu(0), onDisplay: () => OpenMenu(1));
             if (kb.spaceKey.wasPressedThisFrame) TrySpawn();
             if (SetActive && !ending && Airborne == 0) StartCoroutine(Settle());
             if (kb.f1Key.wasPressedThisFrame) { DebugMoney = !DebugMoney; hud.Float(DebugMoney ? "디버그: 돈 무한" : "디버그 끔", new Vector2(0f, 2f), 6); }
@@ -418,6 +418,10 @@ namespace TinCan
         public bool SummonUnlocked => rootNode == null || rootNode.Level >= 1;
         /// <summary>총 상점 버튼: 증표가 생기거나 총이 둘 이상일 때부터</summary>
         public bool ShopUnlocked => Tokens > 0 || OwnedGuns.Count > 1;
+        /// <summary>진열장 버튼: 첫 현상금이 끝난 뒤 (새 깡통 갈래가 열리는 때, 10-15)</summary>
+        public bool DisplayUnlocked => FirstBountyDone;
+        /// <summary>잡은 현상금 수 (진열장 표시, 저장)</summary>
+        public int BountiesCaught { get; set; }
         const float SpawnPromptDelay = 8f;
         const int SlowLessonAt = 24;
         bool slowLesson;
@@ -445,8 +449,8 @@ namespace TinCan
         void UpdateStageUi()
         {
             if (!uiReady) return;
-            int stage = (SummonUnlocked ? 1 : 0) + (ShopUnlocked ? 2 : 0) + (SlowUnlocked ? 4 : 0);
-            if (stage != uiStage && !MenuOpen) { uiStage = stage; hud.SetStage(SummonUnlocked, ShopUnlocked, SlowUnlocked); }
+            int stage = (SummonUnlocked ? 1 : 0) + (ShopUnlocked ? 2 : 0) + (SlowUnlocked ? 4 : 0) + (DisplayUnlocked ? 8 : 0);
+            if (stage != uiStage && !MenuOpen) { uiStage = stage; hud.SetStage(SummonUnlocked, ShopUnlocked, SlowUnlocked, DisplayUnlocked); }
             // 우클릭 배우기: 같은 흐름이 3분쯤 이어진 때(터뜨림 24) 화면이 조용하면 (10-15 사용자: 여기서 한 번 변주 → 바로 첫 현상금)
             if (SummonUnlocked && !SlowUnlocked && !slowLesson && Bursts >= SlowLessonAt && !MenuOpen && !SetActive && !Settling && Airborne == 0 && !IntroRunning)
                 StartCoroutine(SlowLesson());
@@ -463,12 +467,12 @@ namespace TinCan
 
         void OpenPage(int p)
         {
-            PlayLog.Menu(p == 2 ? "tree" : p == 0 ? "gunshop" : "cans");   // 메뉴 체류 시간 기록
+            PlayLog.Menu(p == 2 ? "tree" : p == 0 ? "gunshop" : "display");   // 메뉴 체류 시간 기록
             lastPage = p;
             tree.SetOpen(p == 2);
             // 0 = 총기 책자 (사용자 10-12 종이 책자 가게), 1 = 깡통류(옛 카드, 소환비 손보기 전까지), 2 = 트리. QWE 탭은 뺐다
             if (p == 0) { armory.Hide(); booklet.Show(); }
-            else { booklet.Hide(); if (p == 2) armory.Hide(); else armory.Show(Armory.Page.Cans); }
+            else { booklet.Hide(); if (p == 2) armory.Hide(); else armory.Show(Armory.Page.Display); }   // 1 = 진열장 (10-15)
         }
 
         // ---------- 총기류: 주무기·보조무기 (사용자 10-11) ----------

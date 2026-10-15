@@ -11,7 +11,7 @@ namespace TinCan
     /// </summary>
     public class Armory : MonoBehaviour
     {
-        public enum Page { Guns, Cans }
+        public enum Page { Guns, Cans, Display }
         class Card { public Image Root, Icon, IconFill; public Text Name, State, Desc, Key; }
         Game game;
         Image veil;
@@ -53,7 +53,9 @@ namespace TinCan
             if (game == null || !Visible) return;
             money.text = $"${game.Money:N0}";
             var kb = Keyboard.current;
-            title.text = page == Page.Guns ? "총기류  —  1 주무장 · 2 보조무기 · 3 투척류(추후)" : "깡통류  —  뭘 띄우나";
+            title.text = page == Page.Guns ? "총기류  —  1 주무장 · 2 보조무기 · 3 투척류(추후)" : page == Page.Display ? "진열장" : "깡통류  —  뭘 띄우나";
+            hint.text = page == Page.Display ? "Tab = 닫는다" : "숫자키 = 산다 / 고른다   ·   Tab = 닫는다";
+            if (page == Page.Display) { ShowDisplay(); return; }
             for (int i = 0; i < cards.Count; i++)
             {
                 var c = cards[i];
@@ -93,6 +95,56 @@ namespace TinCan
             var alpha = owned || afford ? 1f : 0.55f;
             c.Name.color = new Color(nameColor.r, nameColor.g, nameColor.b, alpha);
             c.Desc.color = new Color(Ui.Dim.r, Ui.Dim.g, Ui.Dim.b, Ui.Dim.a * alpha);
+        }
+
+        // ---------- 진열장 (사용자 10-15): 모은 깡통·현상금의 세부 정보 — 떨어짐·터짐 값, 체력, 특수 효과 ----------
+        static readonly (CanKind kind, string effect)[] Shelf =
+        {
+            (CanKind.Tin, "기본 깡통. 띄우고, 맞히고, 터뜨린다."),
+            (CanKind.Bottle, "작고 무겁다. 깨질 때 값이 크다."),
+            (CanKind.Bundle, "터지면 깡통 셋으로 풀린다. 풀린 깡통은 처음 맞기 전까지 느리다."),
+            (CanKind.Blue, "터지면 반투명 깡통이 날아오른다."),
+            (CanKind.Magnet, "맞을 때마다 옆 깡통을 끌어당긴다."),
+            (CanKind.Bounty, "총알이 안 먹힌다. 부하를 터뜨린 파편으로 깎고, 체력 1에서 막타. 잡으면 증표."),
+        };
+        bool Unlocked(CanKind k) =>
+            k == CanKind.Tin ? true :
+            k == CanKind.Bottle ? game.BottleChance > 0f :
+            k == CanKind.Bundle ? game.BundleChance > 0f :
+            k == CanKind.Blue ? game.BlueChance > 0f :
+            k == CanKind.Magnet ? game.MagnetChance > 0f :
+            k.IsBounty ? game.FirstBountyDone : false;
+
+        void ShowDisplay()
+        {
+            title.text = $"진열장   <size=24><color=#bbaa88>잡은 현상금 {game.BountiesCaught}</color></size>";
+            title.supportRichText = true;
+            for (int i = 0; i < cards.Count; i++)
+            {
+                var c = cards[i];
+                if (i >= Shelf.Length) { c.Root.gameObject.SetActive(false); continue; }
+                c.Root.gameObject.SetActive(true);
+                var (k, effect) = Shelf[i];
+                bool open = Unlocked(k);
+                c.Key.text = "";
+                c.Icon.color = Ui.BoardEdge;
+                c.IconFill.color = open ? k.Body : new Color(0.15f, 0.13f, 0.12f);
+                c.Name.supportRichText = c.Desc.supportRichText = c.State.supportRichText = true;
+                if (!open)
+                {
+                    c.Name.text = "???"; c.Name.color = new Color(Ui.Ink.r, Ui.Ink.g, Ui.Ink.b, 0.5f);
+                    c.State.text = "<color=#888888>아직</color>";
+                    c.Desc.text = k.IsBounty ? "첫 현상금을 끝내면 여기에 놓인다." : "스킬트리 주황 갈래(깡통)에서 연다.";
+                    c.Desc.color = new Color(Ui.Dim.r, Ui.Dim.g, Ui.Dim.b, 0.6f);
+                    continue;
+                }
+                c.Name.text = k.IsBounty ? "현상수배 깡통" : k.Name; c.Name.color = Ui.Ink;
+                long land = game.LandPay(k), burst = game.BurstPay(k);
+                c.State.text = k.IsBounty ? $"<color=#ffd966>현상금 ${burst:N0} + 증표</color>" : $"<color=#ffd966>터짐 ${burst:N0}</color>";
+                string hp = k.IsBounty ? "체력 8~15" : $"체력 {k.Hits}";
+                c.Desc.text = (k.IsBounty ? "" : $"떨어짐 ${land:N0}   ·   ") + $"{hp}   ·   {effect}";
+                c.Desc.color = Ui.Dim;
+            }
         }
 
         static bool Digit(Keyboard kb, int n) => n switch
