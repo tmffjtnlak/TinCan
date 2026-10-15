@@ -16,7 +16,8 @@ namespace TinCan
     {
         const float D = 1f / 27f;
         // 선반 두 줄 (뒤쪽 벽, 탁상 위): 아래 = 깡통 종류, 위 = 현상금 장신구
-        const float CanShelfY = 1.6f, TrophyShelfY = 3.2f, ShelfHalfW = 3.6f, Gap = 0.25f;   // 물건 사이 간격 (폭에 맞춰 나란히, 가운데 정렬)
+        static readonly float CanShelfY = Look.BackShelfLowY, TrophyShelfY = Look.BackShelfTopY;   // 10-16: 그림의 뒷바 두 단 (아래 = 깡통 종류, 위 = 현상금)
+        const float ShelfHalfW = 3.6f, Gap = 0.25f;   // 물건 사이 간격 (폭에 맞춰 나란히, 가운데 정렬)
         const int Order = -1;
 
         class Item { public string Key, Name, Desc; public CanKind Kind; public Vector2 Pos; public SpriteRenderer Sr; public float W; public int Order; }
@@ -36,6 +37,7 @@ namespace TinCan
 
         void BuildShelves()
         {
+            if (GunView.LoadArt("bg_range") != null) return;   // 10-16: 배경 그림에 선반이 있다 → 임시 판은 그림이 없을 때만
             // 임시 나무 선반 두 장 (그림자 + 판)
             foreach (var y in new[] { CanShelfY, TrophyShelfY })
             {
@@ -145,7 +147,7 @@ namespace TinCan
             // 선반 위에 서게: 그림 아래 끝을 판에 맞춘다
             float h = art != null ? art.bounds.size.y : 18f * D;
             sr.transform.localPosition = new Vector3(it.Pos.x, it.Pos.y + h * 0.5f, -0.002f);
-            sr.color = new Color(sr.color.r * 0.9f, sr.color.g * 0.9f, sr.color.b * 0.9f, sr.color.a);   // 배경처럼 살짝 어둡게
+            sr.color = Dim;   // 10-16: 전시품은 어둡게 (사용자 시안) — 앞의 진짜 깡통과 헷갈리지 않게
             it.Sr = sr;
             it.W = art != null ? art.bounds.size.x : 14f * D;
             it.Order = nextOrder++;
@@ -189,6 +191,7 @@ namespace TinCan
         }
 
         public bool HasItems => items.Count > 0;
+        static readonly Color Dim = new Color(0.5f, 0.47f, 0.56f);
 
         public void Open()
         {
@@ -236,7 +239,7 @@ namespace TinCan
                 yield return null;
             }
             cam.transform.position = to; Fx.CamFocus = to; cam.orthographicSize = size;
-            if (!viewing) foreach (var o in items) o.Sr.color = new Color(0.9f, 0.9f, 0.9f);
+            if (!viewing) foreach (var o in items) o.Sr.color = Dim;
             done?.Invoke();
         }
 
