@@ -135,6 +135,7 @@ namespace TinCan
                 var v = rb.linearVelocity; v.y *= 1f - Game.I.FloorSlow; rb.linearVelocity = v;
                 Fx.Dust(new Vector2(transform.position.x, transform.position.y - 0.3f), 2, 0.4f);
             }
+            CheckMissedFloor();
         }
 
         /// <summary>
@@ -785,8 +786,24 @@ namespace TinCan
 
         void OnTriggerEnter2D(Collider2D c)
         {
-            if (Done || !Airborne || ramming) return;
             if (c.GetComponent<DropZone>() == null) return;
+            OnFloor();
+        }
+
+        /// <summary>
+        /// 바닥 판정을 놓쳤을 때의 안전망 (10-15 사용자: "가끔 바닥을 통과하거나 꺼져 버린다").
+        /// 낙하 감지 상자는 얇아서(0.6) 올라가는 중에 들어갔다 그 안에서 방향을 바꾸거나, 한 물리 칸에 훌쩍 지나가면 들어온 판정이 안 생긴다 →
+        /// 상자 아래로 내려간 채 떨어지고 있으면 그 자리에서 바닥 처리
+        /// </summary>
+        void CheckMissedFloor()
+        {
+            if (Done || !Airborne || ramming || held || parked || crouching || rb == null || !rb.simulated) return;
+            if (rb.linearVelocity.y <= 0f && transform.position.y < Look.DropY - 0.7f) OnFloor();
+        }
+
+        void OnFloor()
+        {
+            if (Done || !Airborne || ramming) return;
             if (rb != null && rb.linearVelocity.y > 0f) return;   // 올라가는 중엔 바닥 판정 없음 (화면 아래에서 던져진 다이너마이트가 지나간다)
             if (ChainHeld) { SyncScale(); parked = true; rb.linearVelocity = Vector2.zero; rb.gravityScale = 0f; return; }   // 연쇄 차례를 기다리는 중: 바닥에서 멈춰 기다린다
             // 현상금은 떨어져도 바로 끝이 아니다 (사용자 10-14): 웅크렸다 스스로 튀어 오른다. 2번까지 — 그다음 바닥에선 도망간다
@@ -799,7 +816,9 @@ namespace TinCan
                 bouncesLeft--;
                 floorSlowed = false;
                 SyncScale();
-                var v = rb.linearVelocity; v.y = ((Game.I != null ? Game.I.LandBouncePower : 11f) + BounceBonus) * Scale;   // 낮은 튐 6.5 / 다시 튐 11 v.x *= 0.5f; rb.linearVelocity = v;
+                // 낮은 튐 6.5 / 다시 튐 11 (10-15 버그: 이 주석이 같은 줄 뒤 코드를 삼켜 속도가 안 들어갔다 → 튀지 않고 그대로 떨어졌다)
+                var v = rb.linearVelocity; v.y = ((Game.I != null ? Game.I.LandBouncePower : 11f) + BounceBonus) * Scale;
+                v.x *= 0.5f; rb.linearVelocity = v;
                 transform.position = new Vector3(transform.position.x, Look.DropY + 0.5f, 0f);
                 flashLeft = 0.06f;
                 StartCoroutine(Squash());

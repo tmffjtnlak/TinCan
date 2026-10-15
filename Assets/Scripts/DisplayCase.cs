@@ -107,8 +107,37 @@ namespace TinCan
         }
         int nextOrder;
 
+        /// <summary>
+        /// 테두리 제거 (사용자 10-15: 진열장 물건은 테두리 없이 배경처럼). 도트 외곽선 남색(34,32,52 근처)만 투명하게 뺀 사본.
+        /// 그림을 읽을 수 없으면 원본 그대로
+        /// </summary>
+        static readonly Dictionary<Sprite, Sprite> bare = new Dictionary<Sprite, Sprite>();
+        static Sprite NoOutline(Sprite s)
+        {
+            if (s == null) return null;
+            if (bare.TryGetValue(s, out var b)) return b;
+            try
+            {
+                var r = s.textureRect;
+                var px = s.texture.GetPixels((int)r.x, (int)r.y, (int)r.width, (int)r.height);
+                for (int i = 0; i < px.Length; i++)
+                {
+                    var c = px[i];
+                    if (c.a > 0.5f && c.r < 0.25f && c.g < 0.25f && c.b < 0.3f && c.b >= c.r) px[i] = new Color(0f, 0f, 0f, 0f);   // 외곽선 남색
+                }
+                var tex = new Texture2D((int)r.width, (int)r.height, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+                tex.SetPixels(px); tex.Apply();
+                var piv = new Vector2(s.pivot.x / r.width, s.pivot.y / r.height);
+                b = Sprite.Create(tex, new Rect(0, 0, r.width, r.height), piv, s.pixelsPerUnit);
+            }
+            catch { b = s; }
+            bare[s] = b;
+            return b;
+        }
+
         void Place(Item it, Sprite art, Color fallback)
         {
+            if (it.Kind != null) art = NoOutline(art);   // 깡통만 테두리 제거 (콧수염·권총 장신구는 몸이 거의 외곽선 색이라 지우면 사라진다)
             placed.Add(it.Key);
             var sr = Look.Quad("Item_" + it.Key, it.Pos, Vector2.one, fallback, Order, transform);
             if (art != null) { sr.sprite = art; sr.color = Color.white; sr.transform.localScale = Vector3.one; }
