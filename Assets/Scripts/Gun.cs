@@ -434,6 +434,8 @@ namespace TinCan
             {
                 var bt = col.GetComponent<Bartender>();
                 if (bt != null) { keeper = bt; continue; }   // 주인은 깡통을 하나도 못 맞혔을 때만 (10-15)
+                var cork = col.GetComponent<Cork>();
+                if (cork != null) { cork.Shot(); any = true; continue; }   // 코르크: 별개 보너스 (10-15)
                 var btn = col.GetComponent<ShootButton>();
                 if (btn != null) { btn.Shot(); any = true; continue; }
                 var can = col.GetComponent<Can>();
