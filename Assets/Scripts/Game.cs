@@ -108,6 +108,7 @@ namespace TinCan
         TreeView tree;
         Armory armory;
         Booklet booklet;
+        DisplayCase display;
         float saveTimer;
         float lastSpawnX = float.NaN;
         int lastPage = 2;
@@ -128,6 +129,7 @@ namespace TinCan
             new GameObject("AmmoHud").AddComponent<AmmoHud>().Build(hud.Canvas, Gun);
             new GameObject("CanDebug").AddComponent<CanDebug>();   // F9 디버그 표시 (10-14)
             Letterbox.Make(hud.Canvas);   // 우클릭 연출: 위아래 띠 + UI 흐리게 (사용자 10-13)
+            display = DisplayCase.Make(this);   // 진열장 (10-15): 모은 깡통·장신구가 벽 선반에, 버튼으로 줌인 보기
             Bartender.Make();             // 술집 주인 (사용자 10-15): 카운터 뒤에서 올라와 짧게 말한다. 사실은 악마
             tree = new GameObject("Tree").AddComponent<TreeView>();
             tree.Build(this, Nodes, hud.Canvas);
@@ -398,7 +400,7 @@ namespace TinCan
         /// <summary>총 가게를 그 총이 골라진 채로 연다 (10-15: 첫 현상금 뒤 주인이 리볼버를 보여 준다)</summary>
         public void OpenGunShop(GunKind focus) { OpenMenu(0); if (focus != null) booklet.Select(focus); }
         public void OpenMenu(int page) { MenuOpen = true; Gun.Enabled = false; hud.SetButtonsVisible(false); OpenPage(page); }
-        public void CloseMenu() { PlayLog.Menu(null); MenuOpen = false; Gun.Enabled = true; tree.SetOpen(false); armory.Hide(); booklet.Hide(); uiStage = -1; Save.Write(this); }   // 버튼은 단계대로 다시 (UpdateStageUi)
+        public void CloseMenu() { PlayLog.Menu(null); MenuOpen = false; Gun.Enabled = true; tree.SetOpen(false); armory.Hide(); booklet.Hide(); display.Close(); uiStage = -1; Save.Write(this); }   // 버튼은 단계대로 다시 (UpdateStageUi)
 
         // ---------- 첫 흐름 (사용자 10-14): 들어오면 총만 → 스킬트리 버튼 → 시작 노드 "깡통 소환" → Space ----------
         SkillNode rootNode;
@@ -472,7 +474,7 @@ namespace TinCan
             tree.SetOpen(p == 2);
             // 0 = 총기 책자 (사용자 10-12 종이 책자 가게), 1 = 깡통류(옛 카드, 소환비 손보기 전까지), 2 = 트리. QWE 탭은 뺐다
             if (p == 0) { armory.Hide(); booklet.Show(); }
-            else { booklet.Hide(); if (p == 2) armory.Hide(); else armory.Show(Armory.Page.Display); }   // 1 = 진열장 (10-15)
+            else { booklet.Hide(); armory.Hide(); if (p == 1) display.Open(); }   // 1 = 진열장: 벽 선반으로 줌인 (10-15)
         }
 
         // ---------- 총기류: 주무기·보조무기 (사용자 10-11) ----------
