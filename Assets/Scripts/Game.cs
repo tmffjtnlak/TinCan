@@ -469,7 +469,7 @@ namespace TinCan
             if (kb.f8Key.wasPressedThisFrame) DebugSpawn(CanKind.Magnet);
             if (kb.f11Key.wasPressedThisFrame) DebugSpawn(CanKind.Bottle);
             if (kb.f12Key.wasPressedThisFrame) DefileTest();   // 시험: 모독 연쇄 (10-16)   // 시험: 유리병 (10-15, 코르크 확인용)
-            if (kb.f4Key.wasPressedThisFrame) bounty.Summon(kb.shiftKey.isPressed ? CanKind.BountyRoller : CanKind.BountyTest);   // 시험: F4 체력 3 현상금 / Shift+F4 구르는 무법자
+            if (kb.f4Key.wasPressedThisFrame) bounty.Summon(kb.ctrlKey.isPressed ? CanKind.BountyGang : kb.shiftKey.isPressed ? CanKind.BountyRoller : CanKind.BountyTest);   // 시험: F4 체력 3 현상금 / Shift+F4 구르는 무법자 / Ctrl+F4 패거리 두목 (10-16)
             if (kb.f10Key.wasPressedThisFrame) CycleDebugTime();   // 디버그 슬로우
             if (kb.digit1Key.wasPressedThisFrame) SelectSlot(0);
             if (kb.digit2Key.wasPressedThisFrame) SelectSlot(1);

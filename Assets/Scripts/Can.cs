@@ -64,6 +64,13 @@ namespace TinCan
         /// <summary>보스(현상금) 행동 양식 (사용자 10-14: 보스마다 점프 패턴·피격 반응을 다르게)</summary>
         public enum BossTrick { None, Roll }
         public BossTrick Trick;
+        /// <summary>같이 내려오는 부하 수 (보통 1)</summary>
+        public int Minions = 1;
+        /// <summary>
+        /// 패거리 두목 (사용자 10-16 시험): 체력 많고 부하 셋을 끼고 온다. 구르기는 같다.
+        /// 이 놈이 있는 동안 총 공격력 3 → 부하(체력 3)가 한 발에 박치기, 옆 깡통들을 다다당 쏘면 연달아 들이받는 그림
+        /// </summary>
+        public static readonly CanKind BountyGang = new CanKind { Id = "bounty", Name = "패거리 두목", Desc = "체력 30. 부하 셋. 터뜨리면 현상금.", Value = 5, Cost = 0, Price = 0, Hits = 30, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 400, Trick = BossTrick.Roll, Minions = 3 };
         public static readonly CanKind Minion = new CanKind { Id = "tin", Name = "부하 깡통", Desc = "현상금의 부하.", Value = 1, Cost = 0, Reward = 5, Price = 0, Hits = 3, Weight = 1f, Width = 16f / 27f, Height = 20f / 27f, Mass = 1f, Pitch = 1.15f, Body = Look.Tin, Rim = Look.TinDark, Label = Look.Label, IsMinion = true };
         /// <summary>시험용 현상수배 깡통 (사용자 10-13): 체력 3. F4로 부른다 (막타 연출 확인용)</summary>
         public static readonly CanKind BountyTest = new CanKind { Id = "bounty", Name = "현상수배 깡통 (시험)", Desc = "체력 3. 시험용.", Value = 5, Cost = 0, Price = 0, Hits = 3, Weight = 0.6f, Bounce = 0.7f, Spin = 0.4f, Squish = 1.5f,  Width = 19f / 27f, Height = 24f / 27f, Mass = 2f, Pitch = 0.6f, Body = new Color(0.55f, 0.18f, 0.14f), Rim = new Color(0.3f, 0.1f, 0.08f), Label = new Color(0.9f, 0.75f, 0.3f), IsBounty = true, Reward = 200 };

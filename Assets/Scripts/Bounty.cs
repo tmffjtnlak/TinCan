@@ -34,6 +34,7 @@ namespace TinCan
         /// </summary>
         public static Bounty Make(Transform hudCanvas)
         {
+            Gun.ShotDamage = 1;
             var b = new GameObject("Bounty").AddComponent<Bounty>();
             var go = new GameObject("BountyCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(CanvasGroup));
             var c = go.GetComponent<Canvas>();
@@ -133,8 +134,13 @@ namespace TinCan
             can = Can.Spawn(kind, new Vector2(bx, Look.ShelfY + 0.11f + kind.Height * 0.5f));
             Game.I.Cans.Add(can);
             // 부하 하나가 같이 내려온다 (사용자 10-14: 현상금전에도 최소 둘은 돌게). 선반 빈자리에
-            float mx = Game.I.FreeX(CanKind.Minion);
-            Game.I.Cans.Add(Can.Spawn(CanKind.Minion, new Vector2(mx, Look.ShelfY + 0.11f + CanKind.Minion.Height * 0.5f)));
+            // 패거리 두목은 셋 (10-16). 공격력도 그동안만 3
+            for (int m = 0; m < kind.Minions; m++)
+            {
+                float mx = Game.I.FreeX(CanKind.Minion);
+                Game.I.Cans.Add(Can.Spawn(CanKind.Minion, new Vector2(mx, Look.ShelfY + 0.11f + CanKind.Minion.Height * 0.5f)));
+            }
+            if (kind == CanKind.BountyGang) Gun.ShotDamage = 3;
             Fx.Shake(0.6f);
             Sfx.Play(Sfx.Drop(), 1f, 0.5f);
             // 살아 있는 동안 체력·도주 시간 표시. 시간이 다 되면 도망간다 (사용자 10-14). 가게가 열렸거나 막타 연출 중엔 멈춘다
@@ -154,6 +160,7 @@ namespace TinCan
                 yield return null;
             }
             timer.text = "";
+            Gun.ShotDamage = 1;
             yield return new WaitForSeconds(1.6f);
             // 포스터 퇴장
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 3f) { rt.anchoredPosition = Vector2.Lerp(new Vector2(-720f, 180f), new Vector2(-1300f, 700f), t * t); yield return null; }

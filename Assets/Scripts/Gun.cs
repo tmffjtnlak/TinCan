@@ -482,11 +482,14 @@ namespace TinCan
             if (Ammo == 0) StartCoroutine(AutoReload());
         }
 
+        /// <summary>총 한 발의 공격력 (보통 1. 10-16 시험: 패거리 두목이 있는 동안 3)</summary>
+        public static int ShotDamage = 1;
+
         void HitOne(Can can, Vector2 aim)
         {
             // 샷건은 깡통마다 맞은 자리가 다르다: 깡통 쪽으로 살짝 당긴 점
             Vector2 at = Kind.HitAll ? Vector2.Lerp(aim, can.transform.position, 0.7f) : aim;
-            int earned = can.Hit(at, Kind.ValueScale * shotValue, Kind.BounceScale * shotBounce);
+            int earned = can.Hit(at, Kind.ValueScale * shotValue, Kind.BounceScale * shotBounce, ShotDamage);
             if (can.IsMenu) return;
             Game.I?.CanHit(can, earned, at);
             if (Kind.CurseChance > 0f && !can.Cursed && !can.Done && Random.value < Kind.CurseChance)
