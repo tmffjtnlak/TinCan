@@ -17,7 +17,7 @@ namespace TinCan
         const float D = 1f / 27f;                    // 1도트
         const float IdleX = 3.9f;                    // 평소 자리: 카운터 오른쪽 (가운데 깡통 자리를 비운다)
         const int Order = -1;                        // 배경(-2) 위, 탄피(1)·깡통(2) 아래 = 깡통이 주인 앞에 보인다
-        static float ShelfTop => Look.ShelfY + 0.11f;
+        static float ShelfTop => Look.CounterBackY;   // 10-15: 넓힌 탁상의 뒤쪽 모서리 아래로 숨는다
         static float UpY => ShelfTop - 8f * D;       // 가슴께까지 보임
         static float DownY => ShelfTop - 48f * D;    // 머리 끝까지 카운터 아래
 

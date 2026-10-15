@@ -43,12 +43,15 @@ namespace TinCan
         // 아래 좌표는 가운데 480×180 부분 기준: x = (열 - 240) / 27, y = (90 - 행) / 27.  선반 윗면 121행·x 182~287, 바닥선 147행
         public const float PlayHalfW = 240f / 27f, PlayHalfH = 90f / 27f;   // 그림 반폭 8.89(= 화면 반폭), 반높이 3.33
         public static readonly Color Bar = new Color(0.15f, 0.13f, 0.25f);   // 우클릭 레터박스 띠 색 = 도트 외곽선 남색
-        public const float ShelfY = -1.26f;     // 소환지역: 깡통이 올라가는 선반 (충돌 상자 가운데. 윗면 = +0.11 = 그림 121행 = -1.15)
+        // 10-15 사용자: 탁상을 넓힌 그림 (480×270 기준 윗면 162~180행, 앞면 181~213행). 깡통은 윗면 가운데(170행)에 선다
+        public const float ShelfY = (135f - 170f) / 27f - 0.11f;     // 소환지역: 충돌 상자 가운데 (윗면 = +0.11 = 170행 = -1.30)
+        /// <summary>탁상 뒤쪽 모서리 (162행). 술집 주인은 이 아래로 숨는다</summary>
+        public const float CounterBackY = (135f - 162f) / 27f;
         // 낙하지역: 깡통 아랫면이 여기 닿으면 정산. 사용자 10-13: 총 상점 버튼 아랫선 높이
         // (Hud 버튼 가운데 -386, 높이 72 → 아랫선 -422 / 1080p 기준, 108px = 1 월드 → -3.907)
         public const float DropY = -422f / 108f;
         // 그림 속 선반 양 끝. 10-14 사용자 긴 선반 그림: 윗면 외곽선 103~375열 → x = (103-240)/27 … (376-240)/27 (예전 짧은 선반 -2.15~1.74)
-        public const float ShelfLeft = (103f - 240f) / 27f, ShelfRight = (376f - 240f) / 27f;
+        public const float ShelfLeft = (100f - 240f) / 27f, ShelfRight = (378f - 240f) / 27f;   // 170행에서 윗면 97~381열, 양끝 3칸 안쪽
         public const float CeilingY = 4.75f;                         // 천장: 화면 위 끝 바로 아래 (위 띠까지 날아간다)
 
         /// <summary>
