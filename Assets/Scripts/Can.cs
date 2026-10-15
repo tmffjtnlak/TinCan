@@ -906,7 +906,6 @@ namespace TinCan
         /// <summary>터질 때 특성: 다이너마이트 폭발 / 묶음이 풀려 셋 / 파란 깡통이 반투명 깡통 하나</summary>
         void TraitBurst(Vector2 at)
         {
-            if (Kind == CanKind.Bottle && Game.I != null) Cork.Launch(at);   // 10-15: 병이 깨지면 코르크가 포물선으로 — 맞히면 별개 보너스
             if (Game.I == null) return;
             switch (Kind.Special)
             {

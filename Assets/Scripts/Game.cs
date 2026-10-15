@@ -91,8 +91,6 @@ namespace TinCan
         public bool SlowUnlocked { get; set; }
         /// <summary>우클릭을 켠 횟수 (이번 판). 배우기는 이게 오를 때까지 기다린다</summary>
         public int SlowUses { get; set; }
-        /// <summary>세트와 상관없는 보너스 돈 (코르크 등, 10-15): 바로 돈에 더하고 돈 글자가 튄다</summary>
-        public void AddBonus(long amount) { Money += amount; hud.BumpMoney(); }
         public void FillSlow() { if (SlowActive || !SlowUnlocked) return; SlowGauge = Mathf.Min(SlowGaugeMax, SlowGauge + SlowFillPerHit); }
         public Gun Gun { get; private set; }
         public List<Can> Cans { get; } = new List<Can>();
