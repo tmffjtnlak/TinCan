@@ -262,11 +262,10 @@ namespace TinCan
                 Sfx.Play(Sfx.Tang(), 0.7f, 1.3f);
                 yield return new WaitForSecondsRealtime(0.5f);
             }
-            yield return Say("증표로 총을 바꿀 수 있어. 한번 골라 봐.", 1.0f);
+            // 10-16: 총 가게는 닫았다. 증표는 핵심 스킬트리 재화 (핵심 노드는 아직) → 안내만
+            yield return Say("증표는 잘 모아 둬. 그 총을 길들이는 데 쓰게 될 거야.", 1.0f);
             Sink();
             appearing = false;
-            yield return new WaitForSecondsRealtime(0.4f);
-            if (g != null && !g.MenuOpen && g.State == GameState.Play) g.OpenGunShop(GunKind.Revolver);   // 총 가게 (책자), 살 수 있는 리볼버를 펼쳐서
         }
     }
 }

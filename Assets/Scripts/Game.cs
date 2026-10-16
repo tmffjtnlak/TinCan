@@ -428,8 +428,8 @@ namespace TinCan
                 n.Level = d.nodeLevels[i];
                 if (n.Level > 0 && !n.Root) n.Apply(this, n.Level);   // 시작 노드는 해방 여부만 기억
             }
-            var g = GunKind.ForSale.Find(x => x.Id == d.gun); if (g != null) { Primary = g; Gun.Equip(g); }
-            var s2 = GunKind.ForSale.Find(x => x.Id == d.secondary); if (s2 != null && s2 != Primary) Secondary = s2;
+            // 10-16 사용자: 무기는 리볼버 한 자루 (녹슨 리볼버가 트리로 강해진다). 옛 저장의 다른 총·보조무기는 무시
+            Primary = GunKind.Rusty; Gun.Equip(GunKind.Rusty); Secondary = null;
             ActiveSlot = 0;
             var k = CanKind.ForSale.Find(x => x.Id == d.spawn); if (k != null) SpawnKind = k;
         }
@@ -448,7 +448,7 @@ namespace TinCan
                 return;
             }
             // 가게는 오른쪽 아래 버튼 둘(스킬트리·총 상점)로 연다 (사용자 10-12). Tab/Esc = 닫기 (Tab은 마지막 페이지 다시 열기도)
-            if (IntroRunning) { HolsterReload(); return; }   // 오프닝 중엔 가게·소환·디버그 키 없음
+            if (IntroRunning) return;   // 오프닝 중엔 가게·소환·디버그 키 없음
             if (kb.tabKey.wasPressedThisFrame) { if (MenuOpen) CloseMenu(); else OpenMenu(lastPage); }
             UpdateStageUi();
             if (MenuOpen)
@@ -471,10 +471,9 @@ namespace TinCan
             if (kb.f12Key.wasPressedThisFrame) DefileTest();   // 시험: 모독 연쇄 (10-16)   // 시험: 유리병 (10-15, 코르크 확인용)
             if (kb.f4Key.wasPressedThisFrame) bounty.Summon(kb.ctrlKey.isPressed ? CanKind.BountyGang : kb.shiftKey.isPressed ? CanKind.BountyRoller : CanKind.BountyTest);   // 시험: F4 체력 3 현상금 / Shift+F4 구르는 무법자 / Ctrl+F4 패거리 두목 (10-16)
             if (kb.f10Key.wasPressedThisFrame) CycleDebugTime();   // 디버그 슬로우
-            if (kb.digit1Key.wasPressedThisFrame) SelectSlot(0);
-            if (kb.digit2Key.wasPressedThisFrame) SelectSlot(1);
+            // 1·2번 총 바꾸기는 뺐다 (10-16: 리볼버 한 자루)
             if (kb.digit3Key.wasPressedThisFrame) hud.Float("3: 투척류 — 아직 없다", new Vector2(0f, 1.5f), 0);
-            HolsterReload();
+            TickSummon();
             Nudge();
             bounty.Tick();
             UpdateSlow(kb);
@@ -488,7 +487,8 @@ namespace TinCan
 
         /// <summary>총 가게를 그 총이 골라진 채로 연다 (10-15: 첫 현상금 뒤 주인이 리볼버를 보여 준다)</summary>
         public void OpenGunShop(GunKind focus) { OpenMenu(0); if (focus != null) booklet.Select(focus); }
-        public void OpenMenu(int page) { MenuOpen = true; Gun.Enabled = false; hud.SetButtonsVisible(false); OpenPage(page); }
+        // 총 상점(0)은 닫았다 (10-16) → 스킬트리로
+        public void OpenMenu(int page) { if (page == 0) page = 2; MenuOpen = true; Gun.Enabled = false; hud.SetButtonsVisible(false); OpenPage(page); }
         public void CloseMenu() { PlayLog.Menu(null); MenuOpen = false; Gun.Enabled = true; tree.SetOpen(false); armory.Hide(); booklet.Hide(); display.Close(); uiStage = -1; Save.Write(this); }   // 버튼은 단계대로 다시 (UpdateStageUi)
 
         // ---------- 첫 흐름 (사용자 10-14): 들어오면 총만 → 스킬트리 버튼 → 시작 노드 "깡통 소환" → Space ----------
@@ -507,8 +507,8 @@ namespace TinCan
         }
         /// <summary>시작 노드를 열었나 = 깡통을 부를 수 있나. 그전엔 화면에 총과 스킬트리 버튼뿐</summary>
         public bool SummonUnlocked => rootNode == null || rootNode.Level >= 1;
-        /// <summary>총 상점 버튼: 증표가 생기거나 총이 둘 이상일 때부터</summary>
-        public bool ShopUnlocked => Tokens > 0 || OwnedGuns.Count > 1;
+        /// <summary>총 상점 버튼: 닫았다 (10-16 사용자: 총 종류가 필요 없었다. 리볼버 한 자루가 트리로 강해진다). 코드는 남겨 둠</summary>
+        public bool ShopUnlocked => false;
         /// <summary>진열장 버튼: 첫 현상금이 끝난 뒤 (새 깡통 갈래가 열리는 때, 10-15)</summary>
         public bool DisplayUnlocked => FirstBountyDone;
         /// <summary>잡은 현상금 수 (진열장 표시, 저장)</summary>
@@ -692,10 +692,27 @@ namespace TinCan
                 hud.Float("공중 깡통을 다 처리하면 소환", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (CansOnShelf >= MaxCans) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("선반이 꽉 찼다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (Money < cost) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("돈이 모자라다", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
+            if (SummonCharges <= 0) { Sfx.Play(Sfx.Click(), 0.5f, 0.7f); hud.Float("깡통 충전 중", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
             if (filling) return false;
             // 10-14 사용자: Space 한 번에 선반이 꽉 차게, 하나씩 차례로 (둘 이상 띄울 기회가 늘어난다)
             StartCoroutine(FillShelf());
             return true;
+        }
+
+        // ---------- 깡통 충전 (10-16 사용자): 최대 2개, 5초에 하나씩 찬다. 깡통 하나 = 충전 하나 → 수입이 시간으로 묶인다 ----------
+        // 빨리 터뜨려도 충전을 기다려야 하니, 오래 띄워 크게 터뜨리는 쪽이 이득 (저글링 = 정답)
+        public int SummonMax { get; set; } = 2;
+        public float SummonRefill { get; set; } = 5f;
+        public int SummonCharges { get; private set; } = 2;
+        /// <summary>다음 충전까지 0~1 (꽉 찼으면 0)</summary>
+        public float SummonProgress { get; private set; }
+        void TickSummon()
+        {
+            if (!SummonUnlocked || SummonCharges >= SummonMax) { SummonProgress = 0f; return; }
+            SummonProgress += Time.deltaTime / Mathf.Max(0.1f, SummonRefill);
+            if (SummonProgress < 1f) return;
+            SummonProgress = 0f; SummonCharges++;
+            hud.ChargeFilled();
         }
 
         bool filling;
@@ -704,8 +721,9 @@ namespace TinCan
         {
             filling = true;
             int n = 0;
-            while (CansOnShelf < MaxCans)
+            while (CansOnShelf < MaxCans && SummonCharges > 0)
             {
+                SummonCharges--;
                 var kind = SpawnKind == CanKind.Tin ? RollKind() : SpawnKind;
                 float x = FreeX(kind);   // 종류를 먼저 정해야 폭에 맞는 빈자리를 찾는다
                 var spawned = Can.Spawn(kind, new Vector2(x, Look.ShelfY + 0.11f + kind.Height * 0.5f));

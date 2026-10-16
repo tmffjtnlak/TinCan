@@ -64,6 +64,15 @@ namespace TinCan
             slowFill = Ui.Image("SlowFill", slowBg.transform, Vector2.zero, new Vector2(8f, 294f), new Color(0.5f, 0.8f, 1f));
             slowLabel = Ui.Text("SlowLabel", canvas, new Vector2(760f, 170f), new Vector2(120f, 24f), 14, TextAnchor.MiddleCenter, Ui.Dim);
             slowLabel.text = "우클릭";
+            // 깡통 충전 (10-16, 자리 임시): 카운터 왼쪽 아래에 빈 깡통 칸 둘. 아래에서 위로 차오르고, 다 차면 톡 튄다
+            chargeRoot = Ui.Rect("Charge", canvas, new Vector2(-700f, -330f), Vector2.zero);
+            chargeLabel = Ui.Text("ChargeLabel", chargeRoot, new Vector2(0f, -52f), new Vector2(160f, 24f), 14, TextAnchor.MiddleCenter, Ui.Dim);
+            chargeLabel.text = "Space";
+            for (int i = 0; i < chargeCan.Length; i++)
+            {
+                chargeCan[i] = Ui.Image($"Can{i}", chargeRoot, new Vector2(-24f + i * 48f, 0f), new Vector2(36f, 48f), new Color(0f, 0f, 0f, 0.45f));
+                chargeFill[i] = Ui.Image("Fill", chargeCan[i].transform, Vector2.zero, new Vector2(30f, 42f), Look.Tin);
+            }
             slowVeil = Ui.Image("SlowVeil", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
             slowVeil.transform.SetAsFirstSibling();
             BuildButtons();
@@ -89,6 +98,8 @@ namespace TinCan
         public void SetStage(bool summon, bool shop, bool slow, bool display = false)
         {
             moneyBoard.gameObject.SetActive(summon);
+            chargeRoot.gameObject.SetActive(summon);
+            if (btn[2] != null) btn[2].rectTransform.anchoredPosition = new Vector2(760f, -470f + (shop ? 2 : 1) * 84f);   // 총 상점이 없으면 진열장이 한 칸 내려온다
             slowBg.gameObject.SetActive(slow); slowLabel.gameObject.SetActive(slow);   // 우클릭 게이지는 배운 뒤에 (10-15)
             ShowButton(0, true); ShowButton(1, shop); ShowButton(2, display);
         }
@@ -98,6 +109,33 @@ namespace TinCan
             if (v && !btn[i].gameObject.activeSelf) { btnS[i] = 0.2f; btnSV[i] = 0f; Sfx.Play(Sfx.Tang(), 0.4f, 1.6f); }
             btn[i].gameObject.SetActive(v);
         }
+        RectTransform chargeRoot; Text chargeLabel;
+        readonly Image[] chargeCan = new Image[2], chargeFill = new Image[2];
+        readonly float[] chargeS = { 1f, 1f }, chargeSV = { 0f, 0f };
+        /// <summary>충전 하나가 다 찼다: 그 칸이 톡 튄다</summary>
+        public void ChargeFilled()
+        {
+            int i = Mathf.Clamp(game.SummonCharges - 1, 0, chargeCan.Length - 1);
+            chargeS[i] = 1.4f; chargeSV[i] = 0f;
+            Sfx.Play(Sfx.Tang(), 0.3f, 1.8f);
+        }
+        void UpdateCharge(float dt)
+        {
+            if (chargeRoot == null || !chargeRoot.gameObject.activeSelf) return;
+            for (int i = 0; i < chargeCan.Length; i++)
+            {
+                bool on = i < game.SummonMax;
+                chargeCan[i].gameObject.SetActive(on);
+                if (!on) continue;
+                float f = i < game.SummonCharges ? 1f : i == game.SummonCharges ? game.SummonProgress : 0f;
+                chargeFill[i].rectTransform.sizeDelta = new Vector2(30f, 42f * f);
+                chargeFill[i].rectTransform.anchoredPosition = new Vector2(0f, -21f + 21f * f);
+                chargeFill[i].color = i < game.SummonCharges ? Look.Tin : new Color(Look.Tin.r, Look.Tin.g, Look.Tin.b, 0.45f);
+                Ease.Spring(ref chargeS[i], ref chargeSV[i], 1f, 500f, 14f, dt);
+                chargeCan[i].rectTransform.localScale = Vector3.one * chargeS[i];
+            }
+        }
+
         Image badge; Text badgeMark; float badgeS, badgeSV; bool badgeOn;
         /// <summary>살 수 있는 노드가 생기면 스킬트리 버튼 오른쪽 위에 금색 "!" 마름모가 톡 튀어나오고 위아래로 까딱인다 (10-14)</summary>
         public void TreeBadge(bool on, float dt)
@@ -357,7 +395,7 @@ namespace TinCan
             stats.text = $"최고 세트 ${game.BestPayout:N0}  ·  터뜨림 {game.Bursts}  ·  최고 연속 {game.BestCombo}"
                 + (game.SetActive ? $"   <color=#ffd966>이번 세트 ${game.SetPending:N0}</color>" : "")
                 + (gun.ReloadStreak >= 1 ? $"   <color=#88ffaa>저스트 {gun.ReloadStreak}</color>" : "");
-            hint.text = game.MenuOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (${game.SpawnCost(game.SpawnKind)}, 공중이 비어 있을 때)   ·   좌클릭 = 쏜다   ·   우클릭 = 느리게   ·   R = 장전   ·   1/2 = 무기   ·   Tab = 가게   ·   <color=#ffd966>둘 띄우면 ×3</color>";
+            hint.text = game.MenuOpen ? "" : $"Space = {game.SpawnKind.Name} 소환 (충전 {game.SummonCharges}/{game.SummonMax}, 공중이 비어 있을 때)   ·   좌클릭 = 쏜다   ·   우클릭 = 느리게   ·   R = 장전   ·   Tab = 스킬트리   ·   <color=#ffd966>둘 띄우면 ×3</color>";
             gunName.text = gun.Kind.Name;
             string p = $"{(game.ActiveSlot == 0 ? "<color=#ffd966>" : "<color=#999999>")}1 {game.Primary.Name} {gun.StoredAmmo(game.Primary)}</color>";
             string s = game.Secondary != null ? $"   {(game.ActiveSlot == 1 ? "<color=#ffd966>" : "<color=#999999>")}2 {game.Secondary.Name} {gun.StoredAmmo(game.Secondary)}</color>" : "   <color=#666666>2 —</color>";
@@ -368,6 +406,7 @@ namespace TinCan
             slowFill.rectTransform.sizeDelta = new Vector2(8f, 294f * g);
             slowFill.rectTransform.anchoredPosition = new Vector2(0f, -147f + 147f * g);
             slowFill.color = game.SlowActive ? new Color(0.7f, 0.95f, 1f) : (g >= 0.99f ? new Color(0.6f, 0.9f, 1f) : new Color(0.4f, 0.65f, 0.9f));
+            UpdateCharge(Time.unscaledDeltaTime);
             slowVeil.color = Color.Lerp(slowVeil.color, game.SlowActive ? new Color(0.3f, 0.5f, 0.9f, 0.14f) : Color.clear, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 12f));
 
         }

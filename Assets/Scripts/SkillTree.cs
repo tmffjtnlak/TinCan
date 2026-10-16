@@ -259,7 +259,7 @@ namespace TinCan
             N("reload3", "번개 장전", "번", Vector2.zero, Red, 900, "장전 시간 -25% 더", g => g.Gun.ReloadScale *= 0.75f),
             N("just2", "저스트 배율 2", "저", Vector2.zero, Red, 330, "저스트 연속마다 +0.15 → +0.2, 최대 ×1.5 → ×2", g => { g.JustPerStreak += 0.05f; g.JustMax = 2f; }),
             C("comboreload", "연속 장전", "연", Red, 700, "공중 연속 5번마다 즉시 장전", g => g.Gun.ComboReloadEvery = 5),
-            C("holster", "허리춤 장전", "허", Red, 1200, "꺼내지 않은 보조무기가 1.5초마다 한 발씩 찬다", g => g.HolsterReloadSeconds = 1.5f),
+            C("holster", "빠른 소환", "소", Red, 1200, "깡통 충전 5초 → 4초", g => g.SummonRefill = Mathf.Min(g.SummonRefill, 4f)),   // 10-16: 보조무기가 없어져 허리춤 장전 자리를 충전으로 (id는 저장 호환)
 
             // 선반 (하늘) — 오른쪽
             N("perfect1", "퍼펙트 배율", "퍼", Vector2.zero, Cyan, 90, "한 발도 안 놓친 세트 ×1.1 → ×1.2", g => g.PerfectMult += 0.1f),
