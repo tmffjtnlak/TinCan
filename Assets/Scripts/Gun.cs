@@ -451,7 +451,7 @@ namespace TinCan
         readonly List<Vector3> markAt = new List<Vector3>();   // 깡통 기준 자리 (local)
         Can lastOver; bool volleying;
         /// <summary>슬로우가 풀렸다 (Game.UpdateSlow가 부른다): 표시가 있으면 연발</summary>
-        public void SlowEnded() { if (marks.Count > 0 && !volleying) StartCoroutine(Volley()); else Replay.I?.Cancel(); }
+        public void SlowEnded() { if (marks.Count > 0 && !volleying) StartCoroutine(Volley()); }
 
         void DeadEyeTick(Vector2 aim)
         {
@@ -511,15 +511,12 @@ namespace TinCan
             foreach (var v in markViews) if (v != null) Destroy(v.gameObject);
             marks.Clear(); markViews.Clear(); markAt.Clear();
             volleying = false;
-            Replay.I?.Finish();   // 방금 그 장면을 실제 속도로
         }
 
         void Fire(Vector2 aim)
         {
             if (Reloading || Cinematic) return;
-            if (Ammo <= 0) { if (!Kind.Auto) Sfx.Play(Sfx.Click(), 0.7f, 1f); return; }
-            Replay.I?.Shot(aim);
-            bool wasFull = Ammo == Capacity;
+            if (Ammo <= 0) { if (!Kind.Auto) Sfx.Play(Sfx.Click(), 0.7f, 1f); return; }            bool wasFull = Ammo == Capacity;
             bool last = Ammo == 1;
             Ammo--; Shots++;
             kickLeft = 1f;

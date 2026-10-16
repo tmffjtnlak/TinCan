@@ -237,20 +237,6 @@ namespace TinCan
 
         /// <summary>selfSlow &lt; 1이면 처음 맞기 전까지 이 깡통만 그 배수로 느리다 (묶음에서 풀린 깡통)</summary>
         /// <summary>체력 점을 n개로 다시 만든다 (깡통 위에 남은 횟수만큼, 맞을 때마다 하나씩 꺼진다)</summary>
-        // ---------- 리플레이 (10-16, Replay.cs) ----------
-        /// <summary>지금 모습 그대로 그림만 복제 (꺼진 채로)</summary>
-        public GameObject CloneVisual()
-        {
-            if (visual == null) return null;
-            var g = Instantiate(visual.gameObject);
-            g.transform.SetPositionAndRotation(visual.position, visual.rotation);
-            g.transform.localScale = visual.lossyScale;
-            g.SetActive(false);
-            return g;
-        }
-        public void HideVisual(bool hide) { if (visual != null) visual.gameObject.SetActive(!hide); }
-        public Transform Visual => visual;
-
         void BuildPips(int n)
         {
             if (pips != null) foreach (var p in pips) if (p != null) Destroy(p.gameObject);
