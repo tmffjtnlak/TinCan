@@ -139,6 +139,8 @@ namespace TinCan
             Put("slow3", 2, -3, (1, -3));
             Put("slow2", 3, -3, (2, -3));
             Put("floor", 4, -3, (3, -3));               // 핵심
+            Put("deadeye", 2, -4, (2, -3));             // 핵심 (10-16: 데드아이)
+            Put("deadeye2", 3, -4, (2, -4));
             return list;
         }
 
@@ -298,6 +300,9 @@ namespace TinCan
             N("slow3", "빠른 숨", "빠", Vector2.zero, Purple, 270, "맞출 때 게이지 +0.1 → +0.2", g => g.SlowFillPerHit = 0.2f),
             N("slow2", "깊은 숨", "깊", Vector2.zero, Purple, 420, "슬로우 중 깡통이 더 느리게 (×0.3 → ×0.18)", g => g.SlowStrength = 0.18f),
             C("floor", "바닥 바람", "바", Purple, 750, "바닥 가까이 온 깡통은 낙하 속도 -40%", g => g.FloorSlow = 0.4f),
+            // 데드아이 (10-16 사용자: 성장 축 = 슬로우)
+            C("deadeye", "데드아이", "표", Purple, 300, "슬로우 중 조준점으로 훑은 깡통에 표시 (최대 3). 손을 떼면 표시한 곳을 연달아 쏜다", g => g.DeadEyeMarks = Mathf.Max(g.DeadEyeMarks, 3)),
+            N("deadeye2", "더 많은 표시", "표", Vector2.zero, Purple, 500, "데드아이 표시 최대 3 → 6", g => g.DeadEyeMarks += 3),
         };
 
         /// <summary>이웃 관계를 양방향으로 맞춘다</summary>

@@ -60,6 +60,8 @@ namespace TinCan
         public float SlowGaugeMax { get; set; } = 1f;         // 스킬: 게이지 크기 (1 = 3초)
         public float SlowStrength { get; set; } = 0.3f;       // 스킬: 깡통 시간 배수 (작을수록 느림)
         public float SlowFillPerHit { get; set; } = 0.1f;     // 스킬: 맞출 때 차는 양
+        /// <summary>데드아이 (10-16): 슬로우 중 표시할 수 있는 수. 0 = 없음 (스킬로 3 → 6)</summary>
+        public int DeadEyeMarks { get; set; }
         public bool SlowActive { get; private set; }
         /// <summary>게이지 1칸(1.0)이 버티는 초 (사용자 10-13: 2 → 3초. 꽉 차야 쓸 수 있으니 덜 자주 쓰는 대신 길게)</summary>
         public const float SlowSecondsPerGauge = 3f;
@@ -83,7 +85,7 @@ namespace TinCan
             if (SlowActive)
             {
                 SlowGauge = Mathf.Max(0f, SlowGauge - Time.deltaTime / SlowSecondsPerGauge);
-                if (SlowGauge <= 0f || !held) { SlowActive = false; Sfx.Play(Sfx.Whoosh(), 0.4f, 1.4f); }
+                if (SlowGauge <= 0f || !held) { SlowActive = false; Sfx.Play(Sfx.Whoosh(), 0.4f, 1.4f); Gun.SlowEnded(); }   // 데드아이: 풀리는 순간 연발
             }
             Can.TimeScale = SlowActive ? SlowStrength : 1f;
         }

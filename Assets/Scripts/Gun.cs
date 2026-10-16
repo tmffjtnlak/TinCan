@@ -222,6 +222,7 @@ namespace TinCan
             crosshair.gameObject.SetActive(Enabled);
             Cursor.visible = !Enabled;
             view.Tick(aim, Enabled);
+            DeadEyeTick(aim);
             if (!Enabled) return;
             var mouse = Mouse.current; var kb = Keyboard.current;
             bool pressR = kb != null && kb.rKey.wasPressedThisFrame;
@@ -440,6 +441,72 @@ namespace TinCan
             var f = Look.Quad("Flash", cam.transform.position, new Vector2(40f, 30f), new Color(1f, 1f, 1f, 0.7f), 60);
             for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime / 0.15f) { f.transform.position = (Vector2)cam.transform.position; f.color = new Color(1f, 1f, 1f, 0.7f * (1f - t)); yield return null; }
             Destroy(f.gameObject);
+        }
+
+        // ---------- 데드아이 (10-16 사용자: 동체시력의 벽을 넘는 길은 시간뿐 → 성장 축 = 슬로우. 레드 데드 리뎀션의 데드아이) ----------
+        // 슬로우 중 조준점이 깡통에 들어갈 때마다 표시가 하나 붙는다 (나갔다 다시 들어오면 또 붙어서 한 깡통에 여러 발도).
+        // 슬로우가 풀리는 순간 표시한 깡통을 0.07초 간격으로 차례로 쏜다. 표시 수 = 스킬(DeadEyeMarks)과 남은 탄 중 작은 쪽
+        readonly List<Can> marks = new List<Can>();
+        readonly List<SpriteRenderer> markViews = new List<SpriteRenderer>();
+        Can lastOver; bool volleying;
+        /// <summary>슬로우가 풀렸다 (Game.UpdateSlow가 부른다): 표시가 있으면 연발</summary>
+        public void SlowEnded() { if (marks.Count > 0 && !volleying) StartCoroutine(Volley()); }
+
+        void DeadEyeTick(Vector2 aim)
+        {
+            var g = Game.I;
+            if (g == null) return;
+            int max = g.DeadEyeMarks;
+            if (Enabled && g.SlowActive && max > 0 && !volleying)
+            {
+                Can over = null;
+                foreach (var col in Physics2D.OverlapCircleAll(aim, Mathf.Max(Kind.AimRadius, 0.3f)))
+                {
+                    var c = col.GetComponent<Can>();
+                    if (c != null && !c.Done && !c.IsMenu) { over = c; break; }
+                }
+                if (over != null && over != lastOver && marks.Count < Mathf.Min(max, Ammo)) AddMark(over);
+                lastOver = over;
+            }
+            else lastOver = null;
+            // 표시는 깡통을 따라다닌다 (깡통 위에 쌓아서). 깡통이 사라지면 표시도
+            var count = new Dictionary<Can, int>();
+            for (int i = 0; i < marks.Count; i++)
+            {
+                var c = marks[i]; var v = markViews[i];
+                if (v == null) continue;
+                if (c == null || c.Done) { v.gameObject.SetActive(false); continue; }
+                count.TryGetValue(c, out int k); count[c] = k + 1;
+                v.transform.position = c.transform.position + new Vector3(0f, c.Kind.Height * 0.5f + 0.22f + k * 0.2f, 0f);
+                v.transform.rotation = Quaternion.Euler(0f, 0f, 45f + Mathf.Sin(Time.unscaledTime * 8f + i) * 6f);
+            }
+        }
+
+        void AddMark(Can c)
+        {
+            marks.Add(c);
+            var v = Look.Quad("DeadEyeMark", c.transform.position, new Vector2(0.16f, 0.16f), new Color(0.95f, 0.15f, 0.12f), 20);
+            markViews.Add(v);
+            Sfx.Play(Sfx.Click(), 0.55f, 1.8f + marks.Count * 0.12f);
+        }
+
+        IEnumerator Volley()
+        {
+            volleying = true;
+            yield return new WaitForSecondsRealtime(0.06f);
+            for (int i = 0; i < marks.Count; i++)
+            {
+                var c = marks[i];
+                if (markViews[i] != null) Destroy(markViews[i].gameObject);
+                if (c == null || c.Done) continue;
+                if (Ammo <= 0 || Reloading) continue;
+                Physics2D.SyncTransforms();
+                Fire(c.transform.position);
+                yield return new WaitForSecondsRealtime(0.07f);
+            }
+            foreach (var v in markViews) if (v != null) Destroy(v.gameObject);
+            marks.Clear(); markViews.Clear();
+            volleying = false;
         }
 
         void Fire(Vector2 aim)
