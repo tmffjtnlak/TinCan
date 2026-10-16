@@ -352,7 +352,7 @@ namespace TinCan
             yield return new WaitForSecondsRealtime(0.1f);
             yield return Iris.Get().Open(0.45f);
             if (State != GameState.Play) yield break;
-            if (introPending) { introPending = false; StartCoroutine(Intro()); yield break; }
+            if (introPending) { introPending = false; introCo = StartCoroutine(Intro()); yield break; }
             uiReady = true; uiStage = -1;   // 보이는 UI는 단계대로 (UpdateStageUi)
         }
 
@@ -419,6 +419,34 @@ namespace TinCan
             IntroRunning = false;
             uiReady = true; uiStage = -1;   // 스킬트리 버튼 단계로
         }
+        Coroutine introCo;
+        /// <summary>
+        /// 시험용 건너뛰기 (사용자 10-16, Backspace): 오프닝을 끊고, 튜토리얼 대사·단계를 전부 지난 것으로.
+        /// 깡통 소환·우클릭(게이지 가득)·현상금 포스터·진열장이 바로 열린다
+        /// </summary>
+        void SkipTutorial()
+        {
+            if (State != GameState.Play || MenuOpen) return;
+            if (IntroRunning)
+            {
+                if (introCo != null) StopCoroutine(introCo);
+                introCo = null; introPending = false;
+                var cam = Camera.main;
+                if (introSize0 > 0f) cam.orthographicSize = introSize0;
+                Fx.CamFocus = null; cam.transform.position = new Vector3(0f, 0f, -10f);
+                Letterbox.Force = false; Letterbox.HoldCamera = false;
+                hud.IntroText("", 0f);
+                IntroRunning = false;
+            }
+            Gun.Enabled = true;
+            if (rootNode != null && rootNode.Level < 1) rootNode.Level = 1;   // 깡통 소환
+            spawnedOnce = true; SeenFirstBurst = true; TreeNudged = true; FirstBountyDone = true;
+            slowLesson = true; SlowUnlocked = true; SlowGauge = SlowGaugeMax;
+            uiReady = true; uiStage = -1;
+            hud.Float("튜토리얼 건너뜀", new Vector2(0f, 2.2f), 8);
+            Save.Write(this);
+        }
+
         void Load()
         {
             var d = Save.Read(); if (d == null) return;
@@ -453,6 +481,7 @@ namespace TinCan
                 return;
             }
             // 가게는 오른쪽 아래 버튼 둘(스킬트리·총 상점)로 연다 (사용자 10-12). Tab/Esc = 닫기 (Tab은 마지막 페이지 다시 열기도)
+            if (kb.backspaceKey.wasPressedThisFrame) SkipTutorial();   // 10-16 시험: 오프닝·튜토리얼 전부 건너뛰기 (우클릭까지 해금)
             if (IntroRunning) return;   // 오프닝 중엔 가게·소환·디버그 키 없음
             if (kb.tabKey.wasPressedThisFrame) { if (MenuOpen) CloseMenu(); else OpenMenu(lastPage); }
             UpdateStageUi();
