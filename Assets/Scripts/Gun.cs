@@ -444,13 +444,14 @@ namespace TinCan
         }
 
         // ---------- 데드아이 (10-16 사용자: 동체시력의 벽을 넘는 길은 시간뿐 → 성장 축 = 슬로우. 레드 데드 리뎀션의 데드아이) ----------
-        // 슬로우 중 조준점이 깡통에 들어갈 때마다 표시가 하나 붙는다 (나갔다 다시 들어오면 또 붙어서 한 깡통에 여러 발도).
-        // 슬로우가 풀리는 순간 표시한 깡통을 0.07초 간격으로 차례로 쏜다. 표시 수 = 스킬(DeadEyeMarks)과 남은 탄 중 작은 쪽
+        // 슬로우 중 조준점이 깡통에 들어갈 때마다 그 자리에 빨간 X가 남는다 (사용자 10-16: 마우스가 지나간 곳). 나갔다 다시 들어오면 또.
+        // X는 깡통에 붙어 같이 돈다. 슬로우가 풀리는 순간 X 자리를 0.07초 간격으로 차례로 쏜다. 표시 수 = 스킬(DeadEyeMarks)과 남은 탄 중 작은 쪽
         readonly List<Can> marks = new List<Can>();
-        readonly List<SpriteRenderer> markViews = new List<SpriteRenderer>();
+        readonly List<Transform> markViews = new List<Transform>();
+        readonly List<Vector3> markAt = new List<Vector3>();   // 깡통 기준 자리 (local)
         Can lastOver; bool volleying;
         /// <summary>슬로우가 풀렸다 (Game.UpdateSlow가 부른다): 표시가 있으면 연발</summary>
-        public void SlowEnded() { if (marks.Count > 0 && !volleying) StartCoroutine(Volley()); }
+        public void SlowEnded() { if (marks.Count > 0 && !volleying) StartCoroutine(Volley()); else Replay.I?.Cancel(); }
 
         void DeadEyeTick(Vector2 aim)
         {
@@ -465,28 +466,31 @@ namespace TinCan
                     var c = col.GetComponent<Can>();
                     if (c != null && !c.Done && !c.IsMenu) { over = c; break; }
                 }
-                if (over != null && over != lastOver && marks.Count < Mathf.Min(max, Ammo)) AddMark(over);
+                if (over != null && over != lastOver && marks.Count < Mathf.Min(max, Ammo)) AddMark(over, aim);
                 lastOver = over;
             }
             else lastOver = null;
-            // 표시는 깡통을 따라다닌다 (깡통 위에 쌓아서). 깡통이 사라지면 표시도
-            var count = new Dictionary<Can, int>();
+            // X는 깡통의 그 자리에 붙어 다닌다. 깡통이 사라지면 X도
             for (int i = 0; i < marks.Count; i++)
             {
                 var c = marks[i]; var v = markViews[i];
                 if (v == null) continue;
                 if (c == null || c.Done) { v.gameObject.SetActive(false); continue; }
-                count.TryGetValue(c, out int k); count[c] = k + 1;
-                v.transform.position = c.transform.position + new Vector3(0f, c.Kind.Height * 0.5f + 0.22f + k * 0.2f, 0f);
-                v.transform.rotation = Quaternion.Euler(0f, 0f, 45f + Mathf.Sin(Time.unscaledTime * 8f + i) * 6f);
+                v.SetPositionAndRotation(MarkWorld(i), c.transform.rotation);
             }
         }
+        Vector3 MarkWorld(int i) => marks[i].transform.TransformPoint(markAt[i]);
 
-        void AddMark(Can c)
+        void AddMark(Can c, Vector2 at)
         {
             marks.Add(c);
-            var v = Look.Quad("DeadEyeMark", c.transform.position, new Vector2(0.16f, 0.16f), new Color(0.95f, 0.15f, 0.12f), 20);
-            markViews.Add(v);
+            markAt.Add(c.transform.InverseTransformPoint(at));
+            var x = new GameObject("DeadEyeX").transform;
+            var red = new Color(0.95f, 0.12f, 0.1f);
+            Look.Quad("A", Vector2.zero, new Vector2(0.05f, 0.24f), red, 20, x).transform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            Look.Quad("B", Vector2.zero, new Vector2(0.05f, 0.24f), red, 20, x).transform.localRotation = Quaternion.Euler(0f, 0f, -45f);
+            x.position = at;
+            markViews.Add(x);
             Sfx.Play(Sfx.Click(), 0.55f, 1.8f + marks.Count * 0.12f);
         }
 
@@ -501,18 +505,20 @@ namespace TinCan
                 if (c == null || c.Done) continue;
                 if (Ammo <= 0 || Reloading) continue;
                 Physics2D.SyncTransforms();
-                Fire(c.transform.position);
+                Fire(MarkWorld(i));   // X 자리를 쏜다
                 yield return new WaitForSecondsRealtime(0.07f);
             }
             foreach (var v in markViews) if (v != null) Destroy(v.gameObject);
-            marks.Clear(); markViews.Clear();
+            marks.Clear(); markViews.Clear(); markAt.Clear();
             volleying = false;
+            Replay.I?.Finish();   // 방금 그 장면을 실제 속도로
         }
 
         void Fire(Vector2 aim)
         {
             if (Reloading || Cinematic) return;
             if (Ammo <= 0) { if (!Kind.Auto) Sfx.Play(Sfx.Click(), 0.7f, 1f); return; }
+            Replay.I?.Shot(aim);
             bool wasFull = Ammo == Capacity;
             bool last = Ammo == 1;
             Ammo--; Shots++;

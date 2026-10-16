@@ -81,6 +81,7 @@ namespace TinCan
             if (!SlowActive && SlowReady && mouse != null && mouse.rightButton.wasPressedThisFrame)
             {
                 SlowActive = true; SlowUses++; Sfx.Play(Sfx.Whoosh(), 0.5f, 0.6f);
+                if (DeadEyeMarks > 0) Replay.I?.Begin();   // 데드아이가 있으면 리플레이 기록 시작
             }
             if (SlowActive)
             {
@@ -219,6 +220,7 @@ namespace TinCan
             new GameObject("AmmoHud").AddComponent<AmmoHud>().Build(hud.Canvas, Gun);
             new GameObject("CanDebug").AddComponent<CanDebug>();   // F9 디버그 표시 (10-14)
             Letterbox.Make(hud.Canvas);   // 우클릭 연출: 위아래 띠 + UI 흐리게 (사용자 10-13)
+            Replay.Make();                // 데드아이 리플레이 (10-16)
             display = DisplayCase.Make(this);   // 진열장 (10-15): 모은 깡통·장신구가 벽 선반에, 버튼으로 줌인 보기
             Bartender.Make();             // 술집 주인 (사용자 10-15): 카운터 뒤에서 올라와 짧게 말한다. 사실은 악마
             tree = new GameObject("Tree").AddComponent<TreeView>();
