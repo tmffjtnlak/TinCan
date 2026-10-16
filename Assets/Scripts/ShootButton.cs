@@ -28,6 +28,17 @@ namespace TinCan
             return b;
         }
 
+        /// <summary>그림 없는 과녁 (10-16: 벽의 수배 포스터처럼 그림은 따로 있고 맞는 자리만 필요할 때)</summary>
+        public static ShootButton Bare(string name, System.Action onShot)
+        {
+            var go = new GameObject("Target_" + name);
+            var b = go.AddComponent<ShootButton>();
+            b.OnShot = onShot;
+            var col = go.AddComponent<BoxCollider2D>(); col.isTrigger = true;
+            b.visual = new GameObject("Visual").transform; b.visual.SetParent(go.transform, false);
+            return b;
+        }
+
         public void Shot()
         {
             OnShot?.Invoke();

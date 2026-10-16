@@ -13,7 +13,7 @@ namespace TinCan
     public class Bounty : MonoBehaviour
     {
         /// <summary>지난 현상금이 끝난 뒤 터뜨린 수가 이만큼 차면 부른다 (10-14: 5 → 10, 끝난 때부터 다시 센다. 전엔 싸움 중 박치기도 세져서 끝나자마자 또 떴다)</summary>
-        public int EveryBursts = 25;   // 10-14 2차: 체력 3·파편 튀기기로 터뜨림이 빨라져 10 → 25 (분당 15~20번 기준 1분 반쯤)
+        public int EveryBursts = 25;   // 10-14 2차: 10 → 25. 10-16: 이제 다 차면 포스터를 쏴서 부른다 (충전 2칸·5초 기준 2분 남짓)
         /// <summary>첫 현상금은 터뜨림 이만큼에서 (10-14: 0:34에 나와 너무 일렀다 → 튜토리얼 흐름의 3분쯤)</summary>
         public int FirstAt = 45;
         /// <summary>도주 시간 (초, 선반에 내려앉은 때부터). 떨어져도 안 끝나고 이 시간이 다 되면 도망간다 (사용자 10-14, 첫 시험값)</summary>
@@ -64,6 +64,7 @@ namespace TinCan
             var paper = new Color(0.86f, 0.74f, 0.5f);
             var ink = new Color(0.25f, 0.15f, 0.08f);
             poster = Ui.Image("Poster", canvas, new Vector2(-720f, 180f), new Vector2(300f, 400f), ink);
+            posterGroup = poster.gameObject.AddComponent<CanvasGroup>(); posterGroup.blocksRaycasts = false;
             Ui.Image("Paper", poster.transform, Vector2.zero, new Vector2(288f, 388f), paper);
             Ui.Image("Line1", poster.transform, new Vector2(0f, 120f), new Vector2(250f, 4f), ink);
             Ui.Image("Line2", poster.transform, new Vector2(0f, -110f), new Vector2(250f, 4f), ink);
@@ -83,14 +84,57 @@ namespace TinCan
             poster.gameObject.SetActive(false);
         }
 
-        /// <summary>터뜨린 수가 조건을 넘으면 부른다</summary>
+        // ---------- 벽의 수배 포스터 (10-16 사용자): 현상금은 자동으로 오지 않는다 ----------
+        // 터뜨릴 때마다 포스터가 선명해지고, 다 차면 흔들린다 → 플레이어가 고른 때에 포스터를 쏘면 온다.
+        // 놓치면 다시 흐려진다 (잃는 건 시간). 첫 현상금만 우클릭 배우기 끝에 Game이 바로 부른다
+        CanvasGroup posterGroup;
+        ShootButton target;
+        float posterAlpha, posterAlphaV;
+        bool told;
+        /// <summary>다음 현상금까지 0~1</summary>
+        public float Progress => nextAt == 0 ? 0f : Mathf.Clamp01(1f - (nextAt - Game.I.Bursts) / (float)EveryBursts);
+        public bool Ready => !busy && Game.I != null && Game.I.FirstBountyDone && nextAt > 0 && Game.I.Bursts >= nextAt;
+
         public void Tick()
         {
-            if (busy || Game.I == null || Game.I.State != GameState.Play) return;
-            if (!Game.I.FirstBountyDone) return;   // 10-15: 첫 현상금은 우클릭 배우기 끝에 Game이 부른다
-            if (nextAt == 0) nextAt = Game.I.Bursts + EveryBursts;   // 새 게임은 FirstAt, 이어 하기는 지금부터 한 간격 뒤
-            if (Game.I.Bursts >= nextAt && !Game.I.SetActive && !Game.I.Settling && Game.I.Airborne == 0) Summon();   // 10-14 사용자: 조건이 차도 세트가 끝난 뒤에 (저글링 도중에 끼어들지 않게)
+            var g = Game.I;
+            if (busy || g == null || g.State != GameState.Play) { if (target != null) target.gameObject.SetActive(false); return; }
+            if (!g.FirstBountyDone) return;   // 10-15: 첫 현상금은 우클릭 배우기 끝에 Game이 부른다
+            if (nextAt == 0) nextAt = g.Bursts + EveryBursts;   // 이어 하기는 지금부터 한 간격 뒤
+            if (target == null) target = ShootButton.Bare("Poster", () => { if (Ready && Calm) Summon(); });
+            // 포스터: 흐릿하게(0.25) 있다가 터뜨릴수록 선명해지고(0.75), 다 차면 또렷하게 흔들린다
+            if (!poster.gameObject.activeSelf)
+            {
+                poster.gameObject.SetActive(true);
+                var r = poster.rectTransform; r.anchoredPosition = PosterHome; r.localScale = Vector3.one; r.localRotation = Quaternion.Euler(0f, 0f, -6f);
+                stamp.text = ""; posterAlpha = 0f;
+                foreach (var p in pips) p.color = Color.clear;
+            }
+            bool ready = Ready;
+            float p01 = Progress;
+            if (ready && Calm && !told && !g.MenuOpen) { told = true; Bartender.I?.SayNow("수배지가 다 찼군. 준비되면 저걸 쏴."); }   // 처음 한 번만 알려 준다
+            Ease.Spring(ref posterAlpha, ref posterAlphaV, ready ? 1f : Mathf.Lerp(0.25f, 0.75f, p01), 120f, 22f, Time.unscaledDeltaTime);
+            posterGroup.alpha = Mathf.Clamp01(posterAlpha);
+            amount.text = "$ ? ? ?";
+            hp.text = ready ? "" : $"터뜨림 {Mathf.Max(0, EveryBursts - (nextAt - g.Bursts))} / {EveryBursts}";
+            timer.text = ready ? (Calm ? "쏘면 온다" : "세트가 끝나면") : "";
+            timer.color = Ui.Gold;
+            var rt = poster.rectTransform;
+            rt.localRotation = Quaternion.Euler(0f, 0f, -6f + (ready && Calm ? Mathf.Sin(Time.unscaledTime * 9f) * 3f : 0f));
+            rt.localScale = Vector3.one * (ready && Calm ? 1f + Mathf.Max(0f, Mathf.Sin(Time.unscaledTime * 4.5f)) * 0.04f : 1f);
+            // 맞는 자리: 포스터 그 자리 (세트 중엔 꺼 둔다 — 저글링하다 실수로 부르지 않게)
+            bool live = ready && Calm && !g.MenuOpen;
+            target.gameObject.SetActive(live);
+            if (live)
+            {
+                var c = new Vector3[4]; rt.GetWorldCorners(c);
+                target.transform.position = (c[0] + c[2]) * 0.5f;
+                target.GetComponent<BoxCollider2D>().size = new Vector2(Mathf.Abs(c[2].x - c[0].x), Mathf.Abs(c[2].y - c[0].y));
+            }
         }
+        /// <summary>세트 중이 아니다 (공중 깡통·정산 없음)</summary>
+        static bool Calm => !Game.I.SetActive && !Game.I.Settling && Game.I.Airborne == 0;
+        static readonly Vector2 PosterHome = new Vector2(-720f, 180f);
 
         /// <summary>현상금 등장: 보스 종류 중 하나 (10-14: 보통 / 구르는 무법자 반반)</summary>
         public void Summon() => Summon(!Game.I.FirstBountyDone ? CanKind.BountyFirst : Random.value < 0.5f ? CanKind.Bounty : CanKind.BountyRoller);   // 10-15: 첫 현상금은 체력 8 보통형
@@ -110,18 +154,37 @@ namespace TinCan
             amount.text = $"${bounty:N0}";
             stamp.text = "";
             foreach (var p in pips) p.color = new Color(0.25f, 0.15f, 0.08f);
-            // 포스터가 구석에서 돌며 들어온다
-            poster.gameObject.SetActive(true);
             var rt = poster.rectTransform;
-            Sfx.Play(Sfx.Twirl(), 0.8f, 0.8f);
-            Fx.Shake(0.4f);
-            for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.2f)
+            if (target != null) target.gameObject.SetActive(false);
+            if (poster.gameObject.activeSelf && posterAlpha > 0.5f)
             {
-                float e = 1f - Mathf.Pow(1f - t, 3f);
-                rt.anchoredPosition = Vector2.Lerp(new Vector2(-1300f, 700f), new Vector2(-720f, 180f), e);
-                rt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-540f, -6f, e));
-                rt.localScale = Vector3.one * Mathf.Lerp(0.3f, 1f, e);
-                yield return null;
+                // 벽의 포스터를 쐈다 (10-16): 그 자리에서 쾅 — 또렷해지며 부풀었다 선다
+                posterGroup.alpha = 1f;
+                Sfx.Play(Sfx.Bang(), 0.7f, 0.7f);
+                Fx.Shake(0.5f);
+                for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 3f)
+                {
+                    rt.localScale = Vector3.one * (1f + Mathf.Sin(t * Mathf.PI) * 0.18f);
+                    rt.localRotation = Quaternion.Euler(0f, 0f, -6f + Mathf.Sin(t * Mathf.PI * 3f) * 10f * (1f - t));
+                    yield return null;
+                }
+                rt.localScale = Vector3.one;
+            }
+            else
+            {
+                // 포스터가 구석에서 돌며 들어온다 (첫 현상금·시험 키)
+                poster.gameObject.SetActive(true);
+                posterGroup.alpha = 1f;
+                Sfx.Play(Sfx.Twirl(), 0.8f, 0.8f);
+                Fx.Shake(0.4f);
+                for (float t = 0f; t < 1f; t += Time.unscaledDeltaTime * 2.2f)
+                {
+                    float e = 1f - Mathf.Pow(1f - t, 3f);
+                    rt.anchoredPosition = Vector2.Lerp(new Vector2(-1300f, 700f), PosterHome, e);
+                    rt.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-540f, -6f, e));
+                    rt.localScale = Vector3.one * Mathf.Lerp(0.3f, 1f, e);
+                    yield return null;
+                }
             }
             rt.localRotation = Quaternion.Euler(0f, 0f, -6f);
             Game.I.Hud.Float("현상수배!", new Vector2(0f, 2.5f), 10);
