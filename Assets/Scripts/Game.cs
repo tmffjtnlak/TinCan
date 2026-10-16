@@ -515,7 +515,7 @@ namespace TinCan
         /// <summary>잡은 현상금 수 (진열장 표시, 저장)</summary>
         public int BountiesCaught { get; set; }
         const float SpawnPromptDelay = 8f;
-        const int SlowLessonAt = 24;
+        const int SlowLessonAt = 12;   // 10-16 사용자: 24 → 절반 (초반이 지루하다)
         bool slowLesson;
         /// <summary>
         /// 우클릭 배우기 (10-15): 주인이 올라와 "숨 한번 참아 봐" → 게이지를 가득 채워 주고 "우클릭을 누르고 있으면 느려진다" →
@@ -543,7 +543,7 @@ namespace TinCan
             if (!uiReady) return;
             int stage = (SummonUnlocked ? 1 : 0) + (ShopUnlocked ? 2 : 0) + (SlowUnlocked ? 4 : 0) + (DisplayUnlocked ? 8 : 0);
             if (stage != uiStage && !MenuOpen) { uiStage = stage; hud.SetStage(SummonUnlocked, ShopUnlocked, SlowUnlocked, DisplayUnlocked); }
-            // 우클릭 배우기: 같은 흐름이 3분쯤 이어진 때(터뜨림 24) 화면이 조용하면 (10-15 사용자: 여기서 한 번 변주 → 바로 첫 현상금)
+            // 우클릭 배우기: 터뜨림 12(10-16: 24의 절반)에 화면이 조용하면 (10-15 사용자: 여기서 한 번 변주 → 바로 첫 현상금)
             if (SummonUnlocked && !SlowUnlocked && !slowLesson && Bursts >= SlowLessonAt && !MenuOpen && !SetActive && !Settling && Airborne == 0 && !IntroRunning)
                 StartCoroutine(SlowLesson());
             bool canBuy = AnyAffordable();
