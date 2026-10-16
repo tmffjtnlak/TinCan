@@ -13,7 +13,7 @@ namespace TinCan
     public class Bounty : MonoBehaviour
     {
         /// <summary>지난 현상금이 끝난 뒤 터뜨린 수가 이만큼 차면 부른다 (10-14: 5 → 10, 끝난 때부터 다시 센다. 전엔 싸움 중 박치기도 세져서 끝나자마자 또 떴다)</summary>
-        public int EveryBursts = 25;   // 10-14 2차: 10 → 25. 10-16: 이제 다 차면 포스터를 쏴서 부른다 (충전 2칸·5초 기준 2분 남짓)
+        public int EveryBursts = 10;   // 10-16 사용자: 25(2분 남짓)는 길다 → 1분 안쪽. 충전 2칸·5초 = 분당 최대 12개라 10번이면 50초~1분
         /// <summary>첫 현상금은 터뜨림 이만큼에서 (10-14: 0:34에 나와 너무 일렀다 → 튜토리얼 흐름의 3분쯤)</summary>
         public int FirstAt = 45;
         /// <summary>도주 시간 (초, 선반에 내려앉은 때부터). 떨어져도 안 끝나고 이 시간이 다 되면 도망간다 (사용자 10-14, 첫 시험값)</summary>
