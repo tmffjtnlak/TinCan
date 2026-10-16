@@ -27,7 +27,8 @@ namespace TinCan
         public int BestCombo { get; private set; }
         public long BestPayout { get; private set; }
         public int Bursts { get; private set; }
-        public int MaxCans { get; set; } = 1;
+        /// <summary>선반에 놓일 수 있는 깡통 수 = 선반 폭의 물리적 한계일 뿐 (10-16 사용자: 선반 제한은 없앴다. 몇 개를 부르나는 충전 칸 수 SummonMax가 정한다)</summary>
+        public int MaxCans { get; set; } = 8;
         /// <summary>술집 주인을 쏜 횟수 (반응이 점점 짙어진다), 첫 터뜨림 대사를 들었나 (10-15, 저장)</summary>
         public int BartenderShots { get; set; }
         public bool SeenFirstBurst { get; set; }
@@ -35,7 +36,7 @@ namespace TinCan
         public bool FirstBountyDone { get; set; }
         /// <summary>주인이 "스킬트리 봐" 하고 권했나 (10-15)</summary>
         public bool TreeNudged { get; set; }
-        float treeWait;   // 10-15 사용자: 시작은 1칸 (하나만 확실히). "넓은 선반"을 사야 처음으로 저글링이 된다
+        float treeWait;
         /// <summary>스킬 "파편 튀기기" (10-15: 기본에서 뺐다 — 준비 안 된 저글링을 떠넘겨 불쾌했다): 터지면 선반 깡통이 다 튀어 오른다</summary>
         public bool ShrapnelPop { get; set; }
         public float ValueMult { get; set; } = 1f;

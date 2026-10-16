@@ -65,12 +65,12 @@ namespace TinCan
             slowLabel = Ui.Text("SlowLabel", canvas, new Vector2(760f, 170f), new Vector2(120f, 24f), 14, TextAnchor.MiddleCenter, Ui.Dim);
             slowLabel.text = "우클릭";
             // 깡통 충전 (10-16, 자리 임시): 카운터 왼쪽 아래에 빈 깡통 칸 둘. 아래에서 위로 차오르고, 다 차면 톡 튄다
-            chargeRoot = Ui.Rect("Charge", canvas, new Vector2(-700f, -330f), Vector2.zero);
+            chargeRoot = Ui.Rect("Charge", canvas, new Vector2(-720f, -330f), Vector2.zero);
             chargeLabel = Ui.Text("ChargeLabel", chargeRoot, new Vector2(0f, -52f), new Vector2(160f, 24f), 14, TextAnchor.MiddleCenter, Ui.Dim);
             chargeLabel.text = "Space";
             for (int i = 0; i < chargeCan.Length; i++)
             {
-                chargeCan[i] = Ui.Image($"Can{i}", chargeRoot, new Vector2(-24f + i * 48f, 0f), new Vector2(36f, 48f), new Color(0f, 0f, 0f, 0.45f));
+                chargeCan[i] = Ui.Image($"Can{i}", chargeRoot, new Vector2(-48f + i * 48f, 0f), new Vector2(36f, 48f), new Color(0f, 0f, 0f, 0.45f));
                 chargeFill[i] = Ui.Image("Fill", chargeCan[i].transform, Vector2.zero, new Vector2(30f, 42f), Look.Tin);
             }
             slowVeil = Ui.Image("SlowVeil", canvas, Vector2.zero, new Vector2(4000f, 3000f), Color.clear);
@@ -110,8 +110,8 @@ namespace TinCan
             btn[i].gameObject.SetActive(v);
         }
         RectTransform chargeRoot; Text chargeLabel;
-        readonly Image[] chargeCan = new Image[2], chargeFill = new Image[2];
-        readonly float[] chargeS = { 1f, 1f }, chargeSV = { 0f, 0f };
+        readonly Image[] chargeCan = new Image[6], chargeFill = new Image[6];   // 충전 칸은 트리로 늘어난다 (2 → 5)
+        readonly float[] chargeS = { 1f, 1f, 1f, 1f, 1f, 1f }, chargeSV = new float[6];
         /// <summary>충전 하나가 다 찼다: 그 칸이 톡 튄다</summary>
         public void ChargeFilled()
         {
