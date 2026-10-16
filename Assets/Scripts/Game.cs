@@ -201,7 +201,7 @@ namespace TinCan
         float lastSpawnX = float.NaN;
         int lastPage = 2;
 
-        void Awake() { I = this; Can.BounceBonus = 0f; Can.TimeScale = 1f; Can.JuggleFall = Can.NoJuggleFall; Can.AirFall = 1f; Can.ApexHang = 0f; Can.DynamiteChance = 0f; }   // 스킬로 바뀌는 정적 값은 씬마다 처음으로
+        void Awake() { I = this; RoundMode = PlayerPrefs.GetInt("roundMode", 0) == 1; Can.BounceBonus = 0f; Can.TimeScale = 1f; Can.JuggleFall = Can.NoJuggleFall; Can.AirFall = 1f; Can.ApexHang = 0f; Can.DynamiteChance = 0f; }   // 스킬로 바뀌는 정적 값은 씬마다 처음으로
 
         void Start()
         {
@@ -456,6 +456,7 @@ namespace TinCan
             {
                 if (DebugMoney) { Money = 999_999_999; Tokens = 99; }
                 if (kb.escapeKey.wasPressedThisFrame) CloseMenu();
+                hud.RoundInfo(RoundMode, RoundRunning, RoundLeft, AirCombo, AirMultNow, roundPending);   // 메뉴 중엔 숨긴다
                 return;
             }
             hud.Buttons(dtUnscaled: Time.unscaledDeltaTime, onTree: () => OpenMenu(2), onShop: () => OpenMenu(0), onDisplay: () => OpenMenu(1));
@@ -469,12 +470,14 @@ namespace TinCan
             if (kb.f7Key.wasPressedThisFrame) DebugSpawn(CanKind.Blue);
             if (kb.f8Key.wasPressedThisFrame) DebugSpawn(CanKind.Magnet);
             if (kb.f11Key.wasPressedThisFrame) DebugSpawn(CanKind.Bottle);
-            if (kb.f12Key.wasPressedThisFrame) DefileTest();   // 시험: 모독 연쇄 (10-16)   // 시험: 유리병 (10-15, 코르크 확인용)
+            if (kb.f12Key.wasPressedThisFrame) { if (kb.shiftKey.isPressed) DefileTest(); else ToggleRoundMode(); }   // F12 = 라운드 시험 켜고 끄기 (10-16) / Shift+F12 = 모독 연쇄 시험
             if (kb.f4Key.wasPressedThisFrame) bounty.Summon(kb.ctrlKey.isPressed ? CanKind.BountyGang : kb.shiftKey.isPressed ? CanKind.BountyRoller : CanKind.BountyTest);   // 시험: F4 체력 3 현상금 / Shift+F4 구르는 무법자 / Ctrl+F4 패거리 두목 (10-16)
             if (kb.f10Key.wasPressedThisFrame) CycleDebugTime();   // 디버그 슬로우
             // 1·2번 총 바꾸기는 뺐다 (10-16: 리볼버 한 자루)
             if (kb.digit3Key.wasPressedThisFrame) hud.Float("3: 투척류 — 아직 없다", new Vector2(0f, 1.5f), 0);
             TickSummon();
+            TickRound();
+            hud.RoundInfo(RoundMode, RoundRunning, RoundLeft, AirCombo, AirMultNow, roundPending);
             Nudge();
             bounty.Tick();
             UpdateSlow(kb);
@@ -544,7 +547,7 @@ namespace TinCan
             int stage = (SummonUnlocked ? 1 : 0) + (ShopUnlocked ? 2 : 0) + (SlowUnlocked ? 4 : 0) + (DisplayUnlocked ? 8 : 0);
             if (stage != uiStage && !MenuOpen) { uiStage = stage; hud.SetStage(SummonUnlocked, ShopUnlocked, SlowUnlocked, DisplayUnlocked); }
             // 우클릭 배우기: 터뜨림 12(10-16)에 화면이 조용하면 (10-15 사용자: 여기서 한 번 변주 → 바로 첫 현상금)
-            if (SummonUnlocked && !SlowUnlocked && !slowLesson && Bursts >= SlowLessonAt && !MenuOpen && !SetActive && !Settling && Airborne == 0 && !IntroRunning)
+            if (SummonUnlocked && !SlowUnlocked && !slowLesson && Bursts >= SlowLessonAt && !MenuOpen && !SetActive && !Settling && !RoundRunning && Airborne == 0 && !IntroRunning)
                 StartCoroutine(SlowLesson());
             bool canBuy = AnyAffordable();
             // 살 수 있는데 한참 안 열면 주인이 한 번 권한다 (10-15: 현상금 전엔 스킬트리로 유도)
@@ -688,6 +691,7 @@ namespace TinCan
         {
             if (!SummonUnlocked) return false;   // 시작 노드(깡통 소환)를 열어야 부를 수 있다
             spawnedOnce = true;
+            if (RoundMode) { if (!RoundRunning && !Settling) StartRound(); return RoundRunning; }   // 라운드 시험: Space = 라운드 시작 (라운드 중엔 깡통이 저절로 채워진다)
             long cost = SpawnCost(SpawnKind);
             if (Airborne > 0 && !BountyAlive) { Sfx.Play(Sfx.Click(), 0.5f, 0.6f);   // 현상금전엔 공중에 있어도 소환된다 (사용자 10-14: 터뜨린 깡통의 파편이 현상금을 깎으니 계속 깡통이 필요)
                 hud.Float("공중 깡통을 다 처리하면 소환", new Vector2(0f, Look.ShelfY + 0.9f), 0); return false; }
@@ -890,8 +894,15 @@ namespace TinCan
             if (k < 0.2f) lines.Clear();                      // 아주 작으면 합계 한 줄만
             Vector2 totalAt = Vector2.zero;
             yield return hud.Tally(lines, best ? $"${total:N0}  최고!" : $"${total:N0}", k, at => totalAt = at);
-            // 정산과 함께 바닥의 탄피가 점수판으로 빨려 들어간다 (사용자 10-13). 이번 세트에 흘린 탄피 전부에 합계를 나눠 싣는다.
-            // 가까운(왼쪽) 것부터 차례로, 쏟는 시간은 연출 크기로. 아직 떨어지는 중인 탄피는 눕는 순간 출발
+            yield return PayCasings(total, k);
+        }
+
+        /// <summary>
+        /// 정산과 함께 바닥의 탄피가 점수판으로 빨려 들어간다 (사용자 10-13). 흘린 탄피 전부에 합계를 나눠 싣는다.
+        /// 가까운(왼쪽) 것부터 차례로, 쏟는 시간은 연출 크기로. 아직 떨어지는 중인 탄피는 눕는 순간 출발
+        /// </summary>
+        IEnumerator PayCasings(long total, float k)
+        {
             var cs = setCasings.FindAll(c => c != null && !c.Flying);
             setCasings.Clear();
             if (cs.Count == 0) { Money += total; hud.BumpMoney(); yield break; }
@@ -914,9 +925,96 @@ namespace TinCan
             }
         }
 
+        // ---------- 라운드 시험 (10-16 사용자, Docs/Research-10-16.md) ----------
+        // 60초 라운드. 책상 위 깡통(칸 수 = SummonMax)을 쏘아 띄우고, 떨어지면 책상에 다시 앉는다 (바닥으로 안 감).
+        // 공중에서 연속으로 맞히면 배율이 쌓이고(×1 + 0.25씩), 어느 깡통이든 책상에 앉으면 끊긴다. 터지면 보상 × 배율이 라운드에 쌓이고
+        // 잠시 뒤 새 깡통이 책상에. 시간이 다 되면 정산(점수판 + 탄피) → Space로 다음 라운드. F12 = 켜고 끄기 (저장)
+        public bool RoundMode { get; private set; }
+        public bool RoundRunning { get; private set; }
+        public const float RoundSeconds = 60f;
+        public float RoundLeft { get; private set; }
+        public int AirCombo { get; private set; }
+        public int RoundBestCombo { get; private set; }
+        public float AirMultNow => 1f + 0.25f * AirCombo;
+        long roundPending; int roundBursts;
+
+        void ToggleRoundMode()
+        {
+            RoundMode = !RoundMode;
+            PlayerPrefs.SetInt("roundMode", RoundMode ? 1 : 0);
+            hud.Float(RoundMode ? "라운드 시험 켬  (Space = 시작)" : "라운드 시험 끔", new Vector2(0f, 2.4f), 10);
+            ClearTable();
+            RoundRunning = false; AirCombo = 0;
+            if (!RoundMode) { SetActive = false; SetPending = 0; }
+        }
+        /// <summary>책상·공중의 보통 깡통을 정산 없이 치운다</summary>
+        void ClearTable() { foreach (var c in Cans.ToArray()) if (c != null && !c.Done && !c.Kind.IsBounty && !c.Kind.IsMinion && !c.Kind.NotScored) c.Dismiss(); }
+        int TableCans() { int n = 0; foreach (var c in Cans) if (c != null && !c.Done && !c.Kind.IsBounty && !c.Kind.IsMinion && !c.Kind.NotScored) n++; return n; }
+
+        void StartRound()
+        {
+            if (RoundRunning || Settling || BountyAlive) return;
+            ClearTable();
+            RoundRunning = true; RoundLeft = RoundSeconds; AirCombo = 0; RoundBestCombo = 0; roundPending = 0; roundBursts = 0;
+            PlayLog.Event("round_start", "", SummonMax);
+            Sfx.Play(Sfx.Twirl(), 0.6f, 1.2f);
+            StartCoroutine(RefillTable(0f));
+        }
+        IEnumerator RefillTable(float delay)
+        {
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+            int n = 0;
+            while (RoundRunning && TableCans() < SummonMax)
+            {
+                var kind = RollKind();
+                var c = Can.Spawn(kind, new Vector2(FreeX(kind), Look.ShelfY + 0.11f + kind.Height * 0.5f));
+                Cans.Add(c);
+                Sfx.Play(Sfx.Reload(), 0.35f, 2.0f + n * 0.15f); n++;
+                yield return new WaitForSeconds(FillInterval);
+            }
+        }
+        void TickRound()
+        {
+            if (!RoundMode || !RoundRunning || MenuOpen) return;
+            RoundLeft -= Time.deltaTime;
+            if (RoundLeft <= 0f) { RoundLeft = 0f; RoundRunning = false; StartCoroutine(EndRound()); }
+        }
+        IEnumerator EndRound()
+        {
+            Settling = true;
+            Sfx.Play(Sfx.Bang(), 0.8f, 0.5f); Fx.Shake(0.6f);
+            hud.Float("라운드 끝!", new Vector2(0f, 2.2f), 12);
+            ClearTable();
+            yield return new WaitForSeconds(0.6f);
+            long total = roundPending; roundPending = 0;
+            PlayLog.Event("round", $"bursts{roundBursts}_combo{RoundBestCombo}", total);
+            bool best = total > BestPayout; if (best) BestPayout = total;
+            float k = Ceremony(total, best);
+            var lines = new List<(string, bool)> { ($"터뜨림  {roundBursts}개", true), ($"최고 공중 연속  {RoundBestCombo}  (×{1f + 0.25f * RoundBestCombo:0.##})", true) };
+            if (total > 0) { yield return hud.Tally(lines, best ? $"${total:N0}  최고!" : $"${total:N0}", k, _ => { }); yield return PayCasings(total, k); }
+            Settling = false;
+            hud.Float("Space = 다음 라운드", new Vector2(0f, Look.ShelfY + 1.2f), 8);
+        }
+        /// <summary>깡통이 책상에 다시 앉았다: 공중 연속이 끊긴다</summary>
+        public void CanTabled(Can can)
+        {
+            if (!RoundMode) return;
+            if (AirCombo >= 3) hud.Float($"끊김  ×{AirMultNow:0.##}", (Vector2)can.transform.position + Vector2.up * 0.7f, 2);
+            AirCombo = 0;
+        }
+
         public void CanHit(Can can, int earned, Vector2 at)
         {
             if (can.Kind.NotScored) { StartCoroutine(HitStop(0.02f)); return; }   // 다이너마이트: 세트·기록·배율·게이지 밖 (맞는 손맛만)
+            if (RoundMode && RoundRunning && !can.Kind.IsBounty && !can.Kind.IsMinion)
+            {
+                if (can.HitInAir) { AirCombo++; if (AirCombo > RoundBestCombo) RoundBestCombo = AirCombo; if (AirCombo % 4 == 0) hud.Float($"×{AirMultNow:0.##}", at + Vector2.up * 0.6f, 4); }
+                if (Gun.ReloadStreak > SetMaxStreak) SetMaxStreak = Gun.ReloadStreak;
+                Gun.OnComboHit(can.Combo);
+                FillSlow();
+                StartCoroutine(HitStop(AirCombo >= 5 ? 0.04f : 0.02f));
+                return;
+            }
             if (!SetActive) { SetActive = true; SetPending = 0; missed = false; SetMaxAir = 0; SetMaxStreak = 0; SetBurstMult = 1f; SetBursts = 0; }
             int air = Airborne;
             if (air > MostAirborne) MostAirborne = air;
@@ -977,6 +1075,17 @@ namespace TinCan
             // 스킬 "파편 튀기기": 하나가 터지면 선반의 모든 깡통이 파편에 튀어 오른다. 현상금은 제외 (파편 피해 규칙이 따로 있다)
             if (DefileRange > 0f && !Cascading && !can.Kind.IsBounty && !can.Kind.IsMinion) StartCoroutine(Defile(can.transform.position, can));   // 모독 연쇄 (10-16)
             if (ShrapnelPop) foreach (var c in Cans) if (c != null && c != can && !c.Done && !c.Airborne && !c.Kind.IsBounty) c.Pop(can.transform.position);
+            if (RoundMode && RoundRunning && !can.Kind.IsBounty && !can.Kind.IsMinion)
+            {
+                // 라운드 시험: 보상 × 공중 연속 배율이 라운드에 쌓인다. 잠시 뒤 새 깡통이 책상에
+                long rp = (long)Mathf.Round(BurstPay(can.Kind) * AirMultNow);
+                roundPending += rp; roundBursts++; Bursts++;
+                hud.Float(AirCombo > 0 ? $"터짐!  +${rp:N0}  ×{AirMultNow:0.##}" : $"터짐!  +${rp:N0}", (Vector2)can.transform.position + Vector2.up * 0.6f, 6);
+                if (!SeenFirstBurst) { SeenFirstBurst = true; Bartender.I?.SayNow("그렇지. 그 녀석도 이제 좀 편해졌겠군."); }
+                StartCoroutine(HitStop(0.07f));
+                StartCoroutine(RefillTable(0.8f));
+                return;
+            }
             long pay = JugglePay(can, BurstPay(can.Kind), out bool dbl);
             SetPending += pay;
             AddSetBurst();

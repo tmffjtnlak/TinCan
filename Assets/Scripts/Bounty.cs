@@ -133,7 +133,7 @@ namespace TinCan
             }
         }
         /// <summary>세트 중이 아니다 (공중 깡통·정산 없음)</summary>
-        static bool Calm => !Game.I.SetActive && !Game.I.Settling && Game.I.Airborne == 0;
+        static bool Calm => !Game.I.SetActive && !Game.I.Settling && !Game.I.RoundRunning && Game.I.Airborne == 0;   // 라운드 시험 중엔 라운드 사이에만
         static readonly Vector2 PosterHome = new Vector2(-720f, 180f);
 
         /// <summary>현상금 등장: 보스 종류 중 하나 (10-14: 보통 / 구르는 무법자 반반)</summary>

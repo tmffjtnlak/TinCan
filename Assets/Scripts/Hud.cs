@@ -109,6 +109,27 @@ namespace TinCan
             if (v && !btn[i].gameObject.activeSelf) { btnS[i] = 0.2f; btnSV[i] = 0f; Sfx.Play(Sfx.Tang(), 0.4f, 1.6f); }
             btn[i].gameObject.SetActive(v);
         }
+        // ---------- 라운드 시험 (10-16): 위 가운데에 남은 시간 · 공중 연속 배율 · 이번 라운드 돈 ----------
+        Text roundText, roundCombo;
+        public void RoundInfo(bool mode, bool running, float left, int combo, float mult, long pending)
+        {
+            if (roundText == null)
+            {
+                roundText = Ui.Text("RoundTime", canvas, new Vector2(0f, 440f), new Vector2(600f, 70f), 56, TextAnchor.MiddleCenter, Ui.Gold);
+                roundCombo = Ui.Text("RoundCombo", canvas, new Vector2(0f, 380f), new Vector2(900f, 44f), 28, TextAnchor.MiddleCenter, Color.white);
+                roundText.supportRichText = roundCombo.supportRichText = true;
+            }
+            bool show = mode && !game.MenuOpen;
+            roundText.gameObject.SetActive(show); roundCombo.gameObject.SetActive(show);
+            if (!show) { chargeRoot.gameObject.SetActive(game.SummonUnlocked && !game.MenuOpen && !mode); return; }
+            chargeRoot.gameObject.SetActive(false);   // 라운드 시험엔 충전 칸 대신 책상 깡통
+            if (!running) { roundText.text = game.Settling ? "" : "<size=34>Space = 라운드 시작</size>"; roundText.color = Ui.Gold; roundCombo.text = ""; return; }
+            int s = Mathf.CeilToInt(left);
+            roundText.text = $"{s / 60}:{s % 60:00}";
+            roundText.color = left < 10f ? new Color(1f, 0.4f, 0.3f) : Ui.Gold;
+            roundCombo.text = (combo > 0 ? $"공중 연속 {combo}   <color=#ffd966>×{mult:0.##}</color>" : "<color=#999999>공중 연속 0</color>") + $"     이번 라운드 ${pending:N0}";
+        }
+
         RectTransform chargeRoot; Text chargeLabel;
         readonly Image[] chargeCan = new Image[6], chargeFill = new Image[6];   // 충전 칸은 트리로 늘어난다 (2 → 5)
         readonly float[] chargeS = { 1f, 1f, 1f, 1f, 1f, 1f }, chargeSV = new float[6];

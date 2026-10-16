@@ -93,6 +93,8 @@ namespace TinCan
         public long Earned { get; private set; }     // 쌓인 돈 (정산 전)
         public bool Airborne { get; private set; }
         public bool Done { get; private set; }
+        /// <summary>마지막 한 발을 공중에서 맞았나 (책상 위에서 띄운 첫 발이면 false)</summary>
+        public bool HitInAir { get; private set; }
         /// <summary>업그레이드 "가벼운 깡통": 맞을 때 위로 더 튄다</summary>
         public static float BounceBonus;
         /// <summary>슬로우(우클릭): 깡통만 시간이 느려진다. 1 = 보통. 속도는 비례, 중력은 제곱으로 줄여야 진짜 시간 느려짐과 같다</summary>
@@ -136,14 +138,16 @@ namespace TinCan
             else if (Airborne && !held && !parked && !Kind.NotScored)
             {
                 float vy = rb.linearVelocity.y;
-                if (rising && vy <= 0f && ApexHang > 0f) hangLeft = ApexHang;   // 막 꼭대기
+                bool pure = Game.I != null && Game.I.RoundMode;   // 라운드 시험 (10-16): 중력은 성역 — 낙하 완화·꼭대기 체공 없이 원래 낙하
+                if (rising && vy <= 0f && ApexHang > 0f && !pure) hangLeft = ApexHang;   // 막 꼭대기
                 rising = vy > 0f;
                 float hang = 1f;
                 if (hangLeft > 0f) { hangLeft -= Time.fixedDeltaTime * Scale; hang = 0.25f; }
-                rb.gravityScale = Gravity * (vy < 0f ? JuggleFallMul() * AirFall : 1f) * hang;
+                rb.gravityScale = Gravity * (vy < 0f && !pure ? JuggleFallMul() * AirFall : 1f) * hang;
             }
+            if (Game.I != null && Game.I.RoundMode && TryTableLand()) return;
             // 스킬 "바닥 근처 느려짐": 떨어지다 바닥 가까이 오면 속도가 반으로 (한 번만, 다시 맞으면 초기화)
-            if (Airborne && !floorSlowed && Game.I != null && Game.I.FloorSlow > 0f && rb.linearVelocity.y < 0f && transform.position.y < Look.DropY + 1.6f)
+            if (Airborne && !floorSlowed && Game.I != null && Game.I.FloorSlow > 0f && !Game.I.RoundMode && rb.linearVelocity.y < 0f && transform.position.y < Look.DropY + 1.6f)
             {
                 floorSlowed = true;
                 var v = rb.linearVelocity; v.y *= 1f - Game.I.FloorSlow; rb.linearVelocity = v;
@@ -515,6 +519,7 @@ namespace TinCan
             if (flyLeft > 0f) flyLeft = 0f;   // 날던 깡통은 맞으면 평범하게 튄다 (그다음은 중력)
             if (crouching) { crouching = false; held = false; if (rb != null) rb.gravityScale = Gravity; }   // 바닥에 웅크린 현상금을 맞히면 그 한 발로 뜬다
             SyncScale();   // 속도 계산 전에 배수부터 맞춘다 (느려지기 켜고 끄는 프레임 버그)
+            HitInAir = Airborne;   // 라운드 시험: 공중에서 맞혔나 (공중 연속 배율)
             if (!Airborne)
             {
                 Airborne = true;
@@ -843,10 +848,43 @@ namespace TinCan
             if (rb.linearVelocity.y <= 0f && transform.position.y < Look.DropY - 0.7f) OnFloor();
         }
 
+        // ---------- 라운드 시험 (10-16 사용자): 떨어져도 바닥으로 안 가고 책상에 다시 앉는다. 벌은 공중 연속 배율이 끊기는 것뿐 ----------
+        bool TableEligible => Airborne && !Done && !ramming && !held && !parked && !ChainHeld && !IsMenu && !Kind.IsBounty && !Kind.IsMinion && !Kind.NotScored;
+        /// <summary>떨어지다 책상 높이에 닿았고 책상 위라면 그 자리에 앉는다</summary>
+        bool TryTableLand()
+        {
+            if (!TableEligible || rb.linearVelocity.y > 0f) return false;
+            float top = Look.ShelfY + 0.11f, hw = Kind.Width * 0.5f;
+            if (transform.position.y - Kind.Height * 0.5f > top) return false;
+            if (transform.position.y < top - 0.6f) return false;   // 이미 책상 아래로 지나간 것 (옆으로 빠졌다가 들어온 것) → 바닥에서 처리
+            float x = transform.position.x;
+            if (x < Look.ShelfLeft + hw || x > Look.ShelfRight - hw) return false;
+            SitOnTable(x);
+            return true;
+        }
+        /// <summary>책상 위 x에 앉힌다 (속도 0, 회전 0, 책상과 다시 부딪힘). 연속은 0으로, Game에 알린다</summary>
+        void SitOnTable(float x)
+        {
+            Airborne = false; Combo = 0; floorSlowed = false; hangLeft = 0f; flyLeft = 0f; floatLeft = 0f;
+            rb.linearVelocity = Vector2.zero; rb.angularVelocity = 0f;
+            transform.rotation = Quaternion.identity;
+            transform.position = new Vector3(x, Look.ShelfY + 0.11f + Kind.Height * 0.5f, 0f);
+            rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+            rb.gravityScale = Gravity;
+            var shelf = Object.FindFirstObjectByType<Shelf>();
+            if (shelf != null) Physics2D.IgnoreCollision(GetComponent<Collider2D>(), shelf.GetComponent<Collider2D>(), false);
+            Sfx.Play(Sfx.Drop(), 0.45f, Kind.Pitch * 1.1f);
+            Fx.Dust(new Vector2(x, Look.ShelfY + 0.15f), 4, 0.6f);
+            StartCoroutine(Squash());
+            Game.I?.CanTabled(this);
+        }
+
         void OnFloor()
         {
             if (Done || !Airborne || ramming) return;
             if (rb != null && rb.linearVelocity.y > 0f) return;   // 올라가는 중엔 바닥 판정 없음 (화면 아래에서 던져진 다이너마이트가 지나간다)
+            // 라운드 시험: 책상 밖으로 떨어졌어도 바닥에서 끝나지 않고 책상 빈자리로 돌아온다
+            if (Game.I != null && Game.I.RoundMode && TableEligible) { Fx.Cloud(transform.position, 0.6f); SitOnTable(Game.I.FreeX(Kind)); return; }
             if (ChainHeld) { SyncScale(); parked = true; rb.linearVelocity = Vector2.zero; rb.gravityScale = 0f; return; }   // 연쇄 차례를 기다리는 중: 바닥에서 멈춰 기다린다
             // 현상금은 떨어져도 바로 끝이 아니다 (사용자 10-14): 웅크렸다 스스로 튀어 오른다. 2번까지 — 그다음 바닥에선 도망간다
             if (Kind.IsMinion && Game.I != null && Game.I.BountyAlive) { StartCoroutine(BountyRebound()); return; }   // 부하: 현상금이 있는 동안 무한히 다시 뛴다
